@@ -15,6 +15,7 @@ import math
 import utils 
 import hmc 
 
+import pdb
 
 from torch.distributions.normal import Normal
 
@@ -40,10 +41,18 @@ def presgan_encoder(dat, netG, netE, args):
             batch_size = real_cpu.size(0)
             label = torch.full((batch_size,), real_label, device=device, dtype=torch.int8)
 
-            output = netE(real_cpu)
-            errE = criterion(output, label)
+            outputE = netE(real_cpu)
+            outputG = netG(outputE)
+
+
+            errE = criterion_mse(real_cpu, outputG)
+
+            #pdb.set_trace()
+            #output.shape()
+            #errE = criterion(output, label)
+
             errE.backward()
-            E_x = output.mean().item()
+            E_x = outputG.mean().item()
             optimizerE.step()
 
             ## train with fake
