@@ -17,7 +17,7 @@ import torch.nn.functional as F
 import utils 
 import data 
 import nets
-import train_TB
+import train_likelihood
 import shutil
 
 
@@ -122,6 +122,11 @@ print('{} Generator: {}'.format(args.model.upper(), netG))
 netD = nets.Discriminator(args.imageSize, args.ndf, dat['nc']).to(device) 
 print('{} Discriminator: {}'.format(args.model.upper(), netD))
 
+#### defining encoder
+netE = nets.Encoder(args.imageSize, args.nz, args.ngf, dat['nc']).to(device) 
+print('{} Encoder: {}'.format(args.model.upper(), netE))
+
+
 #### initialize weights
 netG.apply(utils.weights_init)
 if args.ckptG != '':
@@ -129,6 +134,9 @@ if args.ckptG != '':
 netD.apply(utils.weights_init)
 if args.ckptD != '':
     netD.load_state_dict(torch.load(args.ckptD))
+
+
+train_likelihood.presgan_encoder(dat, netG, netE, args)
 
 #### train a given model
 #if args.model == 'dcgan':
