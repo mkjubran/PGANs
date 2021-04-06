@@ -123,7 +123,7 @@ netD = nets.Discriminator(args.imageSize, args.ndf, dat['nc']).to(device)
 print('{} Discriminator: {}'.format(args.model.upper(), netD))
 
 #### defining encoder
-netE = nets.Encoder(args.imageSize, args.nz, args.ngf, dat['nc']).to(device) 
+netE = nets.VAEncoder(args.imageSize, args.nz, args.ngf, dat['nc']).to(device) 
 print('{} Encoder: {}'.format(args.model.upper(), netE))
 
 
@@ -136,7 +136,7 @@ if args.ckptD != '':
     netD.load_state_dict(torch.load(args.ckptD))
 
 
-train_likelihood.presgan_encoder(dat, netG, netE, args)
+train_likelihood.presgan_vaencoder(dat, netG, netE, args)
 
 #### train a given model
 #if args.model == 'dcgan':

@@ -93,3 +93,42 @@ class Encoder(nn.Module):
     def forward(self, input):
         output = self.main(input)
         return output
+
+
+class VAEncoder(nn.Module):
+    def __init__(self, imgSize, nz, ngf, nc):
+        super(VAEncoder, self).__init__()
+        
+        self.main = nn.Sequential(
+            # input is (nc) x 64 x 64
+            nn.Conv2d(nc, ngf, 4, 2, 1, bias=False),
+            nn.ReLU(True),
+            # state size. (ngf) x 32 x 32
+            nn.Conv2d(ngf, ngf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf * 2),
+            nn.ReLU(True),
+            # state size. (ngf*2) x 16 x 16
+            nn.Conv2d(ngf * 2, ngf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf * 4),
+            nn.ReLU(True),
+            # state size. (ngf*4) x 8 x 8
+            nn.Conv2d(ngf * 4, ngf * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ngf * 8),
+            nn.ReLU(True),
+            # state size. (ngf*8) x 4 x 4
+            nn.Conv2d(ngf * 8, nz, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(nz),
+            nn.ReLU(True),
+            nn.Flatten(),
+        )
+
+        # distribution parameters
+        self.fc_mu = nn.Linear(nz, nz)
+        self.fc_var = nn.Linear(nz, nz)
+
+    def forward(self, input):
+        output = self.main(input)
+        mu = self.fc_mu(output)
+        var = self.fc_var(output)
+        return mu, var
+
