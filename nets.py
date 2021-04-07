@@ -98,7 +98,7 @@ class Encoder(nn.Module):
 class VAEncoder(nn.Module):
     def __init__(self, imgSize, nz, ngf, nc):
         super(VAEncoder, self).__init__()
-        
+        '''
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
             nn.Conv2d(nc, ngf, 4, 2, 1, bias=False),
@@ -120,6 +120,12 @@ class VAEncoder(nn.Module):
             nn.BatchNorm2d(nz),
             nn.ReLU(True),
             nn.Flatten(),
+        )
+        '''
+
+        self.main = nn.Sequential(
+           nn.Conv2d(nc, ngf, 4, 2, 1, bias=False),
+           nn.Conv2d(ngf, ngf, 4, 2, 1, bias=False),
         )
 
         # distribution parameters

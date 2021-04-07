@@ -17,12 +17,47 @@ import hmc
 
 import pdb
 
+import PGAN_VAE
+
 from torch.distributions.normal import Normal
 
 real_label = 1
 fake_label = 0
 criterion = nn.BCELoss()
 criterion_mse = nn.MSELoss()
+
+def train_PGAN_VAE(dat, netG, args):
+    writer = SummaryWriter(args.results_folder_TB)
+    device = args.device
+
+    VAE = PGAN_VAE.Network(dat, netG, args.nz, args.ngf, dat['nc'])
+    VAE.to(device)
+
+    X_training = dat['X_train'].to(device)
+    fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
+    #optimizerE = optim.Adam(netE.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
+    #optimizerG = optim.Adam(netG.parameters(), lr=args.lrG, betas=(args.beta1, 0.999)) 
+    for epoch in range(1, args.epochs+1):
+        for i in range(0, len(X_training), args.batchSize):
+            stop = min(args.batchSize, len(X_training[i:]))
+            real_cpu = X_training[i:i+stop].to(device)
+
+            batch_size = real_cpu.size(0)
+            label = torch.full((batch_size,), real_label, device=device, dtype=torch.int8)
+
+            output = VAE.forward(real_cpu)
+            pdb.set_trace()
+
+            # sample z from q
+            std = torch.exp(log_var / 2)
+            q = torch.distributions.Normal(mu, std)
+            z = torch.unsqueeze(z, 2)
+            z = torch.unsqueeze(z, 3)
+            #pdb.set_trace()
+
+            # decoded - GAN Generator
+            outputG = netG(z)
+            #pdb.set_trace()
 
 
 def presgan_encoder(dat, netG, netE, args):

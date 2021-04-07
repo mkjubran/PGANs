@@ -17,9 +17,10 @@ import torch.nn.functional as F
 import utils 
 import data 
 import nets
-import train_likelihood
+import train_likelihoodc
 import shutil
 
+import PGAN_VAE
 
 parser = argparse.ArgumentParser()
 
@@ -93,9 +94,9 @@ if not os.path.exists(args.results_folder):
 
 if not os.path.exists(args.results_folder_TB):
     os.makedirs(args.results_folder_TB)
-#else:
-#    shutil.rmtree(args.results_folder_TB)
-#    os.makedirs(args.results_folder_TB)
+else:
+    shutil.rmtree(args.results_folder_TB)
+    os.makedirs(args.results_folder_TB)
 
 if not os.path.exists(args.dataroot):
     os.makedirs(args.dataroot)
@@ -119,24 +120,25 @@ if args.model == 'presgan':
 print('{} Generator: {}'.format(args.model.upper(), netG))
 
 #### defining discriminator
-netD = nets.Discriminator(args.imageSize, args.ndf, dat['nc']).to(device) 
-print('{} Discriminator: {}'.format(args.model.upper(), netD))
+#netD = nets.Discriminator(args.imageSize, args.ndf, dat['nc']).to(device) 
+#print('{} Discriminator: {}'.format(args.model.upper(), netD))
 
 #### defining encoder
-netE = nets.VAEncoder(args.imageSize, args.nz, args.ngf, dat['nc']).to(device) 
-print('{} Encoder: {}'.format(args.model.upper(), netE))
+#netE = nets.VAEncoder(args.imageSize, args.nz, args.ngf, dat['nc']).to(device) 
+#print('{} Encoder: {}'.format(args.model.upper(), netE))
 
 
 #### initialize weights
 netG.apply(utils.weights_init)
 if args.ckptG != '':
     netG.load_state_dict(torch.load(args.ckptG))
-netD.apply(utils.weights_init)
-if args.ckptD != '':
-    netD.load_state_dict(torch.load(args.ckptD))
+#netD.apply(utils.weights_init)
+#if args.ckptD != '':
+#    netD.load_state_dict(torch.load(args.ckptD))
 
 
-train_likelihood.presgan_vaencoder(dat, netG, netE, args)
+#train_likelihood.train_PGAN_VAE(dat, netG, netE, args)
+train_likelihoodc.train_PGAN_VAE(dat, netG, args)
 
 #### train a given model
 #if args.model == 'dcgan':
