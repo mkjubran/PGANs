@@ -38,9 +38,9 @@ class Network(torch.nn.Module):
 
     def forward(self, input):
         output = self.main(input)
-        #mu = self.fc_mu(output)
-        #var = self.fc_var(output)
-        return output
+        mu = self.fc_mu(output)
+        var = self.fc_var(output)
+        return output, mu, var
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-4)

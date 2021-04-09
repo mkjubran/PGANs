@@ -37,6 +37,8 @@ def train_PGAN_VAE(dat, netG, args):
     fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
     #optimizerE = optim.Adam(netE.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
     #optimizerG = optim.Adam(netG.parameters(), lr=args.lrG, betas=(args.beta1, 0.999)) 
+
+    optimizerVAE = optim.Adam(VAE.parameters(), lr=args.lrE, betas=(args.beta1, 0.999))
     for epoch in range(1, args.epochs+1):
         for i in range(0, len(X_training), args.batchSize):
             stop = min(args.batchSize, len(X_training[i:]))
@@ -45,84 +47,7 @@ def train_PGAN_VAE(dat, netG, args):
             batch_size = real_cpu.size(0)
             label = torch.full((batch_size,), real_label, device=device, dtype=torch.int8)
 
-            output = VAE.forward(real_cpu)
-            pdb.set_trace()
-
-            # sample z from q
-            std = torch.exp(log_var / 2)
-            q = torch.distributions.Normal(mu, std)
-            z = torch.unsqueeze(z, 2)
-            z = torch.unsqueeze(z, 3)
-            #pdb.set_trace()
-
-            # decoded - GAN Generator
-            outputG = netG(z)
-            #pdb.set_trace()
-
-
-def presgan_encoder(dat, netG, netE, args):
-    writer = SummaryWriter(args.results_folder_TB)
-    device = args.device
-    X_training = dat['X_train'].to(device)
-    fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
-    optimizerE = optim.Adam(netE.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
-    #optimizerG = optim.Adam(netG.parameters(), lr=args.lrG, betas=(args.beta1, 0.999)) 
-    for epoch in range(1, args.epochs+1):
-        for i in range(0, len(X_training), args.batchSize):
-            netE.zero_grad()
-            stop = min(args.batchSize, len(X_training[i:]))
-            real_cpu = X_training[i:i+stop].to(device)
-
-            batch_size = real_cpu.size(0)
-            label = torch.full((batch_size,), real_label, device=device, dtype=torch.int8)
-
-            outputE = netE(real_cpu)
-            outputG = netG(outputE)
-
-
-            errE = criterion_mse(real_cpu, outputG)
-
-            errE.backward()
-            E_x = outputG.mean().item()
-            optimizerE.step()
-
-            ## log performance
-            if i % args.log == 0:
-                print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_E: %.4f .. E(x): %.4f'
-                        % (epoch, args.epochs, i, len(X_training), errE.data, E_x))
-
-                #log performance to tensorboard
-                writer.add_scalar("Loss_E/train", errE.data, epoch)
-                writer.add_scalar("E_x/train", E_x, epoch)
-                #-------------
-
-        print('*'*100)
-        print('End of epoch {}'.format(epoch))
-        print('*'*100)
-
-        if epoch % args.save_ckpt_every == 0:
-            torch.save(netG.state_dict(), os.path.join(args.results_folder, 'netG_dcgan_%s_epoch_%s.pth'%(args.dataset, epoch)))
-
-    writer.flush()
-
-
-def presgan_vaencoder(dat, netG, netE, args):
-    writer = SummaryWriter(args.results_folder_TB)
-    device = args.device
-    X_training = dat['X_train'].to(device)
-    fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
-    optimizerE = optim.Adam(netE.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
-    #optimizerG = optim.Adam(netG.parameters(), lr=args.lrG, betas=(args.beta1, 0.999)) 
-    for epoch in range(1, args.epochs+1):
-        for i in range(0, len(X_training), args.batchSize):
-            netE.zero_grad()
-            stop = min(args.batchSize, len(X_training[i:]))
-            real_cpu = X_training[i:i+stop].to(device)
-
-            batch_size = real_cpu.size(0)
-            label = torch.full((batch_size,), real_label, device=device, dtype=torch.int8)
-
-            mu, log_var = netE(real_cpu)
+            z, mu, log_var = VAE.forward(real_cpu)
             #pdb.set_trace()
 
             # sample z from q
@@ -139,35 +64,38 @@ def presgan_vaencoder(dat, netG, netE, args):
             # reconstruction loss
             log_scale = nn.Parameter(torch.Tensor([0.0]))
             logscale = log_scale.to(device)
-            recon_loss = gaussian_likelihood(outputG, logscale, real_cpu)
+            recon_loss = VAE.gaussian_likelihood(outputG, logscale, real_cpu)
             #pdb.set_trace()
 
             # kl
-            kl = kl_divergence(z, mu, std)
+            kl = VAE.kl_divergence(z, mu, std)
             #pdb.set_trace()
 
             # elbo
             elbo = (kl - recon_loss)
             #pdb.set_trace()
-
+            
             elbo = elbo.mean()
             #pdb.set_trace()
 
             #errE = criterion_mse(real_cpu, outputG,args)
-            errE = 1 * elbo
+            errE = -1 * elbo
 
             errE.backward()
             E_x = outputG.mean().item()
-            optimizerE.step()
+            optimizerVAE.step()
 
             ## log performance
             if i % args.log == 0:
-                print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_E: %.4f .. E(x): %.4f'
-                        % (epoch, args.epochs, i, len(X_training), errE.data, E_x))
+                print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_E: %.4f ..(kl: %.4f, recon_loss: %.4f) .. E(x): %.4f'
+                        % (epoch, args.epochs, i, len(X_training), errE.data, kl.mean(), recon_loss.mean(), E_x))
 
                 #log performance to tensorboard
                 writer.add_scalar("Loss_E/train", errE.data, epoch)
                 writer.add_scalar("E_x/train", E_x, epoch)
+                writer.add_scalar("kl/train", kl.mean(), epoch)
+                writer.add_scalar("recon_loss/train", recon_loss.mean(), epoch)
+
                 #-------------
 
         print('*'*100)
@@ -178,31 +106,3 @@ def presgan_vaencoder(dat, netG, netE, args):
             torch.save(netG.state_dict(), os.path.join(args.results_folder, 'netG_dcgan_%s_epoch_%s.pth'%(args.dataset, epoch)))
 
     writer.flush()
-
-
-def gaussian_likelihood(x_hat, logscale, x):
-        scale = torch.exp(logscale)
-        mean = x_hat
-        dist = torch.distributions.Normal(mean, scale)
- 
-        #measure prob of seeing image under p(x|z)
-        log_pxz = dist.log_prob(x)
-        return log_pxz.sum(dim=(1, 2, 3))
-
-
-def kl_divergence(z, mu, std):
-        # --------------------------
-        # Monte carlo KL divergence
-        # --------------------------
-        # 1. define the first two probabilities (in this case Normal for both)
-        p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
-        q = torch.distributions.Normal(mu, std)
-
-        # 2. get the probabilities from the equation
-        log_qzx = q.log_prob(z)
-        log_pz = p.log_prob(z)
-
-        # kl
-        kl = (log_qzx - log_pz)
-        kl = kl.sum(-1)
-        return kl
