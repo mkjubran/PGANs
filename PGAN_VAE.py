@@ -75,6 +75,35 @@ class Network(torch.nn.Module):
 
         return kl
 
+
+    def PGAN_ELBO(self, z, mu, std, x_hat, logscale, x):
+        # --------------------------
+        # Compute second part of Eq 20 in PresGAN paper
+        # --------------------------
+        # 1. define the first two probabilities (in this case Normal for both)
+        p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
+        q = torch.distributions.Normal(mu, std)
+
+        # 2. get the probabilities from the equation
+        log_qzx = q.log_prob(z)
+        log_pz = p.log_prob(z)
+
+        # 3. compute probability p(z) and p(z/x)
+        log_qzx_sum = log_qzx.sum(-1)
+        log_pz_sum = log_pz.sum(-1)
+
+        # 4. measure prob of seeing image under p(x|z)
+        scale = torch.exp(logscale)
+        mean = x_hat
+        dist = torch.distributions.Normal(mean, scale)
+        log_pxz = dist.log_prob(x)
+        log_pxz_sum = log_pxz.sum(dim=(1, 2, 3))
+
+        # 5. compute ELBO
+        ELBO = log_pxz_sum + log_pz_sum - log_qzx_sum
+
+        return log_qzx_sum, log_pz_sum, log_pxz_sum, ELBO
+
     def training_step(self, batch, batch_idx):
         x, _ = batch
 

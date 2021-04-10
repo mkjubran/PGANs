@@ -38,6 +38,7 @@ def train_PGAN_VAE(dat, netG, args):
     #optimizerE = optim.Adam(netE.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
     #optimizerG = optim.Adam(netG.parameters(), lr=args.lrG, betas=(args.beta1, 0.999)) 
 
+## print generator.parameters to make sure G is fixed
     optimizerVAE = optim.Adam(VAE.parameters(), lr=args.lrE, betas=(args.beta1, 0.999))
     for epoch in range(1, args.epochs+1):
         for i in range(0, len(X_training), args.batchSize):
@@ -47,13 +48,14 @@ def train_PGAN_VAE(dat, netG, args):
             batch_size = real_cpu.size(0)
             label = torch.full((batch_size,), real_label, device=device, dtype=torch.int8)
 
-            z, mu, log_var = VAE.forward(real_cpu)
+            zout, mu, log_var = VAE.forward(real_cpu)
             #pdb.set_trace()
 
             # sample z from q
             std = torch.exp(log_var / 2)
             q = torch.distributions.Normal(mu, std)
-            z = torch.unsqueeze(z, 2)
+            z = q.rsample(sample_shape=torch.Size([]))  ## sample z from q
+            z = torch.unsqueeze(z, 2)  
             z = torch.unsqueeze(z, 3)
             #pdb.set_trace()
 
@@ -61,25 +63,29 @@ def train_PGAN_VAE(dat, netG, args):
             outputG = netG(z)
             #pdb.set_trace()
 
-            # reconstruction loss
+            # reconstruction loss --> log_pxz
             log_scale = nn.Parameter(torch.Tensor([0.0]))
             logscale = log_scale.to(device)
             recon_loss = VAE.gaussian_likelihood(outputG, logscale, real_cpu)
             #pdb.set_trace()
 
-            # kl
+            # kl ---> (log_qzx - log_pz)
             kl = VAE.kl_divergence(z, mu, std)
             #pdb.set_trace()
 
-            # elbo
-            elbo = (kl - recon_loss)
+            # elbo --> -1 * (kl - recon_loss)
+            #elbo = -1 * (kl - recon_loss)
+
+            # elbo --> [(log_qzx_sum - log_pz_sum) - log_pxz_sum]
+            log_qzx_sum, log_pz_sum, log_pxz_sum, ELBO = VAE.PGAN_ELBO(z, mu, std, outputG, logscale, real_cpu)
+            elbo = (log_pxz_sum + log_pz_sum - log_qzx_sum)
             #pdb.set_trace()
             
             elbo = elbo.mean()
             #pdb.set_trace()
 
             #errE = criterion_mse(real_cpu, outputG,args)
-            errE = -1 * elbo
+            errE = elbo
 
             errE.backward()
             E_x = outputG.mean().item()
@@ -87,14 +93,21 @@ def train_PGAN_VAE(dat, netG, args):
 
             ## log performance
             if i % args.log == 0:
-                print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_E: %.4f ..(kl: %.4f, recon_loss: %.4f) .. E(x): %.4f'
-                        % (epoch, args.epochs, i, len(X_training), errE.data, kl.mean(), recon_loss.mean(), E_x))
+                #print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_E: %.4f ..(kl: %.4f, recon_loss: %.4f) .. E(x): %.4f'
+                #        % (epoch, args.epochs, i, len(X_training), errE.data, kl.mean(), recon_loss.mean(), E_x))
+
+                print('Epoch [%d/%d] .. Batch [%d/%d] .. elbo: %.4f ..(log_pxz: %.4f, log_pz: %.4f, log_qzx: %.4f)'
+                        % (epoch, args.epochs, i, len(X_training), elbo, log_pxz_sum.mean(), log_pz_sum.mean(), log_qzx_sum.mean()))
 
                 #log performance to tensorboard
-                writer.add_scalar("Loss_E/train", errE.data, epoch)
-                writer.add_scalar("E_x/train", E_x, epoch)
-                writer.add_scalar("kl/train", kl.mean(), epoch)
-                writer.add_scalar("recon_loss/train", recon_loss.mean(), epoch)
+                writer.add_scalar("elbo", errE.data, epoch)
+                #writer.add_scalar("E_x", E_x, epoch)
+                writer.add_scalar("kl_divergence", kl.mean(), epoch)
+                writer.add_scalar("recon_loss", recon_loss.mean(), epoch)
+                writer.add_scalar("elbo_parts/log_pxz_sum", log_pxz_sum.mean(), epoch)
+                writer.add_scalar("elbo_parts/log_pz_sum", log_pz_sum.mean(), epoch)
+                writer.add_scalar("elbo_parts/log_qzx_sum", log_qzx_sum.mean(), epoch)
+                writer.add_scalar("log_scale", log_scale, epoch)
 
                 #-------------
 

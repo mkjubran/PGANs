@@ -58,6 +58,7 @@ class VAE(pl.LightningModule):
         kl = kl.sum(-1)
         return kl
 
+
     def training_step(self, batch, batch_idx):
         x, _ = batch
 
