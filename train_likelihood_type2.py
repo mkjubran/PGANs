@@ -56,7 +56,9 @@ def train_PGAN_VAE(dat, netG, args):
             #pdb.set_trace()
 
             # decoded - GAN Generator
-            outputG = netG(z)
+            
+            #outputG = netG(z)
+            outputG = VAE.decoding(z)
             #pdb.set_trace()
 
             # reconstruction loss --> log_pxz

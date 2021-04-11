@@ -1,3 +1,5 @@
+## https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
+
 from torch import nn
 import torch
 import pdb
@@ -34,6 +36,45 @@ class Network(torch.nn.Module):
         self.fc_mu = nn.Linear(128, latent_dim)
         self.fc_log_var = nn.Linear(128, latent_dim)
         self.fc2 = nn.Linear(latent_dim, 100)
+
+
+        # decoder 
+        self.dec1 = nn.ConvTranspose2d(
+            in_channels=100, out_channels=init_channels*16, kernel_size=kernel_size, 
+            stride=1, padding=0
+        )
+        self.dec2 = nn.ConvTranspose2d(
+            in_channels=init_channels*16, out_channels=init_channels*8, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec3 = nn.ConvTranspose2d(
+            in_channels=init_channels*8, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec4 = nn.ConvTranspose2d(
+            in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec5 = nn.ConvTranspose2d(
+            in_channels=init_channels*2, out_channels=image_channels, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+
+
+
+    def decoding(self, zd):
+        # decoding
+        #pdb.set_trace()
+        x = F.relu(self.dec1(zd))
+        #pdb.set_trace()
+        x = F.relu(self.dec2(x))
+        #pdb.set_trace()
+        x = F.relu(self.dec3(x))
+        #pdb.set_trace()
+        x = F.relu(self.dec4(x))
+        reconstruction = torch.sigmoid(self.dec5(x))
+        #pdb.set_trace()
+        return reconstruction
 
     def reparameterize(self, mu, log_var):
         """
@@ -76,6 +117,7 @@ class Network(torch.nn.Module):
         dist = torch.distributions.Normal(mean, scale)
 
         # measure prob of seeing image under p(x|z)
+        #pdb.set_trace()
         log_pxz = dist.log_prob(x)
         return log_pxz.sum(dim=(1, 2, 3))
 
@@ -134,26 +176,26 @@ class Network(torch.nn.Module):
 
         # encode x to get the mu and variance parameters and sample z from q distribution
         z, mu, log_var = self.forward(x)
-        pdb.set_trace()
+        #pdb.set_trace()
 
         # decoded
         x_hat = self.decoder(z)
-        pdb.set_trace()
+        #pdb.set_trace()
 
         # reconstruction loss
         recon_loss = self.gaussian_likelihood(x_hat, self.log_scale, x)
-        pdb.set_trace()
+        #pdb.set_trace()
 
         # kl
         kl = self.kl_divergence(z, mu, std)
-        pdb.set_trace()
+        #pdb.set_trace()
 
         # elbo
         elbo = (kl - recon_loss)
-        pdb.set_trace()
+        #pdb.set_trace()
 
         elbo = elbo.mean()
-        pdb.set_trace()
+        #pdb.set_trace()
 
         self.log_dict({
             'elbo': elbo,
