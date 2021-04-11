@@ -2,35 +2,27 @@ from torch import nn
 import torch
 import pdb
 
+from pl_bolts.models.autoencoders.components import (
+    resnet18_decoder,
+    resnet18_encoder,
+)
+
+
 class Network(torch.nn.Module):
     def __init__(self, dat, netG, nz, ngf, nc):
         super().__init__()
 
-        # output = floor[(width + 2xp - (k-1) -1)/s + 1]
-        self.main = nn.Sequential(
-            # input is (nc) x 64 x 64  --> output = floor[(64 + 2x1 - (4-1) -1)/2 + 1] = 32
-            nn.Conv2d(nc, ngf, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.ReLU(True),
-            # state size. (ngf) x 32 x 32 --> output = floor[(32 + 2x1 - (4-1) -1)/2 + 1] = 16 
-            nn.Conv2d(ngf, ngf * 2, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(ngf * 2),
-            nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16  --> output = floor[(16 + 2x1 - (4-1) -1)/2 + 1] = 8
-            nn.Conv2d(ngf * 2, ngf * 4, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(ngf * 4),
-            nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8   --> output = floor[(8 + 2x1 - (4-1) -1)/2 + 1] = 4
-            nn.Conv2d(ngf * 4, ngf * 8, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(ngf * 8),
-            nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4   --> output = floor[(4 + 0x1 - (4-1) -1)/1 + 1] = 1
-            nn.Conv2d(ngf * 8, nz, kernel_size=4, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(nz),
-            nn.ReLU(True),
-            nn.Flatten(),
+        # encoder, decoder
+        self.encoder = resnet18_encoder(False, False)
+        self.encoder.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+
+        self.decoder = resnet18_decoder(
+            latent_dim=nz,
+            input_height=64,
+            first_conv=False,
+            maxpool1=False
         )
 
-        
         # distribution parameters
         self.fc_mu = nn.Linear(nz, nz)
         self.fc_var = nn.Linear(nz, nz)
@@ -39,7 +31,7 @@ class Network(torch.nn.Module):
         self.log_scale = nn.Parameter(torch.Tensor([0.0]))
 
     def forward(self, input):
-        output = self.main(input)
+        output = self.encoder(input)
         mu = self.fc_mu(output)
         var = self.fc_var(output)
         return output, mu, var

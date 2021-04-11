@@ -17,7 +17,7 @@ import hmc
 
 import pdb
 
-import PGAN_VAE
+import PGAN_VAE_type2
 
 from torch.distributions.normal import Normal
 
@@ -30,7 +30,7 @@ def train_PGAN_VAE(dat, netG, args):
     writer = SummaryWriter(args.results_folder_TB)
     device = args.device
 
-    VAE = PGAN_VAE.Network(dat, netG, args.nz, args.ngf, dat['nc'])
+    VAE = PGAN_VAE_type2.Network(dat, netG, args.nz, args.ngf, dat['nc'])
     VAE.to(device)
 
     X_training = dat['X_train'].to(device)
@@ -48,16 +48,12 @@ def train_PGAN_VAE(dat, netG, args):
             batch_size = real_cpu.size(0)
             label = torch.full((batch_size,), real_label, device=device, dtype=torch.int8)
 
-            zout, mu, log_var = VAE.forward(real_cpu)
-            #pdb.set_trace()
-
-            # sample z from q
+            z, mu, log_var = VAE.forward(real_cpu)
             std = torch.exp(log_var / 2)
-            q = torch.distributions.Normal(mu, std)
-            z = q.rsample()  ## sample z from q
-            z = torch.unsqueeze(z, 2)  
-            z = torch.unsqueeze(z, 3)
-            pdb.set_trace()
+            #pdb.set_trace()
+            #z = torch.unsqueeze(z, 2)  
+            #z = torch.unsqueeze(z, 3)
+            #pdb.set_trace()
 
             # decoded - GAN Generator
             outputG = netG(z)
@@ -78,7 +74,7 @@ def train_PGAN_VAE(dat, netG, args):
 
             # elbo --> [(log_qzx_sum - log_pz_sum) - log_pxz_sum]
             log_qzx_sum, log_pz_sum, log_pxz_sum, ELBO = VAE.PGAN_ELBO(z, mu, std, outputG, logscale, real_cpu)
-            elbo = -1* (log_pxz_sum + log_pz_sum - log_qzx_sum)
+            elbo = -1 * (log_pxz_sum + log_pz_sum - log_qzx_sum)
             #pdb.set_trace()
             
             elbo = elbo.mean()

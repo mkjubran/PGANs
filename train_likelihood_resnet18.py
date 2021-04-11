@@ -17,7 +17,7 @@ import hmc
 
 import pdb
 
-import PGAN_VAE
+import PGAN_VAE_resnet18 as PGAN_VAE
 
 from torch.distributions.normal import Normal
 
@@ -57,7 +57,7 @@ def train_PGAN_VAE(dat, netG, args):
             z = q.rsample()  ## sample z from q
             z = torch.unsqueeze(z, 2)  
             z = torch.unsqueeze(z, 3)
-            pdb.set_trace()
+            #pdb.set_trace()
 
             # decoded - GAN Generator
             outputG = netG(z)

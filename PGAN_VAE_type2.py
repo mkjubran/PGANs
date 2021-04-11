@@ -1,48 +1,71 @@
 from torch import nn
 import torch
 import pdb
+import torch.nn.functional as F
 
 class Network(torch.nn.Module):
     def __init__(self, dat, netG, nz, ngf, nc):
         super().__init__()
 
-        # output = floor[(width + 2xp - (k-1) -1)/s + 1]
-        self.main = nn.Sequential(
-            # input is (nc) x 64 x 64  --> output = floor[(64 + 2x1 - (4-1) -1)/2 + 1] = 32
-            nn.Conv2d(nc, ngf, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.ReLU(True),
-            # state size. (ngf) x 32 x 32 --> output = floor[(32 + 2x1 - (4-1) -1)/2 + 1] = 16 
-            nn.Conv2d(ngf, ngf * 2, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(ngf * 2),
-            nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16  --> output = floor[(16 + 2x1 - (4-1) -1)/2 + 1] = 8
-            nn.Conv2d(ngf * 2, ngf * 4, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(ngf * 4),
-            nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8   --> output = floor[(8 + 2x1 - (4-1) -1)/2 + 1] = 4
-            nn.Conv2d(ngf * 4, ngf * 8, kernel_size=4, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(ngf * 8),
-            nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4   --> output = floor[(4 + 0x1 - (4-1) -1)/1 + 1] = 1
-            nn.Conv2d(ngf * 8, nz, kernel_size=4, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(nz),
-            nn.ReLU(True),
-            nn.Flatten(),
+        kernel_size = 4 # (4, 4) kernel
+        init_channels = 8 # initial number of filters
+        image_channels = 1 # MNIST images are grayscale
+        latent_dim = nz # latent dimension for sampling
+
+        # encoder
+        self.enc1 = nn.Conv2d(
+            in_channels=image_channels, out_channels=init_channels, kernel_size=kernel_size, 
+            stride=2, padding=1
         )
+        self.enc2 = nn.Conv2d(
+            in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc3 = nn.Conv2d(
+            in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc4 = nn.Conv2d(
+            in_channels=init_channels*4, out_channels=64, kernel_size=kernel_size, 
+            stride=2, padding=0
+        )
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(64, 128)
+        self.fc_mu = nn.Linear(128, latent_dim)
+        self.fc_log_var = nn.Linear(128, latent_dim)
+        self.fc2 = nn.Linear(latent_dim, 100)
 
-        
-        # distribution parameters
-        self.fc_mu = nn.Linear(nz, nz)
-        self.fc_var = nn.Linear(nz, nz)
-
-        # for the gaussian likelihood
-        self.log_scale = nn.Parameter(torch.Tensor([0.0]))
-
-    def forward(self, input):
-        output = self.main(input)
-        mu = self.fc_mu(output)
-        var = self.fc_var(output)
-        return output, mu, var
+    def reparameterize(self, mu, log_var):
+        """
+        :param mu: mean from the encoder's latent space
+        :param log_var: log variance from the encoder's latent space
+        """
+        std = torch.exp(0.5*log_var) # standard deviation
+        eps = torch.randn_like(std) # `randn_like` as we need the same size
+        sample = mu + (eps * std) # sampling
+        return sample
+ 
+    def forward(self, x):
+        # encoding
+        x = F.relu(self.enc1(x))
+        x = F.relu(self.enc2(x))
+        x = F.relu(self.enc3(x))
+        x = F.relu(self.enc4(x))
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        hidden = self.fc1(x)
+        #pdb.set_trace()
+        # get `mu` and `log_var`
+        mu = self.fc_mu(hidden)
+        log_var = self.fc_log_var(hidden)
+        # get the latent vector through reparameterization
+        z = self.reparameterize(mu, log_var)
+        #pdb.set_trace()
+        z = self.fc2(z)
+        #pdb.set_trace()
+        z = z.view(-1, 100, 1, 1)
+ 
+        return z, mu, log_var
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-4)
@@ -109,15 +132,8 @@ class Network(torch.nn.Module):
     def training_step(self, batch, batch_idx):
         x, _ = batch
 
-        # encode x to get the mu and variance parameters
-        x_encoded = self.main(x)
-        mu, log_var = self.fc_mu(x_encoded), self.fc_var(x_encoded)
-        pdb.set_trace()
-
-        # sample z from q
-        std = torch.exp(log_var / 2)
-        q = torch.distributions.Normal(mu, std)
-        z = q.rsample()
+        # encode x to get the mu and variance parameters and sample z from q distribution
+        z, mu, log_var = self.forward(x)
         pdb.set_trace()
 
         # decoded

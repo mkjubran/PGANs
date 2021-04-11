@@ -17,7 +17,7 @@ import hmc
 
 import pdb
 
-import PGAN_VAE
+import PGAN_VAE_type1
 
 from torch.distributions.normal import Normal
 
@@ -30,7 +30,7 @@ def train_PGAN_VAE(dat, netG, args):
     writer = SummaryWriter(args.results_folder_TB)
     device = args.device
 
-    VAE = PGAN_VAE.Network(dat, netG, args.nz, args.ngf, dat['nc'])
+    VAE = PGAN_VAE_type1.Network(dat, netG, args.nz, args.ngf, dat['nc'])
     VAE.to(device)
 
     X_training = dat['X_train'].to(device)
