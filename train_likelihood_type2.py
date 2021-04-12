@@ -49,7 +49,7 @@ def train_PGAN_VAE(dat, netG, args):
             batch_size = real_cpu.size(0)
             label = torch.full((batch_size,), real_label, device=device, dtype=torch.int8)
 
-            z, mu, log_var = VAE.forward(real_cpu)
+            z, mu, log_var, outputG = VAE.forward(real_cpu)
             std = torch.exp(log_var / 2)
             #pdb.set_trace()
             #z = torch.unsqueeze(z, 2)  
@@ -59,7 +59,7 @@ def train_PGAN_VAE(dat, netG, args):
             # decoded - GAN Generator
             
             #outputG = netG(z)
-            outputG = VAE.decoding(z)
+            #outputG = VAE.decoding(z)
             #pdb.set_trace()
 
             # reconstruction loss --> log_pxz
@@ -73,16 +73,10 @@ def train_PGAN_VAE(dat, netG, args):
             #kl = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
             #pdb.set_trace()
 
-            # elbo --> -1 * (kl - recon_loss)
-            #elbo = -1 * (kl - recon_loss)
-
             # elbo --> [(log_qzx_sum - log_pz_sum) - log_pxz_sum]
             log_qzx_sum, log_pz_sum, log_pxz_sum, ELBO = VAE.PGAN_ELBO(z, mu, std, outputG, logscale, real_cpu)
-            elbo = 1 * (log_pxz_sum + log_pz_sum - log_qzx_sum)
-            #pdb.set_trace()
-            
+            elbo = 1 * (log_pxz_sum + log_pz_sum - log_qzx_sum)            
             elbo = elbo.mean()
-            #pdb.set_trace()
 
             #errE = criterion_mse(real_cpu, outputG,args)
             errE = elbo
@@ -109,7 +103,7 @@ def train_PGAN_VAE(dat, netG, args):
                 writer.add_scalar("log_scale", log_scale, epoch)
 
                 #-------------
-                summary(VAE, (1, 64, 64))
+                #summary(VAE, (1, 64, 64))
 
         print('*'*100)
         print('End of epoch {}'.format(epoch))

@@ -105,8 +105,17 @@ class Network(torch.nn.Module):
         z = self.fc2(z)
         #pdb.set_trace()
         z = z.view(-1, 100, 1, 1)
+
+        x = F.relu(self.dec1(z))
+        #pdb.set_trace()
+        x = F.relu(self.dec2(x))
+        #pdb.set_trace()
+        x = F.relu(self.dec3(x))
+        #pdb.set_trace()
+        x = F.relu(self.dec4(x))
+        reconstruction = torch.sigmoid(self.dec5(x))
  
-        return z, mu, log_var
+        return z, mu, log_var, reconstruction
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-4)
@@ -175,11 +184,11 @@ class Network(torch.nn.Module):
         x, _ = batch
 
         # encode x to get the mu and variance parameters and sample z from q distribution
-        z, mu, log_var = self.forward(x)
+        z, mu, log_var, x_hat = self.forward(x)
         #pdb.set_trace()
 
         # decoded
-        x_hat = self.decoder(z)
+        #x_hat = self.decoder(z)
         #pdb.set_trace()
 
         # reconstruction loss

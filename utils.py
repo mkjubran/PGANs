@@ -1,23 +1,21 @@
-import os 
+import imageio
+import numpy as np
+import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-
-def plot_kde(samples, epoch, name, title='', cmap='Blues', save_path=None):
-    samples = samples.cpu().numpy()
-    sns.set(font_scale=2)
-    f, ax = plt.subplots(figsize=(4, 4))
-    sns.kdeplot(samples[:, 0], samples[:,1], cmap=cmap, ax=ax, n_levels=20, shade=True)
-    plt.xlim([-5, 5])
-    plt.ylim([-5, 5])
-    plt.axis('off')
-    plt.title(title)
-    if save_path is not None:
-        plt.savefig(os.path.join(save_path, '{}_{}.pdf'.format(name, epoch)))
+from torchvision.utils import save_image
+to_pil_image = transforms.ToPILImage()
+def image_to_vid(images):
+    imgs = [np.array(to_pil_image(img)) for img in images]
+    imageio.mimsave('../outputs/generated_images.gif', imgs)
+def save_reconstructed_images(recon_images, epoch):
+    save_image(recon_images.cpu(), f"../outputs/output{epoch}.jpg")
+def save_loss_plot(train_loss, valid_loss):
+    # loss plots
+    plt.figure(figsize=(10, 7))
+    plt.plot(train_loss, color='orange', label='train loss')
+    plt.plot(valid_loss, color='red', label='validataion loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig('../outputs/loss.jpg')
     plt.show()
-
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
