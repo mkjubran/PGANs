@@ -4,6 +4,7 @@ import torch.optim as optim
 import torch.nn.functional as F 
 import torchvision.utils as vutils
 import torchvision
+from torchsummary import summary
 
 from torch.utils.tensorboard import SummaryWriter #Jubran
 
@@ -69,6 +70,7 @@ def train_PGAN_VAE(dat, netG, args):
 
             # kl ---> (log_qzx - log_pz)
             kl = VAE.kl_divergence(z, mu, std)
+            #kl = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
             #pdb.set_trace()
 
             # elbo --> -1 * (kl - recon_loss)
@@ -76,7 +78,7 @@ def train_PGAN_VAE(dat, netG, args):
 
             # elbo --> [(log_qzx_sum - log_pz_sum) - log_pxz_sum]
             log_qzx_sum, log_pz_sum, log_pxz_sum, ELBO = VAE.PGAN_ELBO(z, mu, std, outputG, logscale, real_cpu)
-            elbo = -1 * (log_pxz_sum + log_pz_sum - log_qzx_sum)
+            elbo = 1 * (log_pxz_sum + log_pz_sum - log_qzx_sum)
             #pdb.set_trace()
             
             elbo = elbo.mean()
@@ -93,7 +95,6 @@ def train_PGAN_VAE(dat, netG, args):
             if i % args.log == 0:
                 #print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_E: %.4f ..(kl: %.4f, recon_loss: %.4f) .. E(x): %.4f'
                 #        % (epoch, args.epochs, i, len(X_training), errE.data, kl.mean(), recon_loss.mean(), E_x))
-
                 print('Epoch [%d/%d] .. Batch [%d/%d] .. elbo: %.4f ..(log_pxz: %.4f, log_pz: %.4f, log_qzx: %.4f)'
                         % (epoch, args.epochs, i, len(X_training), elbo, log_pxz_sum.mean(), log_pz_sum.mean(), log_qzx_sum.mean()))
 
@@ -108,6 +109,7 @@ def train_PGAN_VAE(dat, netG, args):
                 writer.add_scalar("log_scale", log_scale, epoch)
 
                 #-------------
+                summary(VAE, (1, 64, 64))
 
         print('*'*100)
         print('End of epoch {}'.format(epoch))
