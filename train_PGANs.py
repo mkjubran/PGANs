@@ -1,21 +1,23 @@
-##https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
+##Based on https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
 
 import torch
 import torch.optim as optim
 import torch.nn as nn
-import model
+import modelv1 as model
 import torchvision.transforms as transforms
 import torchvision
 import matplotlib
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
-from engine import train, validate
+from engine import train, validate, train_PGAN
 from utils import save_reconstructed_images, image_to_vid, save_loss_plot
 from torch.utils.tensorboard import SummaryWriter
 
 import shutil
 import os
 import pdb
+import nets
+import utilsG
 
 matplotlib.style.use('ggplot')
 
@@ -23,6 +25,25 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # initialize the model
 model = model.ConvVAE().to(device)
+
+# define and load the weights of the generator
+### define parameters
+imageSize = 64 #the height / width of the input image to network'
+nz =  100 # size of the latent z vector
+ngf =  64
+nc = 1 # number of channels on the data
+logsigma_init = -1 #initial value for log_sigma_sian
+ckptG =  '../presgan_lambda_0.01/netG_presgan_mnist_epoch_1000.pth' #a given checkpoint file for generator
+
+#### defining generator
+netG = nets.Generator(imageSize, nz, ngf, nc).to(device)
+#log_sigma = torch.tensor([logsigma_init]*(imageSize*imageSize), device=device, requires_grad=True)
+
+#### initialize weights
+netG.apply(utilsG.weights_init)
+if ckptG != '':
+    netG.load_state_dict(torch.load(ckptG))
+
 
 # set the learning parameters
 lr = 0.001
@@ -71,7 +92,7 @@ writer = SummaryWriter('../log')
 
 for epoch in range(epochs):
     print(f"Epoch {epoch+1} of {epochs}")
-    train_epoch_loss = train(
+    train_epoch_loss, log_pxz, log_qzx, log_pz = train_PGAN(
         model, trainloader, trainset, device, optimizer, criterion
     )
     valid_epoch_loss, recon_images = validate(
@@ -90,6 +111,9 @@ for epoch in range(epochs):
 
     writer.add_scalar("Train Loss", train_epoch_loss, epoch)
     writer.add_scalar("Val Loss", valid_epoch_loss, epoch)
+    writer.add_scalar("elbo/log_pxz", log_pxz.mean(), epoch)
+    writer.add_scalar("elbo/log_qzx", log_qzx.mean(), epoch)
+    writer.add_scalar("elbo/log_pz", log_pz.mean(), epoch)
 
     # log images to tensorboard
     # create grid of images

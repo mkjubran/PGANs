@@ -1,3 +1,5 @@
+##https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
+
 import imageio
 import numpy as np
 import torchvision.transforms as transforms

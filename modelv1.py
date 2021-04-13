@@ -84,4 +84,4 @@ class ConvVAE(nn.Module):
         x = F.relu(self.dec2(x))
         x = F.relu(self.dec3(x))
         reconstruction = torch.sigmoid(self.dec4(x))
-        return reconstruction, mu, log_var
+        return reconstruction, mu, log_var , z
