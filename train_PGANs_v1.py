@@ -3,13 +3,14 @@
 import torch
 import torch.optim as optim
 import torch.nn as nn
-import model_v1 as model
+import model_v2 as model
 import torchvision.transforms as transforms
 import torchvision
 import matplotlib
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
-from engine import train, validate, train_PGAN
+from engine import train
+from engine_v1 import train_PGAN, validate
 from utils import save_reconstructed_images, image_to_vid, save_loss_plot
 from torch.utils.tensorboard import SummaryWriter
 
@@ -47,8 +48,8 @@ if ckptG != '':
 
 # set the learning parameters
 lr = 0.001
-epochs = 100
-batch_size = 64
+epochs = 1000
+batch_size = 100
 optimizer = optim.Adam(model.parameters(), lr=lr)
 criterion = nn.BCELoss(reduction='sum')
 
@@ -56,9 +57,10 @@ criterion = nn.BCELoss(reduction='sum')
 grid_images = []
 
 transform = transforms.Compose([
-    transforms.Resize((32, 32)),
+    transforms.Resize((64, 64)),
     transforms.ToTensor(),
 ])
+
 
 ## Checking paths and folders
 if not os.path.exists('../outputs'):
@@ -93,10 +95,10 @@ writer = SummaryWriter('../log')
 for epoch in range(epochs):
     print(f"Epoch {epoch+1} of {epochs}")
     train_epoch_loss, log_pxz, log_qzx, log_pz = train_PGAN(
-        model, trainloader, trainset, device, optimizer, criterion
+        model, trainloader, trainset, device, optimizer, criterion, netG
     )
     valid_epoch_loss, recon_images = validate(
-        model, testloader, testset, device, criterion
+        model, testloader, testset, device, criterion, netG
     )
     train_loss.append(train_epoch_loss)
     valid_loss.append(valid_epoch_loss)
@@ -104,7 +106,7 @@ for epoch in range(epochs):
     save_reconstructed_images(recon_images, epoch+1)
     # convert the reconstructed images to PyTorch image grid format
     image_grid = make_grid(recon_images.detach().cpu())
-    grid_images.append(image_grid)
+    #grid_images.append(image_grid)
     print(f"Train Loss: {train_epoch_loss:.4f}")
     print(f"Val Loss: {valid_epoch_loss:.4f}")
 
