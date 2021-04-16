@@ -110,12 +110,11 @@ for epoch in range(epochs):
     print(f"Train Loss: {train_epoch_loss:.4f}")
     print(f"Val Loss: {valid_epoch_loss:.4f}")
 
-
-    writer.add_scalar("Train Loss", train_epoch_loss, epoch)
-    writer.add_scalar("Val Loss", valid_epoch_loss, epoch)
-    writer.add_scalar("elbo/elbo", elbo, epoch)
     writer.add_scalar("elbo/KLDcf", KLDcf, epoch)
     writer.add_scalar("elbo/reconloss", reconloss, epoch)
+    writer.add_scalar("elbo/elbo", elbo, epoch)
+    writer.add_scalar("Train Loss", train_epoch_loss, epoch)
+    writer.add_scalar("Val Loss", valid_epoch_loss, epoch)
 
     # log images to tensorboard
     # create grid of images
