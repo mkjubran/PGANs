@@ -17,38 +17,16 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion):
     scale = scale.to(device)
     dist = torch.distributions.Normal(mean, scale) 
     log_pxz = dist.log_prob(x)
-
-    # measure log_q(z|x)
-    std = torch.exp(logvar / 2)
-    #try:
-    q = torch.distributions.Normal(mu, std)
-    #except:
-    #   #pdb.set_trace()
-    #   std[std==0] = 1
-    #   q = torch.distributions.Normal(mu, std)
-    log_qzx = q.log_prob(z)
-
-    # measure log_p(z)
-    p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
-    log_pz = p.log_prob(z)
-
-    # measure mean of log_p(x|z), log_q(z|x), log_p(z)
     log_pxz = log_pxz.sum(dim=(1,2,3))
 
-    ## measure KLD through sampling KLD = [log_q(z|x) - log_p(z)]
-    KLDsample = log_qzx - log_pz
-    KLDsample = KLDsample.sum(-1)   # sum over last dim to go from single dim distribution to multi-dim
-
-    # measure elbo = [log_q(z|x) - log_p(z) - log_p(x|z)] = [KLD - log_q(x|z)] 
-    elbo = KLDsample - log_pxz
+    # measure elbo using log_pxz ==> elbo = [log_q(z|x) - log_p(z) - log_p(x|z)] = [KLD - log_q(x|z)] 
+    elbo = KLDcf - 100*log_pxz
     elbo = elbo.mean()
 
-    # Construction Loss [for testing only]
-    #bce_loss = criterion(x_hat,x)
-    #pdb.set_trace()
-    #elbo = bce_loss + KLDcf
-    #pdb.set_trace()
-    return elbo, log_pxz.mean(), KLDsample.mean(), KLDcf
+    # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - MSE] = [KLD - MSE] 
+    #bce_loss = criterion(x_hat,x) # MSE(x_hat,x)
+    #elbo = KLDcf + bce_loss
+    return elbo, KLDcf
 
 def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
     model.train()
@@ -60,7 +38,7 @@ def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
         data = data.to(device)
         optimizer.zero_grad()
         reconstruction, mu, logvar, z = model(data, netG)
-        elbo, log_pxz, KLDsample, KLDcf = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
+        elbo, KLDcf = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
         #bce_loss = criterion(reconstruction, data)
         #loss = final_loss(bce_loss, mu, logvar)
         loss = elbo
@@ -68,7 +46,7 @@ def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
         running_loss += loss.item()
         optimizer.step()
     train_loss = running_loss / counter 
-    return train_loss, elbo, log_pxz, KLDsample, KLDcf
+    return train_loss, elbo, KLDcf
 
 def final_loss(bce_loss, mu, logvar):
     """
@@ -112,7 +90,7 @@ model, dataloader, dataset, device, criterion, netG):
             data= data[0]
             data = data.to(device)
             reconstruction, mu, logvar, z = model(data, netG)
-            elbo, log_pxz, KLDsample, KLDcf  = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
+            elbo, KLDcf  = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
             #bce_loss = criterion(reconstruction, data)
             #loss = final_loss(bce_loss, mu, logvar)
             loss = elbo
