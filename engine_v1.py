@@ -33,22 +33,22 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion):
     log_pz = p.log_prob(z)
 
     # measure mean of log_p(x|z), log_q(z|x), log_p(z)
-    pdb.set_trace()
     log_pxz = log_pxz.sum(dim=(1,2,3))
 
-    ## measure KLD through sampling
+    ## measure KLD through sampling KLD = [log_q(z|x) - log_p(z)]
     KLDsample = log_qzx - log_pz
     KLDsample = KLDsample.sum(-1)   # sum over last dim to go from single dim distribution to multi-dim
 
-    # measure elbo = [log_p(x|z) + log_p(z) - log_q(z|x)]
-    elbo = log_pxz - KLDcf # elbo os VAE
+    # measure elbo = [log_q(z|x) - log_p(z) - log_p(x|z)] = [KLD - log_q(x|z)] 
+    elbo = KLDsample - log_pxz
+    elbo = elbo.mean()
 
     # Construction Loss [for testing only]
     #bce_loss = criterion(x_hat,x)
     #pdb.set_trace()
-    #elbo = bce_loss + KLDcf #here elbo is the loss and not the VAE elbo
-    pdb.set_trace()
-    return elbo, log_pxz, KLDsample, KLDcf
+    #elbo = bce_loss + KLDcf
+    #pdb.set_trace()
+    return elbo, log_pxz.mean(), KLDsample.mean(), KLDcf
 
 def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
     model.train()
