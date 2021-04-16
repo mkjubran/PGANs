@@ -94,7 +94,7 @@ writer = SummaryWriter('../log')
 
 for epoch in range(epochs):
     print(f"Epoch {epoch+1} of {epochs}")
-    train_epoch_loss, elbo, KLDcf = train_PGAN(
+    train_epoch_loss, elbo, KLDcf, reconloss = train_PGAN(
         model, trainloader, trainset, device, optimizer, criterion, netG
     )
     valid_epoch_loss, recon_images = validate(
@@ -115,6 +115,7 @@ for epoch in range(epochs):
     writer.add_scalar("Val Loss", valid_epoch_loss, epoch)
     writer.add_scalar("elbo/elbo", elbo, epoch)
     writer.add_scalar("elbo/KLDcf", KLDcf, epoch)
+    writer.add_scalar("elbo/reconloss", reconloss, epoch)
 
     # log images to tensorboard
     # create grid of images

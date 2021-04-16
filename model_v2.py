@@ -89,18 +89,18 @@ class ConvVAE(nn.Module):
  
         #pdb.set_trace()
         # decoding VAE
-        x = F.relu(self.dec1(z))
+        #x = F.relu(self.dec1(z))
         #pdb.set_trace()
-        x = F.relu(self.dec2(x))
+        #x = F.relu(self.dec2(x))
         #pdb.set_trace()
-        x = F.relu(self.dec3(x))
+        #x = F.relu(self.dec3(x))
         #pdb.set_trace()
-        x = F.relu(self.dec4(x))
+        #x = F.relu(self.dec4(x))
         #pdb.set_trace()
-        reconstruction = torch.sigmoid(self.dec5(x))
+        #reconstruction = torch.sigmoid(self.dec5(x))
         #pdb.set_trace()
 
         # decoding using PGAN
-        #x = netG(z)
-        #reconstruction = torch.sigmoid(x)
+        x = netG(z)
+        reconstruction = x #torch.sigmoid(x)
         return reconstruction, mu, log_var , z

@@ -17,16 +17,15 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion):
     scale = scale.to(device)
     dist = torch.distributions.Normal(mean, scale) 
     log_pxz = dist.log_prob(x)
-    log_pxz = log_pxz.sum(dim=(1,2,3))
 
     # measure elbo using log_pxz ==> elbo = [log_q(z|x) - log_p(z) - log_p(x|z)] = [KLD - log_q(x|z)] 
-    elbo = KLDcf - 100*log_pxz
-    elbo = elbo.mean()
+    reconloss = log_pxz.sum(dim=(0,1,2,3))
+    elbo = KLDcf - reconloss
 
     # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - MSE] = [KLD - MSE] 
-    #bce_loss = criterion(x_hat,x) # MSE(x_hat,x)
-    #elbo = KLDcf + bce_loss
-    return elbo, KLDcf
+    #reconloss = criterion(x_hat,x) # MSE(x_hat,x)
+    #elbo = KLDcf + reconloss
+    return elbo, KLDcf, reconloss
 
 def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
     model.train()
@@ -38,7 +37,7 @@ def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
         data = data.to(device)
         optimizer.zero_grad()
         reconstruction, mu, logvar, z = model(data, netG)
-        elbo, KLDcf = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
+        elbo, KLDcf, reconloss= measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
         #bce_loss = criterion(reconstruction, data)
         #loss = final_loss(bce_loss, mu, logvar)
         loss = elbo
@@ -46,7 +45,7 @@ def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
         running_loss += loss.item()
         optimizer.step()
     train_loss = running_loss / counter 
-    return train_loss, elbo, KLDcf
+    return train_loss, elbo, KLDcf, reconloss
 
 def final_loss(bce_loss, mu, logvar):
     """
@@ -90,7 +89,7 @@ model, dataloader, dataset, device, criterion, netG):
             data= data[0]
             data = data.to(device)
             reconstruction, mu, logvar, z = model(data, netG)
-            elbo, KLDcf  = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
+            elbo, KLDcf, reconloss  = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
             #bce_loss = criterion(reconstruction, data)
             #loss = final_loss(bce_loss, mu, logvar)
             loss = elbo
