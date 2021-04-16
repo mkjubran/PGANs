@@ -6,28 +6,49 @@ import torch
 import torch.nn as nn
 import pdb
 
-def elbo(mu, logvar, x, x_hat, z, device):
+def measure_elbo(mu, logvar, x, x_hat, z, device, criterion):
+    # Use closed form of KL to compute [log_q(z|x) - log_p(z)] assuming P and q are gaussians
+    KLDcf = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+    # measure prob of seeing image under log_p(x|z)
     logscale = nn.Parameter(torch.Tensor([0.0]))
     scale = torch.exp(logscale)
     mean = x_hat
     scale = scale.to(device)
     dist = torch.distributions.Normal(mean, scale) 
-    # measure prob of seeing image under p(x|z)
     log_pxz = dist.log_prob(x)
 
-    # 1. define the first two probabilities (in this case Normal for both)
+    # measure log_q(z|x)
     std = torch.exp(logvar / 2)
-    p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
+    #try:
     q = torch.distributions.Normal(mu, std)
-    #pdb.set_trace()
-
-    # 2. get the probabilities from the equation
+    #except:
+    #   #pdb.set_trace()
+    #   std[std==0] = 1
+    #   q = torch.distributions.Normal(mu, std)
     log_qzx = q.log_prob(z)
+
+    # measure log_p(z)
+    p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
     log_pz = p.log_prob(z)
+
+    # measure mean of log_p(x|z), log_q(z|x), log_p(z)
+    pdb.set_trace()
+    log_pxz = log_pxz.sum(dim=(1,2,3))
+
+    ## measure KLD through sampling
+    KLDsample = log_qzx - log_pz
+    KLDsample = KLDsample.sum(-1)   # sum over last dim to go from single dim distribution to multi-dim
+
+    # measure elbo = [log_p(x|z) + log_p(z) - log_q(z|x)]
+    elbo = log_pxz - KLDcf # elbo os VAE
+
+    # Construction Loss [for testing only]
+    #bce_loss = criterion(x_hat,x)
     #pdb.set_trace()
-
-    return log_pxz, log_qzx, log_pz
-
+    #elbo = bce_loss + KLDcf #here elbo is the loss and not the VAE elbo
+    pdb.set_trace()
+    return elbo, log_pxz, KLDsample, KLDcf
 
 def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
     model.train()
@@ -39,15 +60,15 @@ def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG):
         data = data.to(device)
         optimizer.zero_grad()
         reconstruction, mu, logvar, z = model(data, netG)
-        bce_loss = criterion(reconstruction, data)
-        loss = final_loss(bce_loss, mu, logvar)
-        log_pxz, log_qzx, log_pz = elbo(mu, logvar, data, reconstruction, z, device)
+        elbo, log_pxz, KLDsample, KLDcf = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
+        #bce_loss = criterion(reconstruction, data)
+        #loss = final_loss(bce_loss, mu, logvar)
+        loss = elbo
         loss.backward()
         running_loss += loss.item()
         optimizer.step()
     train_loss = running_loss / counter 
-    return train_loss, log_pxz, log_qzx, log_pz
-
+    return train_loss, elbo, log_pxz, KLDsample, KLDcf
 
 def final_loss(bce_loss, mu, logvar):
     """
@@ -91,8 +112,10 @@ model, dataloader, dataset, device, criterion, netG):
             data= data[0]
             data = data.to(device)
             reconstruction, mu, logvar, z = model(data, netG)
-            bce_loss = criterion(reconstruction, data)
-            loss = final_loss(bce_loss, mu, logvar)
+            elbo, log_pxz, KLDsample, KLDcf  = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion)
+            #bce_loss = criterion(reconstruction, data)
+            #loss = final_loss(bce_loss, mu, logvar)
+            loss = elbo
             running_loss += loss.item()
         
             # save the last batch input and output of every epoch
