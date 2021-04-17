@@ -34,7 +34,8 @@ nz =  100 # size of the latent z vector
 ngf =  64
 nc = 1 # number of channels on the data
 logsigma_init = -1 #initial value for log_sigma_sian
-ckptG =  '../presgan_lambda_0.01/netG_presgan_mnist_epoch_1000.pth' #a given checkpoint file for generator
+ckptG =  '../../presgan_lambda_0.001_G1/netG_presgan_mnist_epoch_280.pth' #a given checkpoint file for generator
+logsigma_file = '../../presgan_lambda_0.001_G1/log_sigma_mnist_280.pth' #a given checkpoint file for log_sigma
 
 #### defining generator
 netG = nets.Generator(imageSize, nz, ngf, nc).to(device)
@@ -44,7 +45,9 @@ netG = nets.Generator(imageSize, nz, ngf, nc).to(device)
 netG.apply(utilsG.weights_init)
 if ckptG != '':
     netG.load_state_dict(torch.load(ckptG))
-
+if logsigma_file != '':
+    logsigmaG = torch.load(logsigma_file)
+#pdb.set_trace()
 
 # set the learning parameters
 lr = 0.001
@@ -63,25 +66,25 @@ transform = transforms.Compose([
 
 
 ## Checking paths and folders
-if not os.path.exists('../outputs'):
-    os.makedirs('../outputs')
+if not os.path.exists('../../outputs'):
+    os.makedirs('../../outputs')
 
-if not os.path.exists('../log'):
-    os.makedirs('../log')
+if not os.path.exists('../../log'):
+    os.makedirs('../../log')
 else:
-    shutil.rmtree('../log')
-    os.makedirs('../log') 
+    shutil.rmtree('../../log')
+    os.makedirs('../../log')
 
 # training set and train data loader
 trainset = torchvision.datasets.MNIST(
-    root='../input', train=True, download=True, transform=transform
+    root='../../input', train=True, download=True, transform=transform
 )
 trainloader = DataLoader(
     trainset, batch_size=batch_size, shuffle=True
 )
 # validation set and validation data loader
 testset = torchvision.datasets.MNIST(
-    root='../input', train=False, download=True, transform=transform
+    root='../../input', train=False, download=True, transform=transform
 )
 testloader = DataLoader(
     testset, batch_size=batch_size, shuffle=False
@@ -90,15 +93,15 @@ testloader = DataLoader(
 train_loss = []
 valid_loss = []
 
-writer = SummaryWriter('../log')
+writer = SummaryWriter('../../log')
 
 for epoch in range(epochs):
     print(f"Epoch {epoch+1} of {epochs}")
     train_epoch_loss, elbo, KLDcf, reconloss = train_PGAN(
-        model, trainloader, trainset, device, optimizer, criterion, netG
+        model, trainloader, trainset, device, optimizer, criterion, netG, logsigmaG
     )
     valid_epoch_loss, recon_images = validate(
-        model, testloader, testset, device, criterion, netG
+        model, testloader, testset, device, criterion, netG, logsigmaG
     )
     train_loss.append(train_epoch_loss)
     valid_loss.append(valid_epoch_loss)
