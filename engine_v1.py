@@ -20,7 +20,7 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion):
 
     # measure elbo using log_pxz ==> elbo = [log_q(z|x) - log_p(z) - log_p(x|z)] = [KLD - log_q(x|z)] 
     reconloss = log_pxz.sum(dim=(0,1,2,3))
-    elbo = KLDcf - 0.1*reconloss
+    elbo = KLDcf - 0.5*reconloss
 
     # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - MSE] = [KLD - MSE] 
     #reconloss = criterion(x_hat,x) # MSE(x_hat,x)

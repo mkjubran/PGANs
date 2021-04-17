@@ -24,11 +24,11 @@ import shutil
 parser = argparse.ArgumentParser()
 
 ###### GPU isolation
-parser.add_argument('--gpu', default=0, help=' 0 | 1')
+parser.add_argument('--gpu', default=1, help=' 0 | 1')
 
 ###### Data arguments
 parser.add_argument('--dataset', required=True, help=' ring | mnist | stackedmnist | cifar10 ')
-parser.add_argument('--dataroot', type=str, default='../data', help='path to dataset')
+parser.add_argument('--dataroot', type=str, default='../../data', help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2) 
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
 parser.add_argument('--Ntrain', type=int, default=60000, help='training set size for stackedmnist')
@@ -80,11 +80,11 @@ parser.add_argument('--restrict_sigma', type=int, default=0, help='whether to re
 args = parser.parse_args()
 
 if args.model == 'presgan':
-    args.results_folder = '../'+args.model+'_lambda_'+str(args.lambda_)
-    args.results_folder_TB = '../'+args.model+'_TB_lambda_'+str(args.lambda_)
+    args.results_folder = '../../'+args.model+'_lambda_'+str(args.lambda_)
+    args.results_folder_TB = '../../'+args.model+'_TB_lambda_'+str(args.lambda_)
 else:
-    args.results_folder = '../'+args.model
-    args.results_folder_TB = '../'+args.model+'_TB'
+    args.results_folder = '../../'+args.model
+    args.results_folder_TB = '../../'+args.model+'_TB'
 
 print('\nTraining with the following settings: {}'.format(args))
 
