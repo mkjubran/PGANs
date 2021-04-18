@@ -32,6 +32,10 @@ def dcgan(dat, netG, netD, args):
     optimizerD = optim.Adam(netD.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
     optimizerG = optim.Adam(netG.parameters(), lr=args.lrG, betas=(args.beta1, 0.999)) 
     for epoch in range(1, args.epochs+1):
+        DL=0
+        GL=0
+        DL_G_z1=0
+        DL_G_z2=0
         for i in range(0, len(X_training), args.batchSize):
             netD.zero_grad()
             stop = min(args.batchSize, len(X_training[i:]))
@@ -71,17 +75,26 @@ def dcgan(dat, netG, netD, args):
                 print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
                         % (epoch, args.epochs, i, len(X_training), errD.data, errG.data, D_x, D_G_z1, D_G_z2))
 
-                #log performance to tensorboard
-                writer.add_scalar("Loss_D", errD.data, epoch)
-                writer.add_scalar("Loss_G", errG.data, epoch) 
-                writer.add_scalar("D(x)", D_x, epoch) 
-                #writer.add_scalar("D(G(z))",{"D_G_z1" : D_G_z1,"D_G_z2" : D_G_z2}, epoch) 
-                #-------------
+        DL = DL/len(X_training)
+        DG = DG/len(X_training)
+        DL_G_z1 = DL_G_z1/len(X_training)
+        DL_G_z2 = DL_G_z2/len(X_training)
+        #log performance to tensorboard
+        writer.add_scalar("Loss_D", DL, epoch)
+        writer.add_scalar("Loss_G", GL, epoch) 
+        writer.add_scalar("D(x)", DL_G_z1, epoch) 
+        writer.add_scalar("D(G(z))", DL_G_z1/DL_G_z2, epoch) 
+        #-------------
+        #pdb.set_trace()
 
         print('*'*100)
         print('End of epoch {}'.format(epoch))
+        print('Epoch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+                        % (epoch, args.epochs, DL, GL, DL_G_z1, DL_G_z1, DL_G_z2))
+
         print('*'*100)
 
+       
         if epoch % args.save_imgs_every == 0:
             fake = netG(fixed_noise).detach()
             vutils.save_image(fake, '%s/dcgan_%s_fake_epoch_%03d.png' % (args.results_folder, args.dataset, epoch), normalize=True, nrow=20) 
@@ -117,6 +130,10 @@ def presgan(dat, netG, netD, log_sigma, args):
     
     bsz = args.batchSize
     for epoch in range(1, args.epochs+1):
+        DL=0
+        GL=0
+        DL_G_z1=0
+        DL_G_z2=0
         for i in range(0, len(X_training), bsz): 
             sigma_x = F.softplus(log_sigma).view(1, 1, args.imageSize, args.imageSize)
 
@@ -198,15 +215,27 @@ def presgan(dat, netG, netD, log_sigma, args):
                 print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
                         % (epoch, args.epochs, i, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
 
-                #log performance to tensorboard
-                writer.add_scalar("Loss_D", errD.data, epoch)
-                writer.add_scalar("Loss_G", g_error_gan.data, epoch) 
-                writer.add_scalar("D(x)", D_x, epoch) 
-                #writer.add_scalar("D(G(z))", {"D_G_z1" : D_G_z1, "D_G_z2" : D_G_z2}, epoch) 
-                #-------------
+            DL = DL + errD.data
+            GL = GL + g_error_gan.data
+            DL_G_z1 = DL_G_z1 + D_G_z1
+            DL_G_z2 = DL_G_z2 + D_G_z2
+
+        DL = DL/len(X_training)
+        DG = DG/len(X_training)
+        DL_G_z1 = DL_G_z1/len(X_training)
+        DL_G_z2 = DL_G_z2/len(X_training)
+        #log performance to tensorboard
+        writer.add_scalar("Loss_D", DL, epoch)
+        writer.add_scalar("Loss_G", GL, epoch) 
+        writer.add_scalar("D(x)", DL_G_z1, epoch) 
+        writer.add_scalar("D(G(z))", DL_G_z1/DL_G_z2, epoch) 
+        #----------------
+        #pdb.set_trace()
 
         print('*'*100)
         print('End of epoch {}'.format(epoch))
+        print('Epoch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+                        % (epoch, args.epochs, DL, GL, DL_G_z1, DL_G_z1, DL_G_z2))
         print('sigma min: {} .. sigma max: {}'.format(torch.min(sigma_x), torch.max(sigma_x)))
         print('*'*100)
         if args.lambda_ > 0:
