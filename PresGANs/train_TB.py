@@ -76,7 +76,7 @@ def dcgan(dat, netG, netD, args):
                         % (epoch, args.epochs, i, len(X_training), errD.data, errG.data, D_x, D_G_z2, D_G_z1))
 
         DL = DL/len(X_training)
-        DG = DG/len(X_training)
+        GL = GL/len(X_training)
         DL_G_z1 = DL_G_z1/len(X_training)
         DL_G_z2 = DL_G_z2/len(X_training)
         #log performance to tensorboard
@@ -221,7 +221,7 @@ def presgan(dat, netG, netD, log_sigma, args):
             DL_G_z2 = DL_G_z2 + D_G_z2
 
         DL = DL/len(X_training)
-        DG = DG/len(X_training)
+        GL = GL/len(X_training)
         DL_G_z1 = DL_G_z1/len(X_training)
         DL_G_z2 = DL_G_z2/len(X_training)
         #log performance to tensorboard
