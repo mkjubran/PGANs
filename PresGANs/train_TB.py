@@ -36,7 +36,9 @@ def dcgan(dat, netG, netD, args):
         GL=0
         DL_G_z1=0
         DL_G_z2=0
+        Counter=0
         for i in range(0, len(X_training), args.batchSize):
+            Counter=Counter+1
             netD.zero_grad()
             stop = min(args.batchSize, len(X_training[i:]))
             real_cpu = X_training[i:i+stop].to(device)
@@ -75,22 +77,26 @@ def dcgan(dat, netG, netD, args):
                 print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
                         % (epoch, args.epochs, i, len(X_training), errD.data, errG.data, D_x, D_G_z2, D_G_z1))
 
-        DL = DL/len(X_training)
-        GL = GL/len(X_training)
-        DL_G_z1 = DL_G_z1/len(X_training)
-        DL_G_z2 = DL_G_z2/len(X_training)
+        DL = DL/Counter
+        GL = GL/Counter
+        DL_G_z1 = DL_G_z1/Counter
+        DL_G_z2 = DL_G_z2/Counter
+        if DL_G_z1 ==0:
+           DL_G_z2_z1 = 0
+        else:
+          DL_G_z2_z1=DL_G_z2/DL_G_z1
         #log performance to tensorboard
         writer.add_scalar("Loss_D", DL, epoch)
         writer.add_scalar("Loss_G", GL, epoch) 
         writer.add_scalar("D(x)", DL_G_z1, epoch) 
-        writer.add_scalar("D(G(z))", DL_G_z2/DL_G_z1, epoch) 
+        writer.add_scalar("D(G(z))", DL_G_z2_z1, epoch) 
         #-------------
         #pdb.set_trace()
 
         print('*'*100)
         print('End of epoch {}'.format(epoch))
         print('Epoch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-                        % (epoch, args.epochs, DL, GL, DL_G_z1, DL_G_z2, DL_G_z1))
+                        % (epoch, args.epochs, DL, GL, DL_G_z1, DL_G_z1, DL_G_z2))
 
         print('*'*100)
 
@@ -134,7 +140,9 @@ def presgan(dat, netG, netD, log_sigma, args):
         GL=0
         DL_G_z1=0
         DL_G_z2=0
+        Counter = 0
         for i in range(0, len(X_training), bsz): 
+            Counter = Counter+1
             sigma_x = F.softplus(log_sigma).view(1, 1, args.imageSize, args.imageSize)
 
             netD.zero_grad()
@@ -213,29 +221,35 @@ def presgan(dat, netG, netD, log_sigma, args):
             ## log performance
             if i % args.log == 0:
                 print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-                        % (epoch, args.epochs, i, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z2, D_G_z1))
+                        % (epoch, args.epochs, i, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
 
             DL = DL + errD.data
             GL = GL + g_error_gan.data
             DL_G_z1 = DL_G_z1 + D_G_z1
             DL_G_z2 = DL_G_z2 + D_G_z2
 
-        DL = DL/len(X_training)
-        GL = GL/len(X_training)
-        DL_G_z1 = DL_G_z1/len(X_training)
-        DL_G_z2 = DL_G_z2/len(X_training)
+        DL = DL/Counter
+        GL = GL/Counter
+        DL_G_z1 = DL_G_z1/Counter
+        DL_G_z2 = DL_G_z2/Counter
+
+        if DL_G_z1 == 0:
+           DL_G_z2_z1 = 0
+        else:
+          DL_G_z2_z1 = DL_G_z2 / DL_G_z1
+
         #log performance to tensorboard
         writer.add_scalar("Loss_D", DL, epoch)
         writer.add_scalar("Loss_G", GL, epoch) 
         writer.add_scalar("D(x)", DL_G_z1, epoch) 
-        writer.add_scalar("D(G(z))", DL_G_z2/DL_G_z1, epoch) 
+        writer.add_scalar("D(G(z))", DL_G_z2_z1, epoch) 
         #----------------
         #pdb.set_trace()
 
         print('*'*100)
         print('End of epoch {}'.format(epoch))
         print('Epoch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-                        % (epoch, args.epochs, DL, GL, DL_G_z1, DL_G_z2, DL_G_z1))
+                        % (epoch, args.epochs, DL, GL, DL_G_z1, DL_G_z1, DL_G_z2))
 
         print('sigma min: {} .. sigma max: {}'.format(torch.min(sigma_x), torch.max(sigma_x)))
         print('*'*100)
