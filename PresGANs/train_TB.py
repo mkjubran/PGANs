@@ -94,8 +94,8 @@ def dcgan(dat, netG, netD, args):
         writer.add_scalar("Loss_D", DL, epoch)
         writer.add_scalar("Loss_G", GL, epoch) 
         writer.add_scalar("D(x)", Dx, epoch) 
-        writer.add_scalar("D(x)", DL_G_z1, epoch) 
-        writer.add_scalar("D(x)", DL_G_z2, epoch) 
+        writer.add_scalar("DL_G_z1", DL_G_z1, epoch) 
+        writer.add_scalar("DL_G_z2", DL_G_z2, epoch) 
         #-------------
         #pdb.set_trace()
 
@@ -246,8 +246,8 @@ def presgan(dat, netG, netD, log_sigma, args):
         writer.add_scalar("Loss_D", DL, epoch)
         writer.add_scalar("Loss_G", GL, epoch) 
         writer.add_scalar("D(x)", Dx, epoch) 
-        writer.add_scalar("D(x)", DL_G_z1, epoch) 
-        writer.add_scalar("D(x)", DL_G_z2, epoch) 
+        writer.add_scalar("DL_G_z1", DL_G_z1, epoch) 
+        writer.add_scalar("DL_G_z2", DL_G_z2, epoch) 
         #----------------
         #pdb.set_trace()
 
