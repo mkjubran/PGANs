@@ -34,6 +34,7 @@ def dcgan(dat, netG, netD, args):
     for epoch in range(1, args.epochs+1):
         DL=0
         GL=0
+        Dx=0
         DL_G_z1=0
         DL_G_z2=0
         Counter=0
@@ -77,22 +78,31 @@ def dcgan(dat, netG, netD, args):
                 print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
                         % (epoch, args.epochs, i, len(X_training), errD.data, errG.data, D_x, D_G_z1, D_G_z2))
 
+            DL = DL + errD.data
+            GL = GL + g_error_gan.data
+            Dx = Dx + D_x
+            DL_G_z1 = DL_G_z1 + D_G_z1
+            DL_G_z2 = DL_G_z2 + D_G_z2
+
         DL = DL/Counter
         GL = GL/Counter
+        Dx = Dx/Counter
         DL_G_z1 = DL_G_z1/Counter
         DL_G_z2 = DL_G_z2/Counter
 
         #log performance to tensorboard
         writer.add_scalar("Loss_D", DL, epoch)
         writer.add_scalar("Loss_G", GL, epoch) 
+        writer.add_scalar("D(x)", Dx, epoch) 
         writer.add_scalar("D(x)", DL_G_z1, epoch) 
+        writer.add_scalar("D(x)", DL_G_z2, epoch) 
         #-------------
         #pdb.set_trace()
 
         print('*'*100)
         print('End of epoch {}'.format(epoch))
         print('Epoch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-                        % (epoch, args.epochs, DL, GL, DL_G_z1, DL_G_z1, DL_G_z2))
+                        % (epoch, args.epochs, DL, GL, Dx, DL_G_z1, DL_G_z2))
 
         print('*'*100)
 
@@ -134,6 +144,7 @@ def presgan(dat, netG, netD, log_sigma, args):
     for epoch in range(1, args.epochs+1):
         DL=0
         GL=0
+        Dx=0
         DL_G_z1=0
         DL_G_z2=0
         Counter = 0
@@ -221,25 +232,29 @@ def presgan(dat, netG, netD, log_sigma, args):
 
             DL = DL + errD.data
             GL = GL + g_error_gan.data
+            Dx = Dx + D_x
             DL_G_z1 = DL_G_z1 + D_G_z1
             DL_G_z2 = DL_G_z2 + D_G_z2
 
         DL = DL/Counter
         GL = GL/Counter
+        Dx = Dx/Counter
         DL_G_z1 = DL_G_z1/Counter
         DL_G_z2 = DL_G_z2/Counter
 
         #log performance to tensorboard
         writer.add_scalar("Loss_D", DL, epoch)
         writer.add_scalar("Loss_G", GL, epoch) 
+        writer.add_scalar("D(x)", Dx, epoch) 
         writer.add_scalar("D(x)", DL_G_z1, epoch) 
+        writer.add_scalar("D(x)", DL_G_z2, epoch) 
         #----------------
         #pdb.set_trace()
 
         print('*'*100)
         print('End of epoch {}'.format(epoch))
         print('Epoch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-                        % (epoch, args.epochs, DL, GL, DL_G_z1, DL_G_z1, DL_G_z2))
+                        % (epoch, args.epochs, DL, GL, Dx, DL_G_z1, DL_G_z2))
 
         print('sigma min: {} .. sigma max: {}'.format(torch.min(sigma_x), torch.max(sigma_x)))
         print('*'*100)
