@@ -34,8 +34,8 @@ nz =  100 # size of the latent z vector
 ngf =  64
 nc = 1 # number of channels on the data
 logsigma_init = -1 #initial value for log_sigma_sian
-ckptG =  '../../presgan_lambda_0.001_G1/netG_presgan_mnist_epoch_280.pth' #a given checkpoint file for generator
-logsigma_file = '../../presgan_lambda_0.001_G1/log_sigma_mnist_280.pth' #a given checkpoint file for log_sigma
+ckptG =  '../../presgan_lambda_0.001_G1/netG_presgan_mnist_epoch_60.pth' #a given checkpoint file for generator
+logsigma_file = '../../presgan_lambda_0.001_G1/log_sigma_mnist_60.pth' #a given checkpoint file for log_sigma
 
 #### defining generator
 netG = nets.Generator(imageSize, nz, ngf, nc).to(device)
@@ -51,7 +51,7 @@ if logsigma_file != '':
 
 # set the learning parameters
 lr = 0.001
-epochs = 1000
+epochs = 200
 batch_size = 100
 optimizer = optim.Adam(model.parameters(), lr=lr)
 criterion = nn.BCELoss(reduction='sum')
@@ -74,6 +74,13 @@ if not os.path.exists('../../log'):
 else:
     shutil.rmtree('../../log')
     os.makedirs('../../log')
+
+if not os.path.exists('../../presgan_lambda_0.001_E1'):
+    os.makedirs('../../presgan_lambda_0.001_E1')
+else:
+    shutil.rmtree('../../presgan_lambda_0.001_E1')
+    os.makedirs('../../presgan_lambda_0.001_E1')
+
 
 # training set and train data loader
 trainset = torchvision.datasets.MNIST(
@@ -126,6 +133,8 @@ for epoch in range(epochs):
 
     # write to tensorboard
     writer.add_image('recon_images', img_grid_TB)
+
+    torch.save(model.state_dict(), os.path.join('../../presgan_lambda_0.001_E1/netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
 
 writer.flush()
 writer.close()

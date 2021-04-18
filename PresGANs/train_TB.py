@@ -72,10 +72,10 @@ def dcgan(dat, netG, netD, args):
                         % (epoch, args.epochs, i, len(X_training), errD.data, errG.data, D_x, D_G_z1, D_G_z2))
 
                 #log performance to tensorboard
-                writer.add_scalar("Loss_D/train", errD.data, epoch)
-                writer.add_scalar("Loss_G/train", errG.data, epoch) 
-                writer.add_scalar("D(x)/train", D_x, epoch) 
-                writer.add_scalar("D(G(z))/train", D_G_z1/D_G_z2, epoch) 
+                writer.add_scalar("Loss_D", errD.data, epoch)
+                writer.add_scalar("Loss_G", errG.data, epoch) 
+                writer.add_scalar("D(x)", D_x, epoch) 
+                #writer.add_scalar("D(G(z))",{"D_G_z1" : D_G_z1,"D_G_z2" : D_G_z2}, epoch) 
                 #-------------
 
         print('*'*100)
@@ -199,10 +199,10 @@ def presgan(dat, netG, netD, log_sigma, args):
                         % (epoch, args.epochs, i, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
 
                 #log performance to tensorboard
-                writer.add_scalar("Loss_D/train", errD.data, epoch)
-                writer.add_scalar("Loss_G/train", g_error_gan.data, epoch) 
-                writer.add_scalar("D(x)/train", D_x, epoch) 
-                writer.add_scalar("D(G(z))/train", D_G_z1/D_G_z2, epoch) 
+                writer.add_scalar("Loss_D", errD.data, epoch)
+                writer.add_scalar("Loss_G", g_error_gan.data, epoch) 
+                writer.add_scalar("D(x)", D_x, epoch) 
+                #writer.add_scalar("D(G(z))", {"D_G_z1" : D_G_z1, "D_G_z2" : D_G_z2}, epoch) 
                 #-------------
 
         print('*'*100)

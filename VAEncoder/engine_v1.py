@@ -14,17 +14,19 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
     #logscale = nn.Parameter(torch.Tensor([0.0]))
     logscale = logsigmaG.view(1,1,64,64)
     scale = torch.exp(logscale)
+    scale = scale.repeat(100, 1, 1, 1)
     mean = x_hat
     scale = scale.to(device)
     dist = torch.distributions.Normal(mean, scale) 
+    #pdb.set_trace()
     log_pxz = dist.log_prob(x)
 
     # measure elbo using log_pxz ==> elbo = [log_q(z|x) - log_p(z) - log_p(x|z)] = [KLD - log_q(x|z)] 
     reconloss = log_pxz.sum(dim=(0,1,2,3))
-    elbo = KLDcf - 0.5*reconloss
+    elbo = KLDcf - 0.1*reconloss
 
-    # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - MSE] = [KLD - MSE] 
-    #reconloss = criterion(x_hat,x) # MSE(x_hat,x)
+    # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - ReconLoss] = [KLD - ReconLoss] 
+    #reconloss = criterion(x_hat,x) # BCE (x_hat,x) or MSE(x_hat,x)
     #elbo = KLDcf + reconloss
     return elbo, KLDcf, reconloss
 
