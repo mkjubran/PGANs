@@ -75,21 +75,17 @@ def dcgan(dat, netG, netD, args):
             ## log performance
             if i % args.log == 0:
                 print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-                        % (epoch, args.epochs, i, len(X_training), errD.data, errG.data, D_x, D_G_z2, D_G_z1))
+                        % (epoch, args.epochs, i, len(X_training), errD.data, errG.data, D_x, D_G_z1, D_G_z2))
 
         DL = DL/Counter
         GL = GL/Counter
         DL_G_z1 = DL_G_z1/Counter
         DL_G_z2 = DL_G_z2/Counter
-        if DL_G_z1 ==0:
-           DL_G_z2_z1 = 0
-        else:
-          DL_G_z2_z1=DL_G_z2/DL_G_z1
+
         #log performance to tensorboard
         writer.add_scalar("Loss_D", DL, epoch)
         writer.add_scalar("Loss_G", GL, epoch) 
         writer.add_scalar("D(x)", DL_G_z1, epoch) 
-        writer.add_scalar("D(G(z))", DL_G_z2_z1, epoch) 
         #-------------
         #pdb.set_trace()
 
@@ -233,16 +229,10 @@ def presgan(dat, netG, netD, log_sigma, args):
         DL_G_z1 = DL_G_z1/Counter
         DL_G_z2 = DL_G_z2/Counter
 
-        if DL_G_z1 == 0:
-           DL_G_z2_z1 = 0
-        else:
-          DL_G_z2_z1 = DL_G_z2 / DL_G_z1
-
         #log performance to tensorboard
         writer.add_scalar("Loss_D", DL, epoch)
         writer.add_scalar("Loss_G", GL, epoch) 
         writer.add_scalar("D(x)", DL_G_z1, epoch) 
-        writer.add_scalar("D(G(z))", DL_G_z2_z1, epoch) 
         #----------------
         #pdb.set_trace()
 
