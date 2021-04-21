@@ -1,5 +1,6 @@
 ##Based on https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
 
+import argparse
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -20,6 +21,16 @@ import pdb
 import nets
 import utilsG
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--ckptG', type=str, default='', help='a given checkpoint file for generator')
+parser.add_argument('--logsigma_file', type=str, default='', help='a given file for logsigma for the generator')
+parser.add_argument('--ckptE', type=str, default='', help='a given checkpoint file for VA encoder')
+args = parser.parse_args()
+
+ckptG = args.ckptG
+logsigma_file = args.logsigma_file
+ckptE = args.ckptE
+
 matplotlib.style.use('ggplot')
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -34,8 +45,9 @@ nz =  100 # size of the latent z vector
 ngf =  64
 nc = 1 # number of channels on the data
 logsigma_init = -1 #initial value for log_sigma_sian
-ckptG =  '../../presgan_lambda_0.001_G1/netG_presgan_mnist_epoch_60.pth' #a given checkpoint file for generator
-logsigma_file = '../../presgan_lambda_0.001_G1/log_sigma_mnist_60.pth' #a given checkpoint file for log_sigma
+#ckptG =  '../../presgan_lambda_0.01_G1/netG_presgan_mnist_epoch_120.pth' #a given checkpoint file for generator
+#logsigma_file = '../../presgan_lambda_0.01_G1/log_sigma_mnist_120.pth' #a given checkpoint file for log_sigma
+#ckptE =  '../../presgan_lambda_0.01_E1' #a given checkpoint file for generator
 
 #### defining generator
 netG = nets.Generator(imageSize, nz, ngf, nc).to(device)
@@ -51,7 +63,7 @@ if logsigma_file != '':
 
 # set the learning parameters
 lr = 0.001
-epochs = 200
+epochs = 1000
 batch_size = 100
 optimizer = optim.Adam(model.parameters(), lr=lr)
 criterion = nn.BCELoss(reduction='sum')
@@ -69,17 +81,17 @@ transform = transforms.Compose([
 if not os.path.exists('../../outputs'):
     os.makedirs('../../outputs')
 
-if not os.path.exists('../../log'):
-    os.makedirs('../../log')
+if not os.path.exists(ckptE):
+    os.makedirs(ckptE)
 else:
-    shutil.rmtree('../../log')
-    os.makedirs('../../log')
-
-if not os.path.exists('../../presgan_lambda_0.001_E1'):
-    os.makedirs('../../presgan_lambda_0.001_E1')
-else:
-    shutil.rmtree('../../presgan_lambda_0.001_E1')
-    os.makedirs('../../presgan_lambda_0.001_E1')
+    shutil.rmtree(ckptE)
+    os.makedirs(ckptE)
+#pdb.set_trace()
+#if not os.path.exists(ckptE):
+#    os.makedirs(ckptE)
+#else:
+#    shutil.rmtree(ckptE)
+#    os.makedirs(ckptE)
 
 
 # training set and train data loader
@@ -100,7 +112,7 @@ testloader = DataLoader(
 train_loss = []
 valid_loss = []
 
-writer = SummaryWriter('../../log')
+writer = SummaryWriter(ckptE)
 
 for epoch in range(epochs):
     print(f"Epoch {epoch+1} of {epochs}")
@@ -134,7 +146,7 @@ for epoch in range(epochs):
     # write to tensorboard
     writer.add_image('recon_images', img_grid_TB)
 
-    torch.save(model.state_dict(), os.path.join('../../presgan_lambda_0.001_E1/netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
+    torch.save(model.state_dict(), os.path.join(ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
 
 writer.flush()
 writer.close()

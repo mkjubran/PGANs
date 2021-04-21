@@ -81,21 +81,24 @@ args = parser.parse_args()
 
 if args.model == 'presgan':
     args.results_folder = '../../'+args.model+'_lambda_'+str(args.lambda_)
-    args.results_folder_TB = '../../'+args.model+'_TB_lambda_'+str(args.lambda_)
+    #args.results_folder_TB = '../../'+args.model+'_TB_lambda_'+str(args.lambda_)
 else:
     args.results_folder = '../../'+args.model
-    args.results_folder_TB = '../../'+args.model+'_TB'
+    #args.results_folder_TB = '../../'+args.model+'_TB'
 
 print('\nTraining with the following settings: {}'.format(args))
 
 if not os.path.exists(args.results_folder):
     os.makedirs(args.results_folder)
-
-if not os.path.exists(args.results_folder_TB):
-    os.makedirs(args.results_folder_TB)
 else:
-    shutil.rmtree(args.results_folder_TB)
-    os.makedirs(args.results_folder_TB)
+    shutil.rmtree(args.results_folder)
+    os.makedirs(args.results_folder)
+
+#if not os.path.exists(args.results_folder_TB):
+#    os.makedirs(args.results_folder_TB)
+#else:
+#    shutil.rmtree(args.results_folder_TB)
+#    os.makedirs(args.results_folder_TB)
 
 if not os.path.exists(args.dataroot):
     os.makedirs(args.dataroot)

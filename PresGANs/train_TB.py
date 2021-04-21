@@ -25,7 +25,7 @@ criterion_mse = nn.MSELoss()
 
 
 def dcgan(dat, netG, netD, args):
-    writer = SummaryWriter(args.results_folder_TB)
+    writer = SummaryWriter(args.results_folder)
     device = args.device
     X_training = dat['X_train'].to(device)
     fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
@@ -91,11 +91,11 @@ def dcgan(dat, netG, netD, args):
         DL_G_z2 = DL_G_z2/Counter
 
         #log performance to tensorboard
-        writer.add_scalar("Loss_D", DL, epoch)
-        writer.add_scalar("Loss_G", GL, epoch) 
+        writer.add_scalar("Loss/Loss_D", DL, epoch)
+        writer.add_scalar("Loss/Loss_G", GL, epoch) 
         writer.add_scalar("D(x)", Dx, epoch) 
-        writer.add_scalar("DL_G_z1", DL_G_z1, epoch) 
-        writer.add_scalar("DL_G_z2", DL_G_z2, epoch) 
+        writer.add_scalar("DL_G/DL_G_z1", DL_G_z1, epoch) 
+        writer.add_scalar("DL_G/DL_G_z2", DL_G_z2, epoch) 
         #-------------
         #pdb.set_trace()
 
@@ -128,7 +128,7 @@ def dcgan(dat, netG, netD, args):
 
 
 def presgan(dat, netG, netD, log_sigma, args):
-    writer = SummaryWriter(args.results_folder_TB)
+    writer = SummaryWriter(args.results_folder)
     device = args.device
     X_training = dat['X_train'].to(device)
     fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
@@ -243,11 +243,13 @@ def presgan(dat, netG, netD, log_sigma, args):
         DL_G_z2 = DL_G_z2/Counter
 
         #log performance to tensorboard
-        writer.add_scalar("Loss_D", DL, epoch)
-        writer.add_scalar("Loss_G", GL, epoch) 
+        writer.add_scalar("Loss/Loss_D", DL, epoch)
+        writer.add_scalar("Loss/Loss_G", GL, epoch) 
         writer.add_scalar("D(x)", Dx, epoch) 
-        writer.add_scalar("DL_G_z1", DL_G_z1, epoch) 
-        writer.add_scalar("DL_G_z2", DL_G_z2, epoch) 
+        writer.add_scalar("DL_G/DL_G_z1", DL_G_z1, epoch) 
+        writer.add_scalar("DL_G/DL_G_z2", DL_G_z2, epoch) 
+        writer.add_scalar("sigma/sigma_min", torch.min(sigma_x), epoch) 
+        writer.add_scalar("sigma/sigma_max", torch.max(sigma_x), epoch) 
         #----------------
         #pdb.set_trace()
 
