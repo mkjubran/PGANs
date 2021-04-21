@@ -117,7 +117,7 @@ def dcgan(dat, netG, netD, args):
             img_grid = torchvision.utils.make_grid(fake)
 
             # write to tensorboard
-            writer.add_image('fake_images', img_grid)
+            writer.add_image('fake_images', img_grid, epoch)
             # --------------
 
 
@@ -273,7 +273,7 @@ def presgan(dat, netG, netD, log_sigma, args):
             img_grid = torchvision.utils.make_grid(fake)
 
             # write to tensorboard
-            writer.add_image('fake_images', img_grid)
+            writer.add_image('fake_images', img_grid, epoch)
             # --------------
 
 
