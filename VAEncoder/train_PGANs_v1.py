@@ -144,7 +144,8 @@ for epoch in range(epochs):
     img_grid_TB = torchvision.utils.make_grid(recon_images.detach().cpu())
 
     # write to tensorboard
-    writer.add_image('recon_images', img_grid_TB)
+    if epoch % 10 == 0:
+        writer.add_image('recon_images', img_grid_TB, epoch)
 
     torch.save(model.state_dict(), os.path.join(ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
 
