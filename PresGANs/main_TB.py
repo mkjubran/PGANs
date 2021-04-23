@@ -90,7 +90,7 @@ print('\nTraining with the following settings: {}'.format(args))
 
 if not os.path.exists(args.results_folder):
     os.makedirs(args.results_folder)
-else:
+elif (args.ckptG == '') and (args.ckptD == ''):
     shutil.rmtree(args.results_folder)
     os.makedirs(args.results_folder)
 
