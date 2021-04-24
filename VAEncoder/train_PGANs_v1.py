@@ -80,6 +80,10 @@ transform = transforms.Compose([
 ## Checking paths and folders
 if not os.path.exists('../../outputs'):
     os.makedirs('../../outputs')
+else:
+    shutil.rmtree('../../outputs')
+    os.makedirs('../../outputs')
+
 
 if not os.path.exists(ckptE):
     os.makedirs(ckptE)
