@@ -20,6 +20,7 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
     #print([mvn.batch_shape, mvn.event_shape])
     log_pxz_mvn = mvn.log_prob(x.view(-1,64*64))
 
+    '''
     ### Normal full batch
     normal = torch.distributions.Normal(mean, scale)
     #print([normal.batch_shape, normal.event_shape])
@@ -41,13 +42,13 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
     ### Normal iterate over items in batch - use torch.dot()
     for cnt in range(x_hat.size()[0]):
        meanG = mean[cnt]
-       normali = torch.distributions.Normal(mean[cnt],scale)
-       normali_log_prob = normali.log_prob(x[cnt,:,:,:].view(64*64))
-       normali_log_prob = torch.dot(normali_log_prob, normali_log_prob)
+       normalid = torch.distributions.Normal(mean[cnt],scale)
+       normalid_log_prob = normalid.log_prob(x[cnt,:,:,:].view(64*64))
+       normalid_log_prob = torch.dot(normalid_log_prob, normalid_log_prob)
        if cnt == 0:
-          log_pxz_normali = normali_log_prob.view(1)
+          log_pxz_normali = normalid_log_prob.view(1)
        else:
-          log_pxz_normali = torch.cat((log_pxz_normali, normali_log_prob.view(1)),0)
+          log_pxz_normali = torch.cat((log_pxz_normali, normalid_log_prob.view(1)),0)
 
     ### Normal iterate over items in batch - use **2
     for cnt in range(x_hat.size()[0]):
@@ -60,58 +61,10 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
        else:
           log_pxz_normali2 = torch.cat((log_pxz_normali2, normali_log_prob.view(1)),0)
 
-
     pdb.set_trace()
-    # measure prob of seeing image under log_p(x|z)
-    #logscale = nn.Parameter(torch.Tensor([0.0]))
-    logscale = logsigmaG.view(1,1,64,64)
-    scale = torch.exp(logscale)
-    #scale = scale.repeat(100, 1, 1, 1)
-    mean = x_hat
-    scale = scale.to(device)
-    dist = torch.distributions.Normal(mean, scale) 
-    log_pxz = dist.log_prob(x).view(-1,64*64)
-    log_pxz_t2 = torch.sum(log_pxz * log_pxz, dim=-1)
+    '''
 
-    for cnt in range(x_hat.size()[0]):
-        if cnt == 0:
-          log_pxz_t = torch.dot(log_pxz[cnt],log_pxz[cnt]).view(1)
-        else:
-          log_pxz_t = torch.cat((log_pxz_t,torch.dot(log_pxz[cnt],log_pxz[cnt]).view(1)),0)       
-
-    # measure elbo using log_pxz ==> elbo = [log_q(z|x) - log_p(z) - log_p(x|z)] = [KLD - log_q(x|z)] 
-    #reconloss = log_pxz.sum(dim=(0,1,2,3))
-
-    pdb.set_trace()
-    logsigmaG = logsigmaG.to(device)
-    logscale = logsigmaG.view(64*64)
-    scale = torch.exp(logscale)
-    for cnt in range(x_hat.size()[0]):
-       mean = x_hat[cnt,:,:,:].view(64*64)
-       dist = torch.distributions.Normal(mean, scale)
-       distx = dist.log_prob(x[cnt,:,:,:].view(64*64))
-       if cnt == 0:
-          log_pxzG = torch.dot(distx,distx).view(1)
-       else:
-          log_pxzG = torch.cat((log_pxzG,torch.dot(distx,distx).view(1)),0)       
-
-    pdb.set_trace()
-
-    #logsigmaG = logsigmaG.to(device)
-    scaleG = torch.exp(logsigmaG)
-    scaleG = torch.diag(scaleG)
-    for cnt in range(x_hat.size()[0]):
-       meanG = x_hat[cnt,:,:,:].view(64*64)
-       distm = torch.distributions.MultivariateNormal(meanG,scaleG)
-       distmx = distm.log_prob(x[cnt,:,:,:].view(64*64))
-       if cnt == 0:
-          log_pxzmG = distmx.view(1)
-       else:
-          log_pxzmG = torch.cat((log_pxzmG,distmx.view(1)),0) 
-    reconloss = log_pxzmG
-
-    
-    pdb.set_trace()
+    reconloss = log_pxz_mvn
     elbo = KLDcf - 0.1*reconloss
 
     # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - ReconLoss] = [KLD - ReconLoss] 
