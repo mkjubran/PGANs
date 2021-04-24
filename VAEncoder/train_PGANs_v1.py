@@ -135,6 +135,10 @@ for epoch in range(epochs):
     writer.add_scalar("elbo/KLDcf", KLDcf, epoch)
     writer.add_scalar("elbo/reconloss", reconloss, epoch)
     writer.add_scalar("elbo/elbo", elbo, epoch)
+    #pdb.set_trace()
+    writer.add_histogram('distribution centers/enc1', model.enc1.weight, epoch)
+    writer.add_histogram('distribution centers/enc2', model.enc2.weight, epoch)
+
     #writer.add_scalar("Train Loss", train_epoch_loss, epoch)
     #writer.add_scalar("Val Loss", valid_epoch_loss, epoch)
 
@@ -144,7 +148,7 @@ for epoch in range(epochs):
     img_grid_TB = torchvision.utils.make_grid(recon_images.detach().cpu())
 
     # write to tensorboard
-    if epoch % 10 == 0:
+    if epoch % 2 == 0:
         writer.add_image('recon_images', img_grid_TB, epoch)
 
     torch.save(model.state_dict(), os.path.join(ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
