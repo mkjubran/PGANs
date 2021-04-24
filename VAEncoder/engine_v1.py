@@ -11,6 +11,34 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
     KLDcf = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
 
+    mean = x_hat.view(-1,64*64)
+    scale = torch.exp(logsigmaG)
+    scale = scale.to(device)
+
+    ### MVN full batch
+    mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale))
+    #print([mvn.batch_shape, mvn.event_shape])
+    log_pxz_mvn = mvn.log_prob(x.view(-1,64*64))
+
+    ### Normal full batch
+    normal = torch.distributions.Normal(mean, scale)
+    #print([normal.batch_shape, normal.event_shape])
+    diagn = torch.distributions.Independent(normal, 1)
+    #print([diagn.batch_shape, diagn.event_shape])
+    log_pxz_normal = diagn.log_prob(x.view(-1,64*64))
+
+
+    ### MVN iterate over items in batch
+    for cnt in range(x_hat.size()[0]):
+       meanG = mean[cnt]
+       mvni = torch.distributions.MultivariateNormal(mean[cnt],torch.diag(scale))
+       mvni_log_prob = mvni.log_prob(x[cnt,:,:,:].view(64*64))
+       if cnt == 0:
+          log_pxz_mvni = mvni_log_prob.view(1)
+       else:
+          log_pxz_mvni = torch.cat((log_pxz_mvni, mvni_log_prob.view(1)),0)
+
+    pdb.set_trace()
     # measure prob of seeing image under log_p(x|z)
     #logscale = nn.Parameter(torch.Tensor([0.0]))
     logscale = logsigmaG.view(1,1,64,64)
@@ -31,7 +59,7 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
     # measure elbo using log_pxz ==> elbo = [log_q(z|x) - log_p(z) - log_p(x|z)] = [KLD - log_q(x|z)] 
     #reconloss = log_pxz.sum(dim=(0,1,2,3))
 
-
+    pdb.set_trace()
     logsigmaG = logsigmaG.to(device)
     logscale = logsigmaG.view(64*64)
     scale = torch.exp(logscale)
@@ -59,6 +87,7 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
           log_pxzmG = torch.cat((log_pxzmG,distmx.view(1)),0) 
     reconloss = log_pxzmG
 
+    
     pdb.set_trace()
     elbo = KLDcf - 0.1*reconloss
 
