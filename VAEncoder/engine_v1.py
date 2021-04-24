@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import pdb
 
-def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
+def measure_elbo(mu, logvar, x, x_hat, z, zr,device, criterion, logsigmaG):
     # Use closed form of KL to compute [log_q(z|x) - log_p(z)] assuming P and q are gaussians
     KLDcf = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
@@ -16,18 +16,19 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
     scale = scale.to(device)
 
     ### MVN full batch
-    mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale))
+    mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, 64*64, 64*64))
     #print([mvn.batch_shape, mvn.event_shape])
     log_pxz_mvn = mvn.log_prob(x.view(-1,64*64))
+    #pdb.set_trace()
 
     '''
     ### Normal full batch
-    normal = torch.distributions.Normal(mean, scale)
+    normal = torch.distributions.Normal(mean, scale.reshape(1, 64*64))
     #print([normal.batch_shape, normal.event_shape])
     diagn = torch.distributions.Independent(normal, 1)
     #print([diagn.batch_shape, diagn.event_shape])
     log_pxz_normal = diagn.log_prob(x.view(-1,64*64))
-
+    pdb.set_trace()
 
     ### MVN iterate over items in batch
     for cnt in range(x_hat.size()[0]):
@@ -38,6 +39,7 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
           log_pxz_mvni = mvni_log_prob.view(1)
        else:
           log_pxz_mvni = torch.cat((log_pxz_mvni, mvni_log_prob.view(1)),0)
+    pdb.set_trace()
 
     ### Normal iterate over items in batch - use torch.dot()
     for cnt in range(x_hat.size()[0]):
@@ -64,9 +66,23 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
     pdb.set_trace()
     '''
 
-    reconloss = log_pxz_mvn
-    elbo = KLDcf - 0.1*reconloss
+    #pdb.set_trace()
+    ## compute the expectation - sum(p(z)*log_p(x/z))
+    std = torch.exp(0.5*logvar) # standard deviation
+    normalz = torch.distributions.Normal(mu, std)
+    diagnz = torch.distributions.Independent(normalz, 1)
+    pz_normal = torch.exp(diagnz.log_prob(zr))
+    pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
+    pdb.set_trace()
 
+
+    reconloss = log_pxz_mvn.sum()
+    #reconloss = reconloss/torch.max(torch.abs(reconloss))
+
+    #KLDcf = KLDcf/torch.max(torch.abs(KLDcf))
+
+    elbo = KLDcf - 0.1*reconloss
+    pdb.set_trace()
     # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - ReconLoss] = [KLD - ReconLoss] 
     #reconloss = criterion(x_hat,x) # BCE (x_hat,x) or MSE(x_hat,x)
     #elbo = KLDcf + reconloss
@@ -81,8 +97,8 @@ def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG, l
         data = data[0]
         data = data.to(device)
         optimizer.zero_grad()
-        reconstruction, mu, logvar, z = model(data, netG)
-        elbo, KLDcf, reconloss= measure_elbo(mu, logvar, data, reconstruction, z, device, criterion, logsigmaG)
+        reconstruction, mu, logvar, z, zr = model(data, netG)
+        elbo, KLDcf, reconloss= measure_elbo(mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
         #bce_loss = criterion(reconstruction, data)
         #loss = final_loss(bce_loss, mu, logvar)
         loss = elbo
@@ -133,8 +149,8 @@ model, dataloader, dataset, device, criterion, netG, logsigmaG):
             counter += 1
             data= data[0]
             data = data.to(device)
-            reconstruction, mu, logvar, z = model(data, netG)
-            elbo, KLDcf, reconloss  = measure_elbo(mu, logvar, data, reconstruction, z, device, criterion, logsigmaG)
+            reconstruction, mu, logvar, z, zr = model(data, netG)
+            elbo, KLDcf, reconloss  = measure_elbo(mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
             #bce_loss = criterion(reconstruction, data)
             #loss = final_loss(bce_loss, mu, logvar)
             loss = elbo

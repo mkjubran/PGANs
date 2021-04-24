@@ -82,8 +82,8 @@ class ConvVAE(nn.Module):
         mu = self.fc_mu(hidden)
         log_var = self.fc_log_var(hidden)
         # get the latent vector through reparameterization
-        z = self.reparameterize(mu, log_var)
-        z = self.fc2(z)
+        zr = self.reparameterize(mu, log_var)
+        z = self.fc2(zr)
         #pdb.set_trace()
         z = z.view(-1, 100, 1, 1)
  
@@ -103,4 +103,4 @@ class ConvVAE(nn.Module):
         # decoding using PGAN
         x = netG(z)
         reconstruction = x #torch.sigmoid(x)
-        return reconstruction, mu, log_var , z
+        return reconstruction, mu, log_var , z, zr
