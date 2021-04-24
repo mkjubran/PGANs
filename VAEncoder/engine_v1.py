@@ -38,6 +38,29 @@ def measure_elbo(mu, logvar, x, x_hat, z, device, criterion, logsigmaG):
        else:
           log_pxz_mvni = torch.cat((log_pxz_mvni, mvni_log_prob.view(1)),0)
 
+    ### Normal iterate over items in batch - use torch.dot()
+    for cnt in range(x_hat.size()[0]):
+       meanG = mean[cnt]
+       normali = torch.distributions.Normal(mean[cnt],scale)
+       normali_log_prob = normali.log_prob(x[cnt,:,:,:].view(64*64))
+       normali_log_prob = torch.dot(normali_log_prob, normali_log_prob)
+       if cnt == 0:
+          log_pxz_normali = normali_log_prob.view(1)
+       else:
+          log_pxz_normali = torch.cat((log_pxz_normali, normali_log_prob.view(1)),0)
+
+    ### Normal iterate over items in batch - use **2
+    for cnt in range(x_hat.size()[0]):
+       meanG = mean[cnt]
+       normali = torch.distributions.Normal(mean[cnt],scale)
+       normali_log_prob = normali.log_prob(x[cnt,:,:,:].view(64*64))
+       normali_log_prob = torch.sum(normali_log_prob**2, dim=-1)
+       if cnt == 0:
+          log_pxz_normali2 = normali_log_prob.view(1)
+       else:
+          log_pxz_normali2 = torch.cat((log_pxz_normali2, normali_log_prob.view(1)),0)
+
+
     pdb.set_trace()
     # measure prob of seeing image under log_p(x|z)
     #logscale = nn.Parameter(torch.Tensor([0.0]))
