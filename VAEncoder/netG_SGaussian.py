@@ -58,6 +58,9 @@ sample_shape = torch.Size([])
 
 print('Sampling from the Standard MVN and apply to Generator')
 for iter in range(iterations):
+   if iter % 10 == 0:
+      print(f"Progress: {iter} / {iterations}")
+
    sample = mvn.sample(sample_shape).view(-1,nz,1,1)
    recon_images = netG(sample)
 
@@ -70,6 +73,7 @@ for iter in range(iterations):
 
    writer.add_image('recon_images', img_grid_TB, iter)
 
-print('Generated Images are saved ... Done')
+print(f"{iterations} images are generated and saved")
+
 writer.flush()
 writer.close()
