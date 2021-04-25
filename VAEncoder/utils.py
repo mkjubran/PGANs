@@ -21,3 +21,7 @@ def save_loss_plot(train_loss, valid_loss):
     plt.legend()
     plt.savefig('../../outputs/loss.jpg')
     plt.show()
+def save_reconstructed_images_SG(recon_images, epoch,savefolder):
+    save_image(recon_images.cpu(), '%s/output_SG_Sample%03d.png' % (savefolder, epoch))
+    #save_image(recon_images.cpu(), f"{savefolder}/Output_SG_{epoch}.jpg")
+
