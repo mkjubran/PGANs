@@ -79,7 +79,8 @@ def measure_elbo(mu, logvar, x, x_hat, z, zr,device, criterion, logsigmaG):
     pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
     reconloss = pz_log_pxz_mvn
 
-    elbo = KLDcf - 10*reconloss
+    beta = 5
+    elbo = beta*KLDcf - reconloss
     #pdb.set_trace()
     # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - ReconLoss] = [KLD - ReconLoss] 
     #reconloss = criterion(x_hat,x) # BCE (x_hat,x) or MSE(x_hat,x)

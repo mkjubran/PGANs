@@ -20,6 +20,7 @@ import os
 import pdb
 import nets
 import utilsG
+import data
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG', type=str, default='', help='a given checkpoint file for generator')
@@ -62,7 +63,7 @@ if logsigma_file != '':
 #pdb.set_trace()
 
 # set the learning parameters
-lr = 0.001
+lr = 0.0002
 epochs = 1000
 batch_size = 100
 optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -90,14 +91,8 @@ if not os.path.exists(ckptE):
 else:
     shutil.rmtree(ckptE)
     os.makedirs(ckptE)
-#pdb.set_trace()
-#if not os.path.exists(ckptE):
-#    os.makedirs(ckptE)
-#else:
-#    shutil.rmtree(ckptE)
-#    os.makedirs(ckptE)
 
-
+'''
 # training set and train data loader
 trainset = torchvision.datasets.MNIST(
     root='../../input', train=True, download=True, transform=transform
@@ -112,6 +107,13 @@ testset = torchvision.datasets.MNIST(
 testloader = DataLoader(
     testset, batch_size=batch_size, shuffle=False
 )
+
+'''
+##loading and spliting data
+dataset = 'mnist'
+dat = data.load_data(dataset, '../../input' , 100, device=device, imgsize=64, Ntrain=60000, Ntest=10000)
+
+pdb.set_trace()
 
 train_loss = []
 valid_loss = []

@@ -24,7 +24,7 @@ nz =  100 # size of the latent z vector
 ngf =  64
 nc = 1 # number of channels on the data
 logsigma_init = -1 #initial value for log_sigma_sian
-iterations = 50
+iterations = 200
 batch_size = 100
 
 ## load generator
