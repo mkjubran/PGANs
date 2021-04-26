@@ -26,6 +26,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG', type=str, default='', help='a given checkpoint file for generator')
 parser.add_argument('--logsigma_file', type=str, default='', help='a given file for logsigma for the generator')
 parser.add_argument('--ckptE', type=str, default='', help='a given checkpoint file for VA encoder')
+parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
+parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
+parser.add_argument('--epochs', type=int, default=1000, help='number of epochs to train for')
+parser.add_argument('--lrE', type=float, default=0.0002, help='learning rate, default=0.0002')
+parser.add_argument('--beta1', type=float, default=1, help='beta1 for KLD in ELBO')
+parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
+parser.add_argument('--ngf', type=int, default=64)
+parser.add_argument('--ndf', type=int, default=64)
+parser.add_argument('--nc', type=int, default = 1, help='number of channels')
+
+
 args = parser.parse_args()
 
 ckptG = args.ckptG
@@ -51,7 +62,7 @@ logsigma_init = -1 #initial value for log_sigma_sian
 #ckptE =  '../../presgan_lambda_0.01_E1' #a given checkpoint file for generator
 
 #### defining generator
-netG = nets.Generator(imageSize, nz, ngf, nc).to(device)
+netG = nets.Generator(args).to(device)
 #log_sigma = torch.tensor([logsigma_init]*(imageSize*imageSize), device=device, requires_grad=True)
 
 #### initialize weights
@@ -66,14 +77,14 @@ if logsigma_file != '':
 lr = 0.0002
 epochs = 1000
 batch_size = 100
-optimizer = optim.Adam(model.parameters(), lr=lr)
+optimizer = optim.Adam(model.parameters(), lr=args.lrE)
 criterion = nn.BCELoss(reduction='sum')
 
 # a list to save all the reconstructed images in PyTorch grid format
 grid_images = []
 
 transform = transforms.Compose([
-    transforms.Resize((64, 64)),
+    transforms.Resize((args.imageSize, args.imageSize)),
     transforms.ToTensor(),
 ])
 
@@ -86,11 +97,11 @@ else:
     os.makedirs('../../outputs')
 
 
-if not os.path.exists(ckptE):
-    os.makedirs(ckptE)
+if not os.path.exists(args.ckptE):
+    os.makedirs(args.ckptE)
 else:
-    shutil.rmtree(ckptE)
-    os.makedirs(ckptE)
+    shutil.rmtree(args.ckptE)
+    os.makedirs(args.ckptE)
 
 '''
 # training set and train data loader
@@ -111,14 +122,16 @@ testloader = DataLoader(
 '''
 ##loading and spliting data
 dataset = 'mnist'
-dat = data.load_data(dataset, '../../input' , 100, device=device, imgsize=64, Ntrain=60000, Ntest=10000)
-
-pdb.set_trace()
+dat = data.load_data(dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=60000, Ntest=10000)
+trainset = dat['X_train']
+testset = dat['X_test']
+trainloader=[]
+testloader=[]
 
 train_loss = []
 valid_loss = []
 
-writer = SummaryWriter(ckptE)
+writer = SummaryWriter(args.ckptE)
 
 for epoch in range(epochs):
     print(f"Epoch {epoch+1} of {epochs}")

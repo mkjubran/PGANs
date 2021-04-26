@@ -87,14 +87,19 @@ def measure_elbo(mu, logvar, x, x_hat, z, zr,device, criterion, logsigmaG):
     #elbo = KLDcf + reconloss
     return elbo, KLDcf, reconloss
 
-def train_PGAN(model, dataloader, dataset, device, optimizer, criterion, netG, logsigmaG):
+def train_PGAN(model, dataloader, X_training, device, optimizer, criterion, netG, logsigmaG):
     model.train()
     running_loss = 0.0
     counter = 0
-    for i, data in tqdm(enumerate(dataloader), total=int(len(dataset)/dataloader.batch_size)):
+    batchSize = 100
+    #for i, data in tqdm(enumerate(dataloader), total=int(len(dataset)/dataloader.batch_size)):
+    for i in tqdm(range(0, len(X_training), batchSize)):
+        stop = min(batchSize, len(X_training[i:]))
+        data = X_training[i:i+stop].to(device)
+
         counter += 1
-        data = data[0]
-        data = data.to(device)
+        #data = data[0]
+        #data = data.to(device)
         optimizer.zero_grad()
         reconstruction, mu, logvar, z, zr = model(data, netG)
         elbo, KLDcf, reconloss= measure_elbo(mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
@@ -138,16 +143,19 @@ def train(model, dataloader, dataset, device, optimizer, criterion):
     train_loss = running_loss / counter 
     return train_loss
 
-def validate(
-model, dataloader, dataset, device, criterion, netG, logsigmaG):
+def validate(model, dataloader, X_testing, device, criterion, netG, logsigmaG):
     model.eval()
     running_loss = 0.0
     counter = 0
+    batchSize = 100
     with torch.no_grad():
-        for i, data in tqdm(enumerate(dataloader), total=int(len(dataset)/dataloader.batch_size)):
+        #for i, data in tqdm(enumerate(dataloader), total=int(len(dataset)/dataloader.batch_size)):
+        for i in tqdm(range(0, len(X_testing), batchSize)):
+            stop = min(batchSize, len(X_testing[i:]))
+            data = X_testing[i:i+stop].to(device)
             counter += 1
-            data= data[0]
-            data = data.to(device)
+            #data= data[0]
+            #data = data.to(device)
             reconstruction, mu, logvar, z, zr = model(data, netG)
             elbo, KLDcf, reconloss  = measure_elbo(mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
             #bce_loss = criterion(reconstruction, data)
@@ -156,7 +164,7 @@ model, dataloader, dataset, device, criterion, netG, logsigmaG):
             running_loss += loss.item()
         
             # save the last batch input and output of every epoch
-            if i == int(len(dataset)/dataloader.batch_size) - 1:
+            if (i+stop) == X_testing.size(0):
                 recon_images = reconstruction
     val_loss = running_loss / counter
     return val_loss, recon_images

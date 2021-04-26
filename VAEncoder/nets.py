@@ -2,28 +2,28 @@ import torch.nn as nn
 
     
 class Generator(nn.Module):
-    def __init__(self, imgSize, nz, ngf, nc):
+    def __init__(self, args):
         super(Generator, self).__init__()
         
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(ngf * 8),
+            nn.ConvTranspose2d(     args.nz, args.ngf * 8, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(args.ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4
-            nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 4),
+            nn.ConvTranspose2d(args.ngf * 8, args.ngf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngf * 4),
             nn.ReLU(True),
             # state size. (ngf*4) x 8 x 8
-            nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 2),
+            nn.ConvTranspose2d(args.ngf * 4, args.ngf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngf * 2),
             nn.ReLU(True),
             # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d(ngf * 2,    ngf, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf),
+            nn.ConvTranspose2d(args.ngf * 2,    args.ngf, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngf),
             nn.ReLU(True),
             # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d(    ngf,      nc, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(    args.ngf,      args.nc, 4, 2, 1, bias=False),
             nn.Tanh()
             # state size. (nc) x 64 x 64
         )
@@ -33,27 +33,27 @@ class Generator(nn.Module):
         return output
 
 class Discriminator(nn.Module):
-    def __init__(self, imgSize, ndf, nc):
+    def __init__(self, imgSize, ndf, nc, args):
         super(Discriminator, self).__init__()
         
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
-            nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
+            nn.Conv2d(nc, args.ndf, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf) x 32 x 32
-            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ndf * 2),
+            nn.Conv2d(args.ndf, args.ndf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ndf * 2),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*2) x 16 x 16
-            nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ndf * 4),
+            nn.Conv2d(args.ndf * 2, args.ndf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*4) x 8 x 8
-            nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ndf * 8),
+            nn.Conv2d(ndf * 4, args.ndf * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+            nn.Conv2d(args.ndf * 8, 1, 4, 1, 0, bias=False),
             nn.Sigmoid()
         )
         
@@ -64,28 +64,28 @@ class Discriminator(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, imgSize, nz, ngf, nc):
+    def __init__(self, imgSize, nz, ngf, nc, args):
         super(Encoder, self).__init__()
         
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
-            nn.Conv2d(nc, ngf, 4, 2, 1, bias=False),
+            nn.Conv2d(args.nc, args.ngf, 4, 2, 1, bias=False),
             nn.ReLU(True),
             # state size. (ngf) x 32 x 32
-            nn.Conv2d(ngf, ngf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 2),
+            nn.Conv2d(args.ngf, args.ngf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngf * 2),
             nn.ReLU(True),
             # state size. (ngf*2) x 16 x 16
-            nn.Conv2d(ngf * 2, ngf * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 4),
+            nn.Conv2d(args.ngf * 2, args.ngf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngf * 4),
             nn.ReLU(True),
             # state size. (ngf*4) x 8 x 8
-            nn.Conv2d(ngf * 4, ngf * 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 8),
+            nn.Conv2d(args.ngf * 4, args.ngf * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 4 x 4
-            nn.Conv2d(ngf * 8, nz, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(nz),
+            nn.Conv2d(args.ngf * 8, args.nz, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(args.nz),
             nn.ReLU(True),
 
         )
@@ -96,7 +96,7 @@ class Encoder(nn.Module):
 
 
 class VAEncoder(nn.Module):
-    def __init__(self, imgSize, nz, ngf, nc):
+    def __init__(self, imgSize, nz, ngf, nc, args):
         super(VAEncoder, self).__init__()
         '''
         self.main = nn.Sequential(
@@ -124,13 +124,13 @@ class VAEncoder(nn.Module):
         '''
 
         self.main = nn.Sequential(
-           nn.Conv2d(nc, ngf, 4, 2, 1, bias=False),
-           nn.Conv2d(ngf, ngf, 4, 2, 1, bias=False),
+           nn.Conv2d(args.nc, args.ngf, 4, 2, 1, bias=False),
+           nn.Conv2d(args.ngf, args.ngf, 4, 2, 1, bias=False),
         )
 
         # distribution parameters
-        self.fc_mu = nn.Linear(nz, nz)
-        self.fc_var = nn.Linear(nz, nz)
+        self.fc_mu = nn.Linear(args.nz, args.nz)
+        self.fc_var = nn.Linear(args.nz, args.nz)
 
     def forward(self, input):
         output = self.main(input)
