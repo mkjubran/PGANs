@@ -26,16 +26,22 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG', type=str, default='', help='a given checkpoint file for generator')
 parser.add_argument('--logsigma_file', type=str, default='', help='a given file for logsigma for the generator')
 parser.add_argument('--ckptE', type=str, default='', help='a given checkpoint file for VA encoder')
-parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--epochs', type=int, default=1000, help='number of epochs to train for')
 parser.add_argument('--lrE', type=float, default=0.0002, help='learning rate, default=0.0002')
-parser.add_argument('--beta1', type=float, default=1, help='beta1 for KLD in ELBO')
+parser.add_argument('--beta', type=float, default=1, help='beta1 for KLD in ELBO')
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
-parser.add_argument('--ngf', type=int, default=64)
-parser.add_argument('--ndf', type=int, default=64)
-parser.add_argument('--nc', type=int, default = 1, help='number of channels')
-
+parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector for encoder')
+parser.add_argument('--ngf', type=int, default=64, help='model parameters for encoder')
+parser.add_argument('--ndf', type=int, default=64, help='model parameters for encoder')
+parser.add_argument('--nc', type=int, default = 1, help='number of channels for encoder')
+parser.add_argument('--nzg', type=int, default=100, help='size of the latent z vector for generator')
+parser.add_argument('--ngfg', type=int, default=64, help='model parameters for generator')
+parser.add_argument('--ndfg', type=int, default=64, help='model parameters for generator')
+parser.add_argument('--ncg', type=int, default = 1, help='number of channels for generator')
+parser.add_argument('--Ntrain', type=int, default=60000, help='training set size for stackedmnist')
+parser.add_argument('--Ntest', type=int, default=10000, help='test set size for stackedmnist')
+parser.add_argument('--save_imgs_folder', type=str, default='../../outputs', help='where to save generated images')
 
 args = parser.parse_args()
 
@@ -48,18 +54,10 @@ matplotlib.style.use('ggplot')
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # initialize the model
-model = model.ConvVAE().to(device)
+model = model.ConvVAE(args).to(device)
 
 # define and load the weights of the generator
-### define parameters
-imageSize = 64 #the height / width of the input image to network'
-nz =  100 # size of the latent z vector
-ngf =  64
-nc = 1 # number of channels on the data
 logsigma_init = -1 #initial value for log_sigma_sian
-#ckptG =  '../../presgan_lambda_0.01_G1/netG_presgan_mnist_epoch_120.pth' #a given checkpoint file for generator
-#logsigma_file = '../../presgan_lambda_0.01_G1/log_sigma_mnist_120.pth' #a given checkpoint file for log_sigma
-#ckptE =  '../../presgan_lambda_0.01_E1' #a given checkpoint file for generator
 
 #### defining generator
 netG = nets.Generator(args).to(device)
@@ -71,12 +69,8 @@ if ckptG != '':
     netG.load_state_dict(torch.load(ckptG))
 if logsigma_file != '':
     logsigmaG = torch.load(logsigma_file)
-#pdb.set_trace()
 
 # set the learning parameters
-lr = 0.0002
-epochs = 1000
-batch_size = 100
 optimizer = optim.Adam(model.parameters(), lr=args.lrE)
 criterion = nn.BCELoss(reduction='sum')
 
@@ -90,11 +84,11 @@ transform = transforms.Compose([
 
 
 ## Checking paths and folders
-if not os.path.exists('../../outputs'):
-    os.makedirs('../../outputs')
+if not os.path.exists(args.save_imgs_folder):
+    os.makedirs(args.save_imgs_folder)
 else:
-    shutil.rmtree('../../outputs')
-    os.makedirs('../../outputs')
+    shutil.rmtree(args.save_imgs_folder)
+    os.makedirs(args.save_imgs_folder)
 
 
 if not os.path.exists(args.ckptE):
@@ -122,7 +116,7 @@ testloader = DataLoader(
 '''
 ##loading and spliting data
 dataset = 'mnist'
-dat = data.load_data(dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=60000, Ntest=10000)
+dat = data.load_data(dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
 trainset = dat['X_train']
 testset = dat['X_test']
 trainloader=[]
@@ -133,13 +127,13 @@ valid_loss = []
 
 writer = SummaryWriter(args.ckptE)
 
-for epoch in range(epochs):
-    print(f"Epoch {epoch+1} of {epochs}")
+for epoch in range(args.epochs):
+    print(f"Epoch {epoch+1} of {args.epochs}")
     train_epoch_loss, elbo, KLDcf, reconloss = train_PGAN(
-        model, trainloader, trainset, device, optimizer, criterion, netG, logsigmaG
+        model, args, trainloader, trainset, device, optimizer, criterion, netG, logsigmaG
     )
     valid_epoch_loss, recon_images = validate(
-        model, testloader, testset, device, criterion, netG, logsigmaG
+        model, args, testloader, testset, device, criterion, netG, logsigmaG
     )
     train_loss.append(train_epoch_loss)
     valid_loss.append(valid_epoch_loss)

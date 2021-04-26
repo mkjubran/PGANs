@@ -7,17 +7,17 @@ import pdb
 
 kernel_size = 4 # (4, 4) kernel
 init_channels = 8 # initial number of filters
-image_channels = 1 # MNIST images are grayscale
-latent_dim = 16 # latent dimension for sampling
+#image_channels = 1 # MNIST images are grayscale
+#latent_dim = 16 # latent dimension for sampling
 
 # define a Conv VAE
 class ConvVAE(nn.Module):
-    def __init__(self):
+    def __init__(self,args):
         super(ConvVAE, self).__init__()
  
         # encoder
         self.enc1 = nn.Conv2d(
-            in_channels=image_channels, out_channels=init_channels, kernel_size=kernel_size, 
+            in_channels=args.nc, out_channels=init_channels, kernel_size=kernel_size, 
             stride=2, padding=1
         )
         self.enc2 = nn.Conv2d(
@@ -34,9 +34,9 @@ class ConvVAE(nn.Module):
         )
         # fully connected layers for learning representations
         self.fc1 = nn.Linear(64, 128)
-        self.fc_mu = nn.Linear(128, latent_dim)
-        self.fc_log_var = nn.Linear(128, latent_dim)
-        self.fc2 = nn.Linear(latent_dim, 100)
+        self.fc_mu = nn.Linear(128, args.nz)
+        self.fc_log_var = nn.Linear(128, args.nz)
+        self.fc2 = nn.Linear(args.nz, 100)
 
         # decoder 
         self.dec1 = nn.ConvTranspose2d(
@@ -56,7 +56,7 @@ class ConvVAE(nn.Module):
             stride=2, padding=1
         )
         self.dec5 = nn.ConvTranspose2d(
-            in_channels=init_channels*2, out_channels=image_channels, kernel_size=kernel_size, 
+            in_channels=init_channels*2, out_channels=args.nc, kernel_size=kernel_size, 
             stride=2, padding=1
         )
     def reparameterize(self, mu, log_var):

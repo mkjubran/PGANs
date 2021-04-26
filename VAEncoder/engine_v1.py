@@ -6,19 +6,20 @@ import torch
 import torch.nn as nn
 import pdb
 
-def measure_elbo(mu, logvar, x, x_hat, z, zr,device, criterion, logsigmaG):
+def measure_elbo(args, mu, logvar, x, x_hat, z, zr,device, criterion, logsigmaG):
+    imageSize = args.imageSize
     # Use closed form of KL to compute [log_q(z|x) - log_p(z)] assuming P and q are gaussians
     KLDcf = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
 
-    mean = x_hat.view(-1,64*64)
+    mean = x_hat.view(-1,imageSize*imageSize)
     scale = torch.exp(logsigmaG)
     scale = scale.to(device)
 
     ### MVN full batch
-    mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, 64*64, 64*64))
+    mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
     #print([mvn.batch_shape, mvn.event_shape])
-    log_pxz_mvn = mvn.log_prob(x.view(-1,64*64))
+    log_pxz_mvn = mvn.log_prob(x.view(-1,imageSize*imageSize))
     #pdb.set_trace()
 
     '''
@@ -79,7 +80,7 @@ def measure_elbo(mu, logvar, x, x_hat, z, zr,device, criterion, logsigmaG):
     pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
     reconloss = pz_log_pxz_mvn
 
-    beta = 5
+    beta = args.beta
     elbo = beta*KLDcf - reconloss
     #pdb.set_trace()
     # measure elbo using MSE construction loss ==> elbo = [log_q(z|x) - log_p(z) - ReconLoss] = [KLD - ReconLoss] 
@@ -87,14 +88,14 @@ def measure_elbo(mu, logvar, x, x_hat, z, zr,device, criterion, logsigmaG):
     #elbo = KLDcf + reconloss
     return elbo, KLDcf, reconloss
 
-def train_PGAN(model, dataloader, X_training, device, optimizer, criterion, netG, logsigmaG):
+def train_PGAN(model, args, dataloader, X_training, device, optimizer, criterion, netG, logsigmaG):
     model.train()
     running_loss = 0.0
     counter = 0
-    batchSize = 100
+    #batchSize = 100
     #for i, data in tqdm(enumerate(dataloader), total=int(len(dataset)/dataloader.batch_size)):
-    for i in tqdm(range(0, len(X_training), batchSize)):
-        stop = min(batchSize, len(X_training[i:]))
+    for i in tqdm(range(0, len(X_training), args.batchSize)):
+        stop = min(args.batchSize, len(X_training[i:]))
         data = X_training[i:i+stop].to(device)
 
         counter += 1
@@ -102,7 +103,7 @@ def train_PGAN(model, dataloader, X_training, device, optimizer, criterion, netG
         #data = data.to(device)
         optimizer.zero_grad()
         reconstruction, mu, logvar, z, zr = model(data, netG)
-        elbo, KLDcf, reconloss= measure_elbo(mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
+        elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
         #bce_loss = criterion(reconstruction, data)
         #loss = final_loss(bce_loss, mu, logvar)
         loss = elbo
@@ -125,6 +126,7 @@ def final_loss(bce_loss, mu, logvar):
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD
 
+'''
 def train(model, dataloader, dataset, device, optimizer, criterion):
     model.train()
     running_loss = 0.0
@@ -142,22 +144,23 @@ def train(model, dataloader, dataset, device, optimizer, criterion):
         optimizer.step()
     train_loss = running_loss / counter 
     return train_loss
+'''
 
-def validate(model, dataloader, X_testing, device, criterion, netG, logsigmaG):
+def validate(model, args, dataloader, X_testing, device, criterion, netG, logsigmaG):
     model.eval()
     running_loss = 0.0
     counter = 0
-    batchSize = 100
+    #batchSize = 100
     with torch.no_grad():
         #for i, data in tqdm(enumerate(dataloader), total=int(len(dataset)/dataloader.batch_size)):
-        for i in tqdm(range(0, len(X_testing), batchSize)):
-            stop = min(batchSize, len(X_testing[i:]))
+        for i in tqdm(range(0, len(X_testing), args.batchSize)):
+            stop = min(args.batchSize, len(X_testing[i:]))
             data = X_testing[i:i+stop].to(device)
             counter += 1
             #data= data[0]
             #data = data.to(device)
             reconstruction, mu, logvar, z, zr = model(data, netG)
-            elbo, KLDcf, reconloss  = measure_elbo(mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
+            elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
             #bce_loss = criterion(reconstruction, data)
             #loss = final_loss(bce_loss, mu, logvar)
             loss = elbo
