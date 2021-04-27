@@ -1,10 +1,9 @@
-##Based on https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
 
 import argparse
 import torch
 import torch.optim as optim
 import torch.nn as nn
-import model_v2 as model
+import model_Likelihood as model
 import torchvision.transforms as transforms
 import torchvision
 import matplotlib
@@ -60,12 +59,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # initialize the model
 model = model.ConvVAE(args).to(device)
 
-# set the learning parameters
+# set the Encoder learning parameters
 optimizer = optim.Adam(model.parameters(), lr=args.lrE)
-
-# a list to save all the reconstructed images in PyTorch grid format
-grid_images = []
-
 
 ## Checking paths and folders
 if not os.path.exists(args.save_Likelihood):
@@ -91,6 +86,18 @@ testloader=[]
 train_loss = []
 valid_loss = []
 
+## Loading the generator model
+#### defining generator
+netG = nets.Generator(args).to(device)
+
+#### initialize weights
+netG.apply(utilsG.weights_init)
+if args.ckptG != '':
+    netG.load_state_dict(torch.load(args.ckptG))
+else:
+   print('A valid ckptG for a pretrained PGAN generator must be provided')
+
+
 writer = SummaryWriter(args.ckptL)
 
 scale = 0.01
@@ -102,18 +109,18 @@ for i in range(1): #range(len(X_testing)):
     if ckptE != '':
         model.load_state_dict(torch.load(ckptE))
     else:
-        print('A valid ckptE must be provided')
+        print('A valid ckptE for a pretrained encoder must be provided')
 
     model.train()
     running_loss = 0.0
     counter = 0
+    data = testset[i].view([1,1,args.imageSize,args.imageSize])
+    data = data.to(device)
     for epoch in tqdm(range(0, args.epochs)):
-        data = testset[i].to(device)
         counter += 1
         optimizer.zero_grad()
-        pdb.set_trace()
+        x_hat, mu, logvar, z, zr = model(data, netG)
 
-        reconstruction, mu, logvar, z, zr = model(data, netG)
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
         pdb.set_trace()
 
