@@ -31,40 +31,6 @@ def measure_elbo(args, mu, logvar, x, x_hat, z, zr,device, criterion, logsigmaG)
     log_pxz_normal = diagn.log_prob(x.view(-1,64*64))
     pdb.set_trace()
 
-    ### MVN iterate over items in batch
-    for cnt in range(x_hat.size()[0]):
-       meanG = mean[cnt]
-       mvni = torch.distributions.MultivariateNormal(mean[cnt],torch.diag(scale))
-       mvni_log_prob = mvni.log_prob(x[cnt,:,:,:].view(64*64))
-       if cnt == 0:
-          log_pxz_mvni = mvni_log_prob.view(1)
-       else:
-          log_pxz_mvni = torch.cat((log_pxz_mvni, mvni_log_prob.view(1)),0)
-    pdb.set_trace()
-
-    ### Normal iterate over items in batch - use torch.dot()
-    for cnt in range(x_hat.size()[0]):
-       meanG = mean[cnt]
-       normalid = torch.distributions.Normal(mean[cnt],scale)
-       normalid_log_prob = normalid.log_prob(x[cnt,:,:,:].view(64*64))
-       normalid_log_prob = torch.dot(normalid_log_prob, normalid_log_prob)
-       if cnt == 0:
-          log_pxz_normali = normalid_log_prob.view(1)
-       else:
-          log_pxz_normali = torch.cat((log_pxz_normali, normalid_log_prob.view(1)),0)
-
-    ### Normal iterate over items in batch - use **2
-    for cnt in range(x_hat.size()[0]):
-       meanG = mean[cnt]
-       normali = torch.distributions.Normal(mean[cnt],scale)
-       normali_log_prob = normali.log_prob(x[cnt,:,:,:].view(64*64))
-       normali_log_prob = torch.sum(normali_log_prob**2, dim=-1)
-       if cnt == 0:
-          log_pxz_normali2 = normali_log_prob.view(1)
-       else:
-          log_pxz_normali2 = torch.cat((log_pxz_normali2, normali_log_prob.view(1)),0)
-
-    pdb.set_trace()
     '''
 
     #pdb.set_trace()
@@ -99,8 +65,6 @@ def train_PGAN(model, args, dataloader, X_training, device, optimizer, criterion
         data = X_training[i:i+stop].to(device)
 
         counter += 1
-        #data = data[0]
-        #data = data.to(device)
         optimizer.zero_grad()
         reconstruction, mu, logvar, z, zr = model(data, netG)
         elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
@@ -126,26 +90,6 @@ def final_loss(bce_loss, mu, logvar):
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD
 
-'''
-def train(model, dataloader, dataset, device, optimizer, criterion):
-    model.train()
-    running_loss = 0.0
-    counter = 0
-    for i, data in tqdm(enumerate(dataloader), total=int(len(dataset)/dataloader.batch_size)):
-        counter += 1
-        data = data[0]
-        data = data.to(device)
-        optimizer.zero_grad()
-        reconstruction, mu, logvar, z = model(data)
-        bce_loss = criterion(reconstruction, data)
-        loss = final_loss(bce_loss, mu, logvar)
-        loss.backward()
-        running_loss += loss.item()
-        optimizer.step()
-    train_loss = running_loss / counter 
-    return train_loss
-'''
-
 def validate(model, args, dataloader, X_testing, device, criterion, netG, logsigmaG):
     model.eval()
     running_loss = 0.0
@@ -157,8 +101,6 @@ def validate(model, args, dataloader, X_testing, device, criterion, netG, logsig
             stop = min(args.batchSize, len(X_testing[i:]))
             data = X_testing[i:i+stop].to(device)
             counter += 1
-            #data= data[0]
-            #data = data.to(device)
             reconstruction, mu, logvar, z, zr = model(data, netG)
             elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, criterion, logsigmaG)
             #bce_loss = criterion(reconstruction, data)

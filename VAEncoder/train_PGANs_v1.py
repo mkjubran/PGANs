@@ -10,7 +10,7 @@ import torchvision
 import matplotlib
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
-from engine import train
+#from engine import train
 from engine_v1 import train_PGAN, validate
 from utils import save_reconstructed_images, image_to_vid, save_loss_plot
 from torch.utils.tensorboard import SummaryWriter
@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG', type=str, default='', help='a given checkpoint file for generator')
 parser.add_argument('--logsigma_file', type=str, default='', help='a given file for logsigma for the generator')
 parser.add_argument('--ckptE', type=str, default='', help='a given checkpoint file for VA encoder')
-parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
+parser.add_argument('--batchSize', type=int, default=100, help='input batch size')
 parser.add_argument('--epochs', type=int, default=1000, help='number of epochs to train for')
 parser.add_argument('--lrE', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta', type=float, default=1, help='beta1 for KLD in ELBO')
@@ -97,23 +97,6 @@ else:
     shutil.rmtree(args.ckptE)
     os.makedirs(args.ckptE)
 
-'''
-# training set and train data loader
-trainset = torchvision.datasets.MNIST(
-    root='../../input', train=True, download=True, transform=transform
-)
-trainloader = DataLoader(
-    trainset, batch_size=batch_size, shuffle=True
-)
-# validation set and validation data loader
-testset = torchvision.datasets.MNIST(
-    root='../../input', train=False, download=True, transform=transform
-)
-testloader = DataLoader(
-    testset, batch_size=batch_size, shuffle=False
-)
-
-'''
 ##loading and spliting data
 dataset = 'mnist'
 dat = data.load_data(dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
@@ -138,7 +121,7 @@ for epoch in range(args.epochs):
     train_loss.append(train_epoch_loss)
     valid_loss.append(valid_epoch_loss)
     # save the reconstructed images from the validation loop
-    save_reconstructed_images(recon_images, epoch+1)
+    save_reconstructed_images(recon_images, epoch+1,args)
     # convert the reconstructed images to PyTorch image grid format
     image_grid = make_grid(recon_images.detach().cpu())
     #grid_images.append(image_grid)
@@ -148,12 +131,8 @@ for epoch in range(args.epochs):
     writer.add_scalar("elbo/KLDcf", KLDcf, epoch)
     writer.add_scalar("elbo/reconloss", reconloss, epoch)
     writer.add_scalar("elbo/elbo", elbo, epoch)
-    #pdb.set_trace()
     writer.add_histogram('distribution centers/enc1', model.enc1.weight, epoch)
     writer.add_histogram('distribution centers/enc2', model.enc2.weight, epoch)
-
-    #writer.add_scalar("Train Loss", train_epoch_loss, epoch)
-    #writer.add_scalar("Val Loss", valid_epoch_loss, epoch)
 
     # log images to tensorboard
     # create grid of images
@@ -168,12 +147,5 @@ for epoch in range(args.epochs):
 
 writer.flush()
 writer.close()
-
-# save the reconstructions as a .gif file
-image_to_vid(grid_images)
-# save the loss plots to disk
-save_loss_plot(train_loss, valid_loss)
-print('TRAINING COMPLETE')
-
 
 
