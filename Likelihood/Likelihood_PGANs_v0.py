@@ -100,35 +100,36 @@ else:
 
 writer = SummaryWriter(args.ckptL)
 
-scale = 0.01
-#scale = scale.to(device)
-for i in range(1): #range(len(X_testing)):
-    print(f"Likelihood of testing image {i} of (len(X_testing)")
-
-    #model.apply(model.weights_init)
-    if ckptE != '':
+imageSize = args.imageSize
+scale = 0.01*torch.ones(imageSize**2)
+scale = scale.to(device)
+#for i in range(1): #range(len(testset)):
+#print(f"Likelihood of testing image {i} of {len(testset)}"
+i = torch.randint(0, len(testset),(1,1)) ## selection of the index of test image
+if ckptE != '':
         model.load_state_dict(torch.load(ckptE))
-    else:
+else:
         print('A valid ckptE for a pretrained encoder must be provided')
-
-    model.train()
-    running_loss = 0.0
-    counter = 0
-    data = testset[i].view([1,1,args.imageSize,args.imageSize])
-    data = data.to(device)
-    for epoch in tqdm(range(0, args.epochs)):
+model.train()
+running_loss = 0.0
+counter = 0
+data = testset[i].view([1,1,imageSize,imageSize])
+data = data.to(device)
+train_loss = []
+#for epoch in tqdm(range(0, args.epochs)):
+#for epoch in range(0, args.epochs):
+loss = 0;
+epoch = 0;
+while (epoch <= args.epochs) and (loss >= 0):
+        epoch +=1
         counter += 1
         optimizer.zero_grad()
         x_hat, mu, logvar, z, zr = model(data, netG)
-
-        mean = x_hat.view(-1,args.imageSize*args.imageSize)
-        pdb.set_trace()
+        mean = x_hat.view(-1,imageSize*imageSize)
 
         ### MVN full batch
         mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
-        #print([mvn.batch_shape, mvn.event_shape])
-        log_pxz_mvn = mvn.log_prob(x.view(-1,imageSize*imageSize))
-        #pdb.set_trace()
+        log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
 
         std = torch.exp(0.5*logvar) # standard deviation
         std_b = torch.eye(std.size(1)).to(device)
@@ -137,29 +138,39 @@ for i in range(1): #range(len(X_testing)):
         mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
 
         pz_normal = torch.exp(mvnz.log_prob(zr))
-        pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
-        reconloss = pz_log_pxz_mvn
+        loss = -1*(log_pxz_mvn + pz_normal)
 
-        beta = args.beta
-        elbo = beta*KLDcf - reconloss
+        #pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
+        #reconloss = pz_log_pxz_mvn
 
-        loss = elbo
+        #pdb.set_trace()
+        #beta = args.beta
+        #elbo = beta*KLDcf - reconloss
+
+        #loss = elbo
         loss.backward()
         running_loss += loss.item()
         optimizer.step()
         train_loss = running_loss / counter
 
-        pdb.set_trace()
-        train_loss.append(train_epoch_loss)
-        print(f"Train Loss: {train_epoch_loss:.4f}")
+        #train_loss.append(train_epoch_loss)
+        if epoch % 5 ==0:
+           print(f"Train Loss: {train_loss:.4f}")
 
-        #writer.add_scalar("elbo/KLDcf", KLDcf, epoch)
+        if loss > 0:
+           writer.add_scalar("Train Loss", loss, epoch)
         #writer.add_scalar("elbo/reconloss", reconloss, epoch)
         #writer.add_scalar("elbo/elbo", elbo, epoch)
-        #writer.add_histogram('distribution centers/enc1', model.enc1.weight, epoch)
-        #writer.add_histogram('distribution centers/enc2', model.enc2.weight, epoch)
+        writer.add_histogram('distribution centers/enc1', model.enc1.weight, epoch)
+        writer.add_histogram('distribution centers/enc2', model.enc2.weight, epoch)
 
         #torch.save(model.state_dict(), os.path.join(ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
+
+        # write to tensorboard
+        #pdb.set_trace()
+        if epoch % 10 == 0:
+            img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
+            writer.add_image('True and recon_image', img_grid_TB, epoch)
 
 writer.flush()
 writer.close()
