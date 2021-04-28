@@ -9,8 +9,6 @@ import torchvision
 import matplotlib
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
-#from engine import train
-#from engine_v1 import train_Likelihood, validate
 from utils import save_reconstructed_images, image_to_vid, save_loss_plot
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -48,21 +46,16 @@ parser.add_argument('--ckptL', type=str, default='', help='a given checkpoint fi
 parser.add_argument('--save_Likelihood', type=str, default='../../outputs', help='where to save Likelihood results')
 args = parser.parse_args()
 
-#ckptG = args.ckptG
-#logsigma_file = args.logsigma_file
 ckptE = args.ckptE
 
 matplotlib.style.use('ggplot')
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# initialize the model
+##-- setup of VAE Encoder
 model = model.ConvVAE(args).to(device)
-
-# set the Encoder learning parameters
 optimizer = optim.Adam(model.parameters(), lr=args.lrE)
 
-## Checking paths and folders
+##-- preparing folders to save results
 if not os.path.exists(args.save_Likelihood):
     os.makedirs(args.save_Likelihood)
 else:
@@ -75,7 +68,8 @@ else:
      shutil.rmtree(args.ckptL)
      os.makedirs(args.ckptL)
 
-##loading and spliting data
+
+##-- loading and spliting datasets
 dataset = 'mnist'
 dat = data.load_data(dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
 trainset = dat['X_train']
@@ -86,88 +80,72 @@ testloader=[]
 train_loss = []
 valid_loss = []
 
-## Loading the generator model
-#### defining generator
+##-- loading PGAN generator model
 netG = nets.Generator(args).to(device)
-
-#### initialize weights
 netG.apply(utilsG.weights_init)
 if args.ckptG != '':
     netG.load_state_dict(torch.load(args.ckptG))
 else:
    print('A valid ckptG for a pretrained PGAN generator must be provided')
 
-
-writer = SummaryWriter(args.ckptL)
-
-imageSize = args.imageSize
-scale = 0.01*torch.ones(imageSize**2)
-scale = scale.to(device)
-#for i in range(1): #range(len(testset)):
-#print(f"Likelihood of testing image {i} of {len(testset)}"
-i = torch.randint(0, len(testset),(1,1)) ## selection of the index of test image
+##-- loading VAE encoder model
 if ckptE != '':
         model.load_state_dict(torch.load(ckptE))
 else:
         print('A valid ckptE for a pretrained encoder must be provided')
+
+##-- write to tensor board
+writer = SummaryWriter(args.ckptL)
+
+##-- setting scale and selecting a random test sample
+imageSize = args.imageSize
+scale = 0.01*torch.ones(imageSize**2)
+scale = scale.to(device)
+i = torch.randint(0, len(testset),(1,1)) ## selection of the index of test image
+data = testset[i].view([1,1,imageSize,imageSize])
+data = data.to(device)
+
 model.train()
 running_loss = 0.0
 counter = 0
-data = testset[i].view([1,1,imageSize,imageSize])
-data = data.to(device)
 train_loss = []
-#for epoch in tqdm(range(0, args.epochs)):
-#for epoch in range(0, args.epochs):
-loss = 0;
+overlap_loss = 0;
 epoch = 0;
-while (epoch <= args.epochs) and (loss >= 0):
+while (epoch <= args.epochs) and (overlap_loss >= 0):
         epoch +=1
         counter += 1
         optimizer.zero_grad()
         x_hat, mu, logvar, z, zr = model(data, netG)
         mean = x_hat.view(-1,imageSize*imageSize)
 
-        ### MVN full batch
+        ##-- compute MVN full batch
         mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
         log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
 
-        std = torch.exp(0.5*logvar) # standard deviation
+        ##-- sample from standard normal distribution
+        std = torch.exp(0.5*logvar)
         std_b = torch.eye(std.size(1)).to(device)
         std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
         std_3d = std_c * std_b
         mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
-
         pz_normal = torch.exp(mvnz.log_prob(zr))
-        loss = -1*(log_pxz_mvn + pz_normal)
 
-        #pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
-        #reconloss = pz_log_pxz_mvn
-
-        #pdb.set_trace()
-        #beta = args.beta
-        #elbo = beta*KLDcf - reconloss
-
-        #loss = elbo
-        loss.backward()
-        running_loss += loss.item()
+        ##-- definning overlap loss abd backpropagation 
+        overlap_loss = -1*(log_pxz_mvn + pz_normal)
+        overlap_loss.backward()
+        running_loss += overlap_loss.item()
         optimizer.step()
         train_loss = running_loss / counter
 
-        #train_loss.append(train_epoch_loss)
+        ##-- print training loss
         if epoch % 5 ==0:
-           print(f"Train Loss: {train_loss:.4f}")
+           print(f"Train Loss at epoch {epoch}: {train_loss:.4f}")
 
-        if loss > 0:
-           writer.add_scalar("Train Loss", loss, epoch)
-        #writer.add_scalar("elbo/reconloss", reconloss, epoch)
-        #writer.add_scalar("elbo/elbo", elbo, epoch)
-        writer.add_histogram('distribution centers/enc1', model.enc1.weight, epoch)
-        writer.add_histogram('distribution centers/enc2', model.enc2.weight, epoch)
+        ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
+        if overlap_loss > 0:
+           writer.add_scalar("Train Loss", overlap_loss, epoch)
 
-        #torch.save(model.state_dict(), os.path.join(ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
-
-        # write to tensorboard
-        #pdb.set_trace()
+        ##-- write to tensorboard
         if epoch % 10 == 0:
             img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
             writer.add_image('True and recon_image', img_grid_TB, epoch)
