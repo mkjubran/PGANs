@@ -10,9 +10,10 @@ import torchvision
 import matplotlib
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
-from engine_v1 import train_PGAN, validate
+from engine_encoder import train_encoder, validate_encoder
 from utils import save_reconstructed_images, image_to_vid, save_loss_plot
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 import shutil
 import os
@@ -65,6 +66,21 @@ def load_datasets(data,args,device):
  testset = dat['X_test']
  return trainset, testset
 
+##-- loading PGAN generator model with sigma
+def load_generator_wsigma(nets,device):
+ netG = nets.Generator(args).to(device)
+ if args.ckptG != '':
+    netG.load_state_dict(torch.load(args.ckptG))
+ else:
+   print('A valid ckptG for a pretrained PGAN generator must be provided')
+
+ logsigma_init = -1 #initial value for log_sigma_sian
+ if args.logsigma_file != '':
+    logsigmaG = torch.load(args.logsigma_file)
+ else:
+   print('A valid logsigma_file for a pretrained PGAN generator must be provided')
+ return netG, logsigmaG
+
 if __name__ == "__main__":
  ##-- run on the available GPU otherwise CPUs
  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -75,68 +91,47 @@ if __name__ == "__main__":
  ##-- loading and spliting datasets
  trainset, testset = load_datasets(data,args,device)
 
- ckptG = args.ckptG
- logsigma_file = args.logsigma_file
- ckptE = args.ckptE
+ ##-- loading PGAN generator model with sigma
+ netG, logsigmaG = load_generator_wsigma(nets,device)
 
- matplotlib.style.use('ggplot')
-
- device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
- # initialize the model
+ ##-- setup the VAE Encoder and encoder training parameters
  model = model.ConvVAE(args).to(device)
-
- # define and load the weights of the generator
- logsigma_init = -1 #initial value for log_sigma_sian
-
- #### defining generator
- netG = nets.Generator(args).to(device)
-
- #### initialize weights
- #netG.apply(utilsG.weights_init)
- if ckptG != '':
-    netG.load_state_dict(torch.load(ckptG))
- if logsigma_file != '':
-    logsigmaG = torch.load(logsigma_file)
-
- # set the learning parameters
  optimizer = optim.Adam(model.parameters(), lr=args.lrE)
- criterion = nn.BCELoss(reduction='sum')
+
+ ##-- write to tensor board
+ writer = SummaryWriter(args.ckptE)
 
  # a list to save all the reconstructed images in PyTorch grid format
  grid_images = []
 
- transform = transforms.Compose([
-    transforms.Resize((args.imageSize, args.imageSize)),
-    transforms.ToTensor(),
- ])
-
- trainloader=[]
- testloader=[]
-
+ #trainloader=[]
+ #testloader=[]
  train_loss = []
  valid_loss = []
 
- writer = SummaryWriter(args.ckptE)
 
  for epoch in range(args.epochs):
     print(f"Epoch {epoch+1} of {args.epochs}")
-    train_epoch_loss, elbo, KLDcf, reconloss = train_PGAN(
-        model, args, trainloader, trainset, device, optimizer, criterion, netG, logsigmaG
+
+    train_epoch_loss, elbo, KLDcf, reconloss = train_encoder(
+        model, args, trainset, device, optimizer, netG, logsigmaG
     )
-    valid_epoch_loss, recon_images = validate(
-        model, args, testloader, testset, device, criterion, netG, logsigmaG
+
+    valid_epoch_loss, recon_images = validate_encoder(
+        model, args, testset, device, netG, logsigmaG
     )
+
     train_loss.append(train_epoch_loss)
     valid_loss.append(valid_epoch_loss)
+
     # save the reconstructed images from the validation loop
     save_reconstructed_images(recon_images, epoch+1,args)
+
     # convert the reconstructed images to PyTorch image grid format
     image_grid = make_grid(recon_images.detach().cpu())
-    #grid_images.append(image_grid)
+
     print(f"Train Loss: {train_epoch_loss:.4f}")
     print(f"Val Loss: {valid_epoch_loss:.4f}")
-
     writer.add_scalar("elbo/KLDcf", KLDcf, epoch)
     writer.add_scalar("elbo/reconloss", reconloss, epoch)
     writer.add_scalar("elbo/elbo", elbo, epoch)
@@ -145,14 +140,13 @@ if __name__ == "__main__":
 
     # log images to tensorboard
     # create grid of images
-    #pdb.set_trace()
     img_grid_TB = torchvision.utils.make_grid(recon_images.detach().cpu())
 
     # write to tensorboard
     if epoch % 2 == 0:
         writer.add_image('recon_images', img_grid_TB, epoch)
 
-    torch.save(model.state_dict(), os.path.join(ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
+    torch.save(model.state_dict(), os.path.join(args.ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
 
  writer.flush()
  writer.close()
