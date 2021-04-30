@@ -10,7 +10,6 @@ import torchvision
 import matplotlib
 from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
-#from engine import train
 from engine_v1 import train_PGAN, validate
 from utils import save_reconstructed_images, image_to_vid, save_loss_plot
 from torch.utils.tensorboard import SummaryWriter
@@ -23,6 +22,7 @@ import utilsG
 import data
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--dataset', required=True, help=' ring | mnist | stackedmnist | cifar10 ')
 parser.add_argument('--ckptG', type=str, default='', help='a given checkpoint file for generator')
 parser.add_argument('--logsigma_file', type=str, default='', help='a given file for logsigma for the generator')
 parser.add_argument('--ckptE', type=str, default='', help='a given checkpoint file for VA encoder')
@@ -42,75 +42,84 @@ parser.add_argument('--ncg', type=int, default = 1, help='number of channels for
 parser.add_argument('--Ntrain', type=int, default=60000, help='training set size for stackedmnist')
 parser.add_argument('--Ntest', type=int, default=10000, help='test set size for stackedmnist')
 parser.add_argument('--save_imgs_folder', type=str, default='../../outputs', help='where to save generated images')
-
 args = parser.parse_args()
 
-ckptG = args.ckptG
-logsigma_file = args.logsigma_file
-ckptE = args.ckptE
-
-matplotlib.style.use('ggplot')
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# initialize the model
-model = model.ConvVAE(args).to(device)
-
-# define and load the weights of the generator
-logsigma_init = -1 #initial value for log_sigma_sian
-
-#### defining generator
-netG = nets.Generator(args).to(device)
-#log_sigma = torch.tensor([logsigma_init]*(imageSize*imageSize), device=device, requires_grad=True)
-
-#### initialize weights
-netG.apply(utilsG.weights_init)
-if ckptG != '':
-    netG.load_state_dict(torch.load(ckptG))
-if logsigma_file != '':
-    logsigmaG = torch.load(logsigma_file)
-
-# set the learning parameters
-optimizer = optim.Adam(model.parameters(), lr=args.lrE)
-criterion = nn.BCELoss(reduction='sum')
-
-# a list to save all the reconstructed images in PyTorch grid format
-grid_images = []
-
-transform = transforms.Compose([
-    transforms.Resize((args.imageSize, args.imageSize)),
-    transforms.ToTensor(),
-])
-
-
-## Checking paths and folders
-if not os.path.exists(args.save_imgs_folder):
+##-- preparing folders to save results
+def VAE_folders(args):
+ if not os.path.exists(args.save_imgs_folder):
     os.makedirs(args.save_imgs_folder)
-else:
+ else:
     shutil.rmtree(args.save_imgs_folder)
     os.makedirs(args.save_imgs_folder)
 
-
-if not os.path.exists(args.ckptE):
+ if not os.path.exists(args.ckptE):
     os.makedirs(args.ckptE)
-else:
+ else:
     shutil.rmtree(args.ckptE)
     os.makedirs(args.ckptE)
 
-##loading and spliting data
-dataset = 'mnist'
-dat = data.load_data(dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
-trainset = dat['X_train']
-testset = dat['X_test']
-trainloader=[]
-testloader=[]
+##-- loading and spliting datasets
+def load_datasets(data,args,device):
+ dat = data.load_data(args.dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
+ trainset = dat['X_train']
+ testset = dat['X_test']
+ return trainset, testset
 
-train_loss = []
-valid_loss = []
+if __name__ == "__main__":
+ ##-- run on the available GPU otherwise CPUs
+ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-writer = SummaryWriter(args.ckptE)
+ ##-- preparing folders to save results
+ VAE_folders(args)
 
-for epoch in range(args.epochs):
+ ##-- loading and spliting datasets
+ trainset, testset = load_datasets(data,args,device)
+
+ ckptG = args.ckptG
+ logsigma_file = args.logsigma_file
+ ckptE = args.ckptE
+
+ matplotlib.style.use('ggplot')
+
+ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+ # initialize the model
+ model = model.ConvVAE(args).to(device)
+
+ # define and load the weights of the generator
+ logsigma_init = -1 #initial value for log_sigma_sian
+
+ #### defining generator
+ netG = nets.Generator(args).to(device)
+
+ #### initialize weights
+ #netG.apply(utilsG.weights_init)
+ if ckptG != '':
+    netG.load_state_dict(torch.load(ckptG))
+ if logsigma_file != '':
+    logsigmaG = torch.load(logsigma_file)
+
+ # set the learning parameters
+ optimizer = optim.Adam(model.parameters(), lr=args.lrE)
+ criterion = nn.BCELoss(reduction='sum')
+
+ # a list to save all the reconstructed images in PyTorch grid format
+ grid_images = []
+
+ transform = transforms.Compose([
+    transforms.Resize((args.imageSize, args.imageSize)),
+    transforms.ToTensor(),
+ ])
+
+ trainloader=[]
+ testloader=[]
+
+ train_loss = []
+ valid_loss = []
+
+ writer = SummaryWriter(args.ckptE)
+
+ for epoch in range(args.epochs):
     print(f"Epoch {epoch+1} of {args.epochs}")
     train_epoch_loss, elbo, KLDcf, reconloss = train_PGAN(
         model, args, trainloader, trainset, device, optimizer, criterion, netG, logsigmaG
@@ -145,7 +154,7 @@ for epoch in range(args.epochs):
 
     torch.save(model.state_dict(), os.path.join(ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
 
-writer.flush()
-writer.close()
+ writer.flush()
+ writer.close()
 
 

@@ -3,18 +3,17 @@ import argparse
 import torch
 import torch.optim as optim
 import torch.nn as nn
-import model_Likelihood as model
 import torchvision
 from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
-
 import shutil
 import os
 import pdb
+
+import model_Likelihood as model
 import nets
 import utilsG
 import data
-
 
 parser = argparse.ArgumentParser()
 
@@ -104,18 +103,15 @@ if __name__ == "__main__":
  ##-- run on the available GPU otherwise CPUs
  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
- ##-- setup the VAE Encoder
- model = model.ConvVAE(args).to(device)
- optimizer = optim.Adam(model.parameters(), lr=args.lrE)
-
  ##-- preparing folders to save results
  likelihood_folders(args)
 
  ##-- loading and spliting datasets
  trainset, testset = load_datasets(data,args,device)
 
- train_loss = []
- valid_loss = []
+ ##-- setup the VAE Encoder and encoder training parameters
+ model = model.ConvVAE(args).to(device)
+ optimizer = optim.Adam(model.parameters(), lr=args.lrE)
 
  ##-- loading PGAN generator model
  netG = load_generator(nets,device)
