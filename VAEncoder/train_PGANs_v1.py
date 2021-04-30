@@ -3,17 +3,13 @@
 import argparse
 import torch
 import torch.optim as optim
-import torch.nn as nn
 import model_v2 as model
-import torchvision.transforms as transforms
 import torchvision
-import matplotlib
-from torch.utils.data import DataLoader
 from torchvision.utils import make_grid
 from engine_encoder import train_encoder, validate_encoder
-from utils import save_reconstructed_images, image_to_vid, save_loss_plot
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+from torchvision.utils import save_image
 
 import shutil
 import os
@@ -74,7 +70,7 @@ def load_generator_wsigma(nets,device):
  else:
    print('A valid ckptG for a pretrained PGAN generator must be provided')
 
- logsigma_init = -1 #initial value for log_sigma_sian
+ #logsigma_init = -1 #initial value for log_sigma_sian
  if args.logsigma_file != '':
     logsigmaG = torch.load(args.logsigma_file)
  else:
@@ -104,12 +100,8 @@ if __name__ == "__main__":
  # a list to save all the reconstructed images in PyTorch grid format
  grid_images = []
 
- #trainloader=[]
- #testloader=[]
  train_loss = []
  valid_loss = []
-
-
  for epoch in range(args.epochs):
     print(f"Epoch {epoch+1} of {args.epochs}")
 
@@ -125,7 +117,8 @@ if __name__ == "__main__":
     valid_loss.append(valid_epoch_loss)
 
     # save the reconstructed images from the validation loop
-    save_reconstructed_images(recon_images, epoch+1,args)
+    save_image(recon_images.cpu(), f"{args.save_imgs_folder}/output{epoch}.jpg")
+
 
     # convert the reconstructed images to PyTorch image grid format
     image_grid = make_grid(recon_images.detach().cpu())
