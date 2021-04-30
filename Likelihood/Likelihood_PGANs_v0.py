@@ -149,20 +149,6 @@ if __name__ == "__main__":
 
         log_pxz_mvn, pz_normal = dist(args, mu, logvar, mean, scale, data)
 
-        '''
-        ##-- compute MVN full batch
-        mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
-        log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
-
-        ##-- sample from standard normal distribution
-        std = torch.exp(0.5*logvar)
-        std_b = torch.eye(std.size(1)).to(device)
-        std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
-        std_3d = std_c * std_b
-        mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
-        pz_normal = torch.exp(mvnz.log_prob(zr))
-        '''
-
         ##-- definning overlap loss abd backpropagation 
         overlap_loss = -1*(log_pxz_mvn + pz_normal)
         overlap_loss.backward()
