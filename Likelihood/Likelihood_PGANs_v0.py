@@ -6,11 +6,10 @@ import torch.nn as nn
 import torchvision
 from torchvision.utils import make_grid
 from torch.utils.tensorboard import SummaryWriter
+
 import shutil
 import os
 import pdb
-
-import nets_encoder as netE
 import nets
 import utilsG
 import data
@@ -75,7 +74,6 @@ def load_generator(nets,device):
 
 ##-- loading VAE encoder model
 def load_encoder(args):
- #netE = nets.ConvVAE(args).to(device)
  if args.ckptE != '':
         netE.load_state_dict(torch.load(args.ckptE))
  else:
@@ -111,7 +109,7 @@ if __name__ == "__main__":
  trainset, testset = load_datasets(data,args,device)
 
  ##-- setup the VAE Encoder and encoder training parameters
- netE = netE.ConvVAE(args).to(device)
+ netE = nets.ConvVAE(args).to(device)
  optimizer = optim.Adam(netE.parameters(), lr=args.lrE)
 
  ##-- loading PGAN generator model
