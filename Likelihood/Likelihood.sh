@@ -6,6 +6,6 @@ python3 Likelihood_PGANs_v0.py \
           --save_Likelihood ../../Likelihood_lambda0.0_beta10_lr0.0002_Images \
           --beta  10 \
           --nz 64 \
-          --epochs 1000
+          --epochs 10000
 
 

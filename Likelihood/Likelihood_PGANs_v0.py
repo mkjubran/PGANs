@@ -10,7 +10,7 @@ import shutil
 import os
 import pdb
 
-import model_Likelihood as model
+import nets_encoder as netE
 import nets
 import utilsG
 import data
@@ -75,11 +75,12 @@ def load_generator(nets,device):
 
 ##-- loading VAE encoder model
 def load_encoder(args):
+ #netE = nets.ConvVAE(args).to(device)
  if args.ckptE != '':
-        model.load_state_dict(torch.load(args.ckptE))
+        netE.load_state_dict(torch.load(args.ckptE))
  else:
         print('A valid ckptE for a pretrained encoder must be provided')
- return model
+ return netE
 
 
 def dist(args, mu, logvar, mean, scale, data):
@@ -110,14 +111,14 @@ if __name__ == "__main__":
  trainset, testset = load_datasets(data,args,device)
 
  ##-- setup the VAE Encoder and encoder training parameters
- model = model.ConvVAE(args).to(device)
- optimizer = optim.Adam(model.parameters(), lr=args.lrE)
+ netE = netE.ConvVAE(args).to(device)
+ optimizer = optim.Adam(netE.parameters(), lr=args.lrE)
 
  ##-- loading PGAN generator model
  netG = load_generator(nets,device)
 
  ##-- loading VAE encoder model
- model = load_encoder(args)
+ netE = load_encoder(args)
 
  ##-- write to tensor board
  writer = SummaryWriter(args.ckptL)
@@ -130,7 +131,7 @@ if __name__ == "__main__":
  data = testset[i].view([1,1,imageSize,imageSize])
  data = data.to(device)
 
- model.train()
+ netE.train()
  running_loss = 0.0
  counter = 0
  train_loss = []
@@ -140,7 +141,7 @@ if __name__ == "__main__":
         epoch +=1
         counter += 1
         optimizer.zero_grad()
-        x_hat, mu, logvar, z, zr = model(data, netG)
+        x_hat, mu, logvar, z, zr = netE(data, netG)
         mean = x_hat.view(-1,imageSize*imageSize)
 
         log_pxz_mvn, pz_normal = dist(args, mu, logvar, mean, scale, data)

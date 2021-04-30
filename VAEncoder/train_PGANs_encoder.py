@@ -1,9 +1,7 @@
-##Based on https://debuggercafe.com/convolutional-variational-autoencoder-in-pytorch-on-mnist-dataset/
-
 import argparse
 import torch
 import torch.optim as optim
-import model_v2 as model
+#import nets_encoder as netE
 import torchvision
 from torchvision.utils import make_grid
 from engine_encoder import train_encoder, validate_encoder
@@ -91,8 +89,8 @@ if __name__ == "__main__":
  netG, logsigmaG = load_generator_wsigma(nets,device)
 
  ##-- setup the VAE Encoder and encoder training parameters
- model = model.ConvVAE(args).to(device)
- optimizer = optim.Adam(model.parameters(), lr=args.lrE)
+ netE = nets.ConvVAE(args).to(device)
+ optimizer = optim.Adam(netE.parameters(), lr=args.lrE)
 
  ##-- write to tensor board
  writer = SummaryWriter(args.ckptE)
@@ -106,11 +104,11 @@ if __name__ == "__main__":
     print(f"Epoch {epoch+1} of {args.epochs}")
 
     train_epoch_loss, elbo, KLDcf, reconloss = train_encoder(
-        model, args, trainset, device, optimizer, netG, logsigmaG
+        netE, args, trainset, device, optimizer, netG, logsigmaG
     )
 
     valid_epoch_loss, recon_images = validate_encoder(
-        model, args, testset, device, netG, logsigmaG
+        netE, args, testset, device, netG, logsigmaG
     )
 
     train_loss.append(train_epoch_loss)
@@ -118,7 +116,6 @@ if __name__ == "__main__":
 
     # save the reconstructed images from the validation loop
     save_image(recon_images.cpu(), f"{args.save_imgs_folder}/output{epoch}.jpg")
-
 
     # convert the reconstructed images to PyTorch image grid format
     image_grid = make_grid(recon_images.detach().cpu())
@@ -128,18 +125,15 @@ if __name__ == "__main__":
     writer.add_scalar("elbo/KLDcf", KLDcf, epoch)
     writer.add_scalar("elbo/reconloss", reconloss, epoch)
     writer.add_scalar("elbo/elbo", elbo, epoch)
-    writer.add_histogram('distribution centers/enc1', model.enc1.weight, epoch)
-    writer.add_histogram('distribution centers/enc2', model.enc2.weight, epoch)
+    writer.add_histogram('distribution centers/enc1', netE.enc1.weight, epoch)
+    writer.add_histogram('distribution centers/enc2', netE.enc2.weight, epoch)
 
-    # log images to tensorboard
-    # create grid of images
+    # write images to tensorboard
     img_grid_TB = torchvision.utils.make_grid(recon_images.detach().cpu())
-
-    # write to tensorboard
     if epoch % 2 == 0:
         writer.add_image('recon_images', img_grid_TB, epoch)
 
-    torch.save(model.state_dict(), os.path.join(args.ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
+    torch.save(netE.state_dict(), os.path.join(args.ckptE,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
 
  writer.flush()
  writer.close()

@@ -44,8 +44,8 @@ def measure_elbo(args, mu, logvar, x, x_hat, z, zr,device, logsigmaG):
 
     return elbo, KLDcf, reconloss
 
-def train_encoder(model, args, X_training, device, optimizer, netG, logsigmaG):
-    model.train()
+def train_encoder(netE, args, X_training, device, optimizer, netG, logsigmaG):
+    netE.train()
     running_loss = 0.0
     counter = 0
     for i in tqdm(range(0, len(X_training), args.batchSize)):
@@ -54,7 +54,7 @@ def train_encoder(model, args, X_training, device, optimizer, netG, logsigmaG):
 
         counter += 1
         optimizer.zero_grad()
-        reconstruction, mu, logvar, z, zr = model(data, netG)
+        reconstruction, mu, logvar, z, zr = netE(data, netG)
         elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
         loss = elbo
         loss.backward()
@@ -63,8 +63,8 @@ def train_encoder(model, args, X_training, device, optimizer, netG, logsigmaG):
     train_loss = running_loss / counter
     return train_loss, elbo, KLDcf, reconloss
 
-def validate_encoder(model, args, X_testing, device, netG, logsigmaG):
-    model.eval()
+def validate_encoder(netE, args, X_testing, device, netG, logsigmaG):
+    netE.eval()
     running_loss = 0.0
     counter = 0
     with torch.no_grad():
@@ -72,7 +72,7 @@ def validate_encoder(model, args, X_testing, device, netG, logsigmaG):
             stop = min(args.batchSize, len(X_testing[i:]))
             data = X_testing[i:i+stop].to(device)
             counter += 1
-            reconstruction, mu, logvar, z, zr = model(data, netG)
+            reconstruction, mu, logvar, z, zr = netE(data, netG)
             elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
             loss = elbo
             running_loss += loss.item()

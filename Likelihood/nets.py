@@ -1,6 +1,11 @@
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import pdb
 
-    
+kernel_size = 4 # (4, 4) kernel
+init_channels = 8 # initial number of filters
+
 class Generator(nn.Module):
     def __init__(self, args):
         super(Generator, self).__init__()
@@ -32,109 +37,85 @@ class Generator(nn.Module):
         output = self.main(input)
         return output
 
-class Discriminator(nn.Module):
-    def __init__(self, imgSize, ndf, nc, args):
-        super(Discriminator, self).__init__()
-        
-        self.main = nn.Sequential(
-            # input is (nc) x 64 x 64
-            nn.Conv2d(nc, args.ndf, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 32 x 32
-            nn.Conv2d(args.ndf, args.ndf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(args.ndf * 2),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 16 x 16
-            nn.Conv2d(args.ndf * 2, args.ndf * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(args.ndf * 4),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 8 x 8
-            nn.Conv2d(ndf * 4, args.ndf * 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(args.ndf * 8),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(args.ndf * 8, 1, 4, 1, 0, bias=False),
-            nn.Sigmoid()
+
+# define a Conv VAE
+class ConvVAE(nn.Module):
+    def __init__(self,args):
+        super(ConvVAE, self).__init__()
+ 
+        # encoder
+        self.enc1 = nn.Conv2d(
+            in_channels=args.nc, out_channels=init_channels, kernel_size=kernel_size, 
+            stride=2, padding=1
         )
-        
-    def forward(self, input):
-        output = self.main(input)
-        return output.view(-1, 1).squeeze(1)
-
-
-
-class Encoder(nn.Module):
-    def __init__(self, imgSize, nz, ngf, nc, args):
-        super(Encoder, self).__init__()
-        
-        self.main = nn.Sequential(
-            # input is (nc) x 64 x 64
-            nn.Conv2d(args.nc, args.ngf, 4, 2, 1, bias=False),
-            nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
-            nn.Conv2d(args.ngf, args.ngf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(args.ngf * 2),
-            nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
-            nn.Conv2d(args.ngf * 2, args.ngf * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(args.ngf * 4),
-            nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
-            nn.Conv2d(args.ngf * 4, args.ngf * 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(args.ngf * 8),
-            nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4
-            nn.Conv2d(args.ngf * 8, args.nz, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(args.nz),
-            nn.ReLU(True),
-
+        self.enc2 = nn.Conv2d(
+            in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
         )
-
-    def forward(self, input):
-        output = self.main(input)
-        return output
-
-
-class VAEncoder(nn.Module):
-    def __init__(self, imgSize, nz, ngf, nc, args):
-        super(VAEncoder, self).__init__()
-        '''
-        self.main = nn.Sequential(
-            # input is (nc) x 64 x 64
-            nn.Conv2d(nc, ngf, 4, 2, 1, bias=False),
-            nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
-            nn.Conv2d(ngf, ngf * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 2),
-            nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
-            nn.Conv2d(ngf * 2, ngf * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 4),
-            nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
-            nn.Conv2d(ngf * 4, ngf * 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ngf * 8),
-            nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4
-            nn.Conv2d(ngf * 8, nz, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(nz),
-            nn.ReLU(True),
-            nn.Flatten(),
+        self.enc3 = nn.Conv2d(
+            in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
         )
-        '''
-
-        self.main = nn.Sequential(
-           nn.Conv2d(args.nc, args.ngf, 4, 2, 1, bias=False),
-           nn.Conv2d(args.ngf, args.ngf, 4, 2, 1, bias=False),
+        self.enc4 = nn.Conv2d(
+            in_channels=init_channels*4, out_channels=64, kernel_size=kernel_size, 
+            stride=2, padding=0
         )
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(64, 128)
+        self.fc_mu = nn.Linear(128, args.nz)
+        self.fc_log_var = nn.Linear(128, args.nz)
+        self.fc2 = nn.Linear(args.nz, 100)
 
-        # distribution parameters
-        self.fc_mu = nn.Linear(args.nz, args.nz)
-        self.fc_var = nn.Linear(args.nz, args.nz)
-
-    def forward(self, input):
-        output = self.main(input)
-        mu = self.fc_mu(output)
-        var = self.fc_var(output)
-        return mu, var
-
+        # decoder 
+        self.dec1 = nn.ConvTranspose2d(
+            in_channels=100, out_channels=init_channels*16, kernel_size=kernel_size, 
+            stride=1, padding=0
+        )
+        self.dec2 = nn.ConvTranspose2d(
+            in_channels=init_channels*16, out_channels=init_channels*8, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec3 = nn.ConvTranspose2d(
+            in_channels=init_channels*8, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec4 = nn.ConvTranspose2d(
+            in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec5 = nn.ConvTranspose2d(
+            in_channels=init_channels*2, out_channels=args.nc, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+    def reparameterize(self, mu, log_var):
+        """
+        :param mu: mean from the encoder's latent space
+        :param log_var: log variance from the encoder's latent space
+        """
+        std = torch.exp(0.5*log_var) # standard deviation
+        eps = torch.randn_like(std) # `randn_like` as we need the same size
+        sample = mu + (eps * std) # sampling
+        return sample
+ 
+    def forward(self, x, netG):
+        # encoding
+        x = F.relu(self.enc1(x))
+        x = F.relu(self.enc2(x))
+        x = F.relu(self.enc3(x))
+        x = F.relu(self.enc4(x))
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        hidden = self.fc1(x)
+        # get `mu` and `log_var`
+        mu = self.fc_mu(hidden)
+        log_var = self.fc_log_var(hidden)
+        # get the latent vector through reparameterization
+        zr = self.reparameterize(mu, log_var)
+        z = self.fc2(zr)
+        #pdb.set_trace()
+        z = z.view(-1, 100, 1, 1)
+ 
+        # decoding using PGAN
+        x = netG(z)
+        reconstruction = x #torch.sigmoid(x)
+        return reconstruction, mu, log_var , z, zr
