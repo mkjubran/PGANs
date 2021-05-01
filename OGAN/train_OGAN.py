@@ -14,6 +14,7 @@ import pdb
 import nets
 import utilsG
 import data
+import engine_OGAN
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -110,7 +111,7 @@ def load_encoder(netE,ckptE):
  return netE
 
 ##-- loading get distribution
-def dist(args, mu, logvar, mean, scale, data):
+def dist(args, device, mu, logvar, mean, scale, data):
  imageSize = args.imageSize
 
  ##-- compute MVN full batch
@@ -169,6 +170,11 @@ if __name__ == "__main__":
  data = data.to(device)
 
  netE.train()
+
+ ##-- get the overlap loss
+ engine_OGAN.get_overlap_loss(args,device,netE,optimizerE,data,netG,scale, writer)
+
+ '''
  running_loss = 0.0
  counter = 0
  train_loss = []
@@ -203,6 +209,7 @@ if __name__ == "__main__":
             img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
             writer.add_image('True and recon_image', img_grid_TB, epoch)
 
+ '''
  writer.flush()
  writer.close()
 
