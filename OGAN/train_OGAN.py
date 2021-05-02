@@ -227,7 +227,7 @@ if __name__ == "__main__":
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
  testset= testset.to(device)
 
- ##-- compute OL where samples from G1 are applied to E2
+ ##-- compute OL where samples from G1 are applied to (E2,G2)
  overlap_loss_G1_E2 = []
  samples_G1 = sample_from_generator(args,netG1) # sample from G1
  for i in range(args.OLbatchSize):
@@ -237,17 +237,17 @@ if __name__ == "__main__":
 
   #sample_G1 = testset[i].view([1,1,imageSize,imageSize])
   sample_G1 = samples_G1[i].view([1,1,args.imageSize,args.imageSize]).detach()
-  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG1,scale,args.ckptOL_E2)
+  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG2,scale,args.ckptOL_E2)
   overlap_loss_G1_E2.append(overlap_loss_sample.item())
   #print(overlap_loss_G1_E2)
-  print(f"G1-->E2: sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G1_E2)}")
+  print(f"G1-->(E2,G2): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G1_E2)}")
 
   # to estimate running time per sample
   #end.record()
   #torch.cuda.synchronize()
   #print(start.elapsed_time(end))  # milliseconds
 
- ##-- compute OL where samples from G2 are applied to E1
+ ##-- compute OL where samples from G2 are applied to (E1,G1)
  overlap_loss_G2_E1 = []
  samples_G2 = sample_from_generator(args,netG2) # sample from G2
  for i in range(args.OLbatchSize):
@@ -256,10 +256,10 @@ if __name__ == "__main__":
 
   #sample_G2 = testset[i].view([1,1,imageSize,imageSize])
   sample_G2 = samples_G2[i].view([1,1,args.imageSize,args.imageSize]).detach()
-  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG2,scale,args.ckptOL_E1)
+  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG1,scale,args.ckptOL_E1)
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
-  print(f"G2-->E1: sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
+  print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
 
- print(f"The mean of OL (G1-->E2) = {statistics.mean(overlap_loss_G1_E2)}" )
- print(f"The mean of OL (G2-->E1) = {statistics.mean(overlap_loss_G2_E1)}" )
+ print(f"The mean of OL (G1-->(E2,G2)) = {statistics.mean(overlap_loss_G1_E2)}" )
+ print(f"The mean of OL (G2-->(E1,G1)) = {statistics.mean(overlap_loss_G2_E1)}" )
 

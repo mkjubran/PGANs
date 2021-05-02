@@ -12,6 +12,7 @@
           --save_OL_E1 ../../Likelihood_lambda0.0_beta10_lr0.0002_Images_E1_test \
           --ckptOL_E2            ../../Likelihood_lambda0.0_beta10_lr0.0002_E2_test \
           --save_OL_E2 ../../Likelihood_lambda0.0_beta10_lr0.0002_Images_E2_test \
+          --lrOL 0.001 \
           --beta  10 \
           --nz 64 \
           --epochs 1000 \
