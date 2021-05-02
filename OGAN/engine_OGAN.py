@@ -18,8 +18,8 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
  std_3d = std_c * std_b
  mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
- pz_normal = torch.exp(mvnz.log_prob(zr))
- return log_pxz_mvn, pz_normal
+ log_pz_normal = mvnz.log_prob(zr)
+ return log_pxz_mvn, log_pz_normal
 
 def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
  log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -37,10 +37,11 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
         x_hat, mu, logvar, z, zr = netE(data, netG)
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
 
-        log_pxz_mvn, pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
+        log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
 
         ##-- definning overlap loss abd backpropagation 
-        overlap_loss = -1*(log_pxz_mvn + pz_normal)
+        overlap_loss = -1*(log_pxz_mvn + log_pz_normal)
+        #overlap_loss = -1*(log_pxz_mvn)
         overlap_loss.backward()
         running_loss += overlap_loss.item()
         optimizerE.step()
