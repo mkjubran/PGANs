@@ -224,7 +224,7 @@ if __name__ == "__main__":
 
  ##-- define a new encoder netES to find OL per sample (need to keep the orogonal netE))
  netES = nets.ConvVAE(args).to(device)
- optimizerES = optim.Adam(netES.parameters(), lr=0.001)
+ optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
  testset= testset.to(device)
 
  ##-- compute OL where samples from G1 are applied to E2
@@ -247,19 +247,17 @@ if __name__ == "__main__":
   #torch.cuda.synchronize()
   #print(start.elapsed_time(end))  # milliseconds
 
- ##-- compute OL of samples from G2 are applied to E1
+ ##-- compute OL where samples from G2 are applied to E1
  overlap_loss_G2_E1 = []
  samples_G2 = sample_from_generator(args,netG2) # sample from G2
  for i in range(args.OLbatchSize):
-  #start.record()
-  # copy weights of netE2 to netES
+  # copy weights of netE1 to netES
   netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
 
   #sample_G2 = testset[i].view([1,1,imageSize,imageSize])
   sample_G2 = samples_G2[i].view([1,1,args.imageSize,args.imageSize]).detach()
   overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG2,scale,args.ckptOL_E1)
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
-  #print(overlap_loss_G2_E1)
   print(f"G2-->E1: sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
 
  print(f"The mean of OL (G1-->E2) = {statistics.mean(overlap_loss_G1_E2)}" )
