@@ -41,7 +41,6 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
 
         ##-- definning overlap loss abd backpropagation 
         overlap_loss = -1*(log_pxz_mvn + pz_normal)
-        pdb.set_trace()
         overlap_loss.backward()
         running_loss += overlap_loss.item()
         optimizerE.step()
@@ -59,7 +58,7 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
         ##-- write to tensorboard
         if epoch % 10 == 0:
             img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
-            writer.add_image('True and recon_image', img_grid_TB, epoch)
+            writer.add_image('True (or sampled) image and recon_image', img_grid_TB, epoch)
  writer.flush()
  writer.close()
  return overlap_loss_sample_final

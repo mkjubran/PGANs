@@ -16,6 +16,7 @@ import utilsG
 import data
 import engine_OGAN
 import copy
+import statistics
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -188,9 +189,9 @@ if __name__ == "__main__":
  netG1, logsigmaG1 = load_generator_wsigma(netG1,device,args.ckptG1,args.logsigma_file_G1)
 
  ##-- loading PGAN generator model with sigma and setting generator training parameters - G2
- netG = nets.Generator(args).to(device)
- optimizerG = optim.Adam(netG.parameters(), lr=args.lrG2)
- netG, logsigmaG = load_generator_wsigma(netG,device,args.ckptG2,args.logsigma_file_G2)
+ netG2 = nets.Generator(args).to(device)
+ optimizerG2 = optim.Adam(netG2.parameters(), lr=args.lrG2)
+ netG2, logsigmaG2 = load_generator_wsigma(netG2,device,args.ckptG2,args.logsigma_file_G2)
 
 ##-- loading PGAN discriminator model and setting discriminator training parameters - D1
  netD1 = nets.Discriminator(args).to(device)
@@ -198,9 +199,9 @@ if __name__ == "__main__":
  netD1 = load_discriminator(netD1,device,args.ckptD1)
 
 ##-- loading PGAN discriminator model and setting discriminator training parameters - D2
- netD = nets.Discriminator(args).to(device)
- optimizerD2 = optim.Adam(netD.parameters(), lr=args.lrD2)
- netD = load_discriminator(netD,device,args.ckptD2)
+ netD2 = nets.Discriminator(args).to(device)
+ optimizerD2 = optim.Adam(netD2.parameters(), lr=args.lrD2)
+ netD2 = load_discriminator(netD2,device,args.ckptD2)
 
  ##-- loading VAE Encoder and setting encoder training parameters - E1
  netE1 = nets.ConvVAE(args).to(device)
@@ -208,135 +209,59 @@ if __name__ == "__main__":
  netE1 = load_encoder(netE1,args.ckptE1)
 
  ##-- loading VAE Encoder and setting encoder training parameters - E2
- netE = nets.ConvVAE(args).to(device)
- optimizerE = optim.Adam(netE.parameters(), lr=args.lrE2)
- netE = load_encoder(netE,args.ckptE2)
-
- ##-- write to tensor board
- #writer = SummaryWriter(args.ckptL)
+ netE2 = nets.ConvVAE(args).to(device)
+ optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
+ netE2 = load_encoder(netE2,args.ckptE2)
 
  ##-- setting scale and selecting a random test sample
- imageSize = args.imageSize
- scale = 0.01*torch.ones(imageSize**2)
+ scale = 0.01*torch.ones(args.imageSize**2)
  scale = scale.to(device)
  #i = torch.randint(0, len(testset),(1,1)) ## selection of the index of test image
-
- #netE.train()
- ##-- get the overlap loss of a mini batch
- overlap_loss = []
 
  # to estimate running time
  #start = torch.cuda.Event(enable_timing=True)
  #end = torch.cuda.Event(enable_timing=True)
 
- ##-- define a new encoder netES to find OL per sample (need to kepp the orogonal netE))
+ ##-- define a new encoder netES to find OL per sample (need to keep the orogonal netE))
  netES = nets.ConvVAE(args).to(device)
  optimizerES = optim.Adam(netES.parameters(), lr=0.001)
  testset= testset.to(device)
- samples_G = sample_from_generator(args,netG)
+
+ ##-- compute OL where samples from G1 are applied to E2
+ overlap_loss_G1_E2 = []
+ samples_G1 = sample_from_generator(args,netG1) # sample from G1
  for i in range(args.OLbatchSize):
   #start.record()
-  # copy weights of netE to netES
-  netES.load_state_dict(copy.deepcopy(netE.state_dict()))
+  # copy weights of netE2 to netES
+  netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
 
-  #sample_G = testset[i].view([1,1,imageSize,imageSize])
-  sample_G = samples_G[i].view([1,1,imageSize,imageSize])
-  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G,netG,scale,args.ckptOL_E2)
-  overlap_loss.append(overlap_loss_sample.item())
-  print(overlap_loss)
+  #sample_G1 = testset[i].view([1,1,imageSize,imageSize])
+  sample_G1 = samples_G1[i].view([1,1,args.imageSize,args.imageSize]).detach()
+  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG1,scale,args.ckptOL_E2)
+  overlap_loss_G1_E2.append(overlap_loss_sample.item())
+  #print(overlap_loss_G1_E2)
+  print(f"G1-->E1: sample {i}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G1_E2)}")
 
   # to estimate running time per sample
   #end.record()
   #torch.cuda.synchronize()
   #print(start.elapsed_time(end))  # milliseconds
 
- #writer.flush()
- #writer.close()
+ ##-- compute OL of samples from G2 are applied to E1
+ overlap_loss_G2_E1 = []
+ samples_G2 = sample_from_generator(args,netG2) # sample from G2
+ for i in range(args.OLbatchSize):
+  #start.record()
+  # copy weights of netE2 to netES
+  netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
 
- '''
- running_loss = 0.0
- counter = 0
- train_loss = []
- overlap_loss = 0;
- epoch = 0;
- while (epoch <= args.epochs) and (overlap_loss >= 0):
-        epoch +=1
-        counter += 1
-        optimizerE.zero_grad()
-        x_hat, mu, logvar, z, zr = netE(data, netG)
-        mean = x_hat.view(-1,imageSize*imageSize)
+  #sample_G2 = testset[i].view([1,1,imageSize,imageSize])
+  sample_G2 = samples_G2[i].view([1,1,args.imageSize,args.imageSize]).detach()
+  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG2,scale,args.ckptOL_E1)
+  overlap_loss_G2_E1.append(overlap_loss_sample.item())
+  #print(overlap_loss_G2_E1)
+  print(f"G2-->E1: sample {i}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
 
-        log_pxz_mvn, pz_normal = dist(args, mu, logvar, mean, scale, data)
+ print(f"The mean of OL (G1-->E2) = {statistics.mean(overlap_loss_G1_E2)}" )
+ print(f"The mean of OL (G2-->E1) = {statistics.mean(overlap_loss_G2_E1)}" )
 
-        ##-- definning overlap loss abd backpropagation 
-        overlap_loss = -1*(log_pxz_mvn + pz_normal)
-        overlap_loss.backward()
-        running_loss += overlap_loss.item()
-        optimizerE.step()
-        train_loss = running_loss / counter
-
-        ##-- print training loss
-        if epoch % 5 ==0:
-           print(f"Train Loss at epoch {epoch}: {train_loss:.4f}")
-
-        ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
-        if overlap_loss > 0:
-           writer.add_scalar("Train Loss", overlap_loss, epoch)
-
-        ##-- write to tensorboard
-        if epoch % 10 == 0:
-            img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
-            writer.add_image('True and recon_image', img_grid_TB, epoch)
-
- '''
-
-
-'''
- ##-- write to tensor board
- writer = SummaryWriter(args.ckptE1)
-
- # a list to save all the reconstructed images in PyTorch grid format
- grid_images = []
-
- train_loss = []
- valid_loss = []
- for epoch in range(args.epochs):
-    print(f"Epoch {epoch+1} of {args.epochs}")
-
-    train_epoch_loss, elbo, KLDcf, reconloss = train_encoder(
-        netE, args, trainset, device, optimizerE, netG, logsigmaG
-    )
-
-    valid_epoch_loss, recon_images = validate_encoder(
-        netE, args, testset, device, netG, logsigmaG
-    )
-
-    train_loss.append(train_epoch_loss)
-    valid_loss.append(valid_epoch_loss)
-
-    # save the reconstructed images from the validation loop
-    save_image(recon_images.cpu(), f"{args.save_imgs_folder}/output{epoch}.jpg")
-
-    # convert the reconstructed images to PyTorch image grid format
-    image_grid = make_grid(recon_images.detach().cpu())
-
-    print(f"Train Loss: {train_epoch_loss:.4f}")
-    print(f"Val Loss: {valid_epoch_loss:.4f}")
-    writer.add_scalar("elbo/KLDcf", KLDcf, epoch)
-    writer.add_scalar("elbo/reconloss", reconloss, epoch)
-    writer.add_scalar("elbo/elbo", elbo, epoch)
-    writer.add_histogram('distribution centers/enc1', netE.enc1.weight, epoch)
-    writer.add_histogram('distribution centers/enc2', netE.enc2.weight, epoch)
-
-    # write images to tensorboard
-    img_grid_TB = torchvision.utils.make_grid(recon_images.detach().cpu())
-    if epoch % 2 == 0:
-        writer.add_image('recon_images', img_grid_TB, epoch)
-
-    torch.save(netE.state_dict(), os.path.join(args.ckptE1,'netE_presgan_MNIST_epoch_%s.pth'%(epoch)))
-
- writer.flush()
- writer.close()
-
-
-'''
