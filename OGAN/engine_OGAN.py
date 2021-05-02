@@ -1,5 +1,7 @@
 import torch
 import torchvision
+from torch.utils.tensorboard import SummaryWriter
+import datetime
 
 ##-- loading get distribution
 def dist(args, device, mu, logvar, mean, scale, data, zr):
@@ -18,7 +20,10 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  pz_normal = torch.exp(mvnz.log_prob(zr))
  return log_pxz_mvn, pz_normal
 
-def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale, writer):
+def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
+ log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+ writer = SummaryWriter(log_dir)
+
  running_loss = 0.0
  counter = 0
  train_loss = []
@@ -39,18 +44,20 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale, writer):
         running_loss += overlap_loss.item()
         optimizerE.step()
         train_loss = running_loss / counter
-
+        
         ##-- print training loss
-        if epoch % 5 ==0:
-           print(f"Train Loss at epoch {epoch}: {train_loss:.4f}")
+        #if epoch % 5 ==0:
+        #   print(f"Train Loss at epoch {epoch}: {train_loss:.4f}")
 
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if overlap_loss > 0:
-           writer.add_scalar("Train Loss", overlap_loss, epoch)
+            overlap_loss_sample_final = overlap_loss
+            writer.add_scalar("Train Loss", overlap_loss, epoch)
 
         ##-- write to tensorboard
         if epoch % 10 == 0:
             img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
             writer.add_image('True and recon_image', img_grid_TB, epoch)
-
- return overlap_loss
+ writer.flush()
+ writer.close()
+ return overlap_loss_sample_final
