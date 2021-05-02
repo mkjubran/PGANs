@@ -2,6 +2,7 @@ import torch
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
 import datetime
+import pdb
 
 ##-- loading get distribution
 def dist(args, device, mu, logvar, mean, scale, data, zr):
@@ -40,6 +41,7 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
 
         ##-- definning overlap loss abd backpropagation 
         overlap_loss = -1*(log_pxz_mvn + pz_normal)
+        pdb.set_trace()
         overlap_loss.backward()
         running_loss += overlap_loss.item()
         optimizerE.step()

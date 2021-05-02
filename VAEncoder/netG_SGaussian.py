@@ -8,10 +8,15 @@ import shutil
 import torchvision
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import make_grid
-from utils import save_reconstructed_images_SG
+#from utils import save_reconstructed_images_SG
+from torchvision.utils import save_image
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG', type=str, default='', help='a given checkpoint file for generator')
+parser.add_argument('--nzg', type=int, default=100, help='size of the latent z vector for encoder')
+parser.add_argument('--ngfg', type=int, default=64, help='model parameters for encoder')
+parser.add_argument('--ndfg', type=int, default=64, help='model parameters for encoder')
+parser.add_argument('--ncg', type=int, default = 1, help='number of channels for encoder')
 args = parser.parse_args()
 ckptG = args.ckptG
 
@@ -29,7 +34,7 @@ batch_size = 100
 
 ## load generator
 print('Load Generator Weights')
-netG = nets.Generator(imageSize, nz, ngf, nc).to(device)
+netG = nets.Generator(args).to(device)
 
 ## initialize weights
 netG.apply(utilsG.weights_init)
@@ -66,7 +71,8 @@ for iter in range(iterations):
 
    ## write images to folder
    image_grid = make_grid(recon_images.detach().cpu())
-   save_reconstructed_images_SG(recon_images, iter, savefolder)
+   #save_reconstructed_images_SG(recon_images, iter, savefolder)
+   save_image(recon_images.cpu(), '%s/output_SG_Sample%03d.png' % (savefolder, iter))
 
    ## write images to tensorboard
    img_grid_TB = torchvision.utils.make_grid(recon_images.detach().cpu())

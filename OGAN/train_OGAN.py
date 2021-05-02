@@ -148,7 +148,7 @@ def dist(args, device, mu, logvar, mean, scale, data):
  mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
  log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
 
- ##-- sample from standard normal distribution
+ ##-- computer sample from standard normal distribution
  std = torch.exp(0.5*logvar)
  std_b = torch.eye(std.size(1)).to(device)
  std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
@@ -156,6 +156,20 @@ def dist(args, device, mu, logvar, mean, scale, data):
  mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
  pz_normal = torch.exp(mvnz.log_prob(zr))
  return log_pxz_mvn, pz_normal
+
+##-- Sample from Generator
+def sample_from_generator(args,netG):
+ ##-- sample from standard normal distribution
+ nz=100
+ mean = torch.zeros(args.batchSize,nz).to(device)
+ scale = torch.ones(nz).to(device)
+ mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, nz, nz))
+ sample_z_shape = torch.Size([])
+ sample_z = mvn.sample(sample_z_shape).view(-1,nz,1,1)
+ #pdb.set_trace()
+ recon_images = netG(sample_z)
+ #pdb.set_trace()
+ return recon_images
 
 
 if __name__ == "__main__":
@@ -211,31 +225,30 @@ if __name__ == "__main__":
  ##-- get the overlap loss of a mini batch
  overlap_loss = []
 
- start = torch.cuda.Event(enable_timing=True)
- end = torch.cuda.Event(enable_timing=True)
+ # to estimate running time
+ #start = torch.cuda.Event(enable_timing=True)
+ #end = torch.cuda.Event(enable_timing=True)
 
  ##-- define a new encoder netES to find OL per sample (need to kepp the orogonal netE))
  netES = nets.ConvVAE(args).to(device)
  optimizerES = optim.Adam(netES.parameters(), lr=0.001)
  testset= testset.to(device)
+ samples_G = sample_from_generator(args,netG)
  for i in range(args.OLbatchSize):
-  start.record()
+  #start.record()
   # copy weights of netE to netES
   netES.load_state_dict(copy.deepcopy(netE.state_dict()))
 
-  #end.record()
-  #torch.cuda.synchronize()
-  #print(start.elapsed_time(end))  # milliseconds
-
-  sample = testset[i].view([1,1,imageSize,imageSize])
-  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample,netG,scale,args.ckptOL_E2)
+  #sample_G = testset[i].view([1,1,imageSize,imageSize])
+  sample_G = samples_G[i].view([1,1,imageSize,imageSize])
+  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G,netG,scale,args.ckptOL_E2)
   overlap_loss.append(overlap_loss_sample.item())
   print(overlap_loss)
 
   # to estimate running time per sample
-  end.record()
-  torch.cuda.synchronize()
-  print(start.elapsed_time(end))  # milliseconds
+  #end.record()
+  #torch.cuda.synchronize()
+  #print(start.elapsed_time(end))  # milliseconds
 
  #writer.flush()
  #writer.close()
