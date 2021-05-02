@@ -41,6 +41,8 @@ parser.add_argument('--save_OL_E1', type=str, default='../../outputs', help='whe
 parser.add_argument('--ckptOL_E2', type=str, default='', help='a given checkpoint file for Overlap Loss - E2')
 parser.add_argument('--save_OL_E2', type=str, default='../../outputs', help='where to save Overlap Loss results - E2')
 
+parser.add_argument('--ckptOL', type=str, default='', help='a given checkpoint file for Overlap Loss')
+
 parser.add_argument('--lrOL', type=float, default=0.001, help='learning rate for overlap loss, default=0.001')
 parser.add_argument('--OLbatchSize', type=int, default=100, help='Overlap Loss batch size')
 
@@ -104,6 +106,11 @@ def OL_folders(args):
      shutil.rmtree(args.ckptOL_E2)
      os.makedirs(args.ckptOL_E2)
 
+ if not os.path.exists(args.ckptOL):
+     os.makedirs(args.ckptOL)
+ else:
+     shutil.rmtree(args.ckptOL)
+     os.makedirs(args.ckptOL)
 
 ##-- loading and spliting datasets
 def load_datasets(data,args,device):
@@ -227,6 +234,9 @@ if __name__ == "__main__":
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
  testset= testset.to(device)
 
+ ##-- Write to tesnorboard
+ writer = SummaryWriter(args.ckptOL)
+
  ##-- compute OL where samples from G1 are applied to (E2,G2)
  overlap_loss_G1_E2 = []
  samples_G1 = sample_from_generator(args,netG1) # sample from G1
@@ -247,6 +257,9 @@ if __name__ == "__main__":
   #torch.cuda.synchronize()
   #print(start.elapsed_time(end))  # milliseconds
 
+  # write moving average to TB
+  writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(overlap_loss_G1_E2), i)
+
  ##-- compute OL where samples from G2 are applied to (E1,G1)
  overlap_loss_G2_E1 = []
  samples_G2 = sample_from_generator(args,netG2) # sample from G2
@@ -259,6 +272,9 @@ if __name__ == "__main__":
   overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG1,scale,args.ckptOL_E1)
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
   print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
+
+  # write moving average to TB
+  writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(overlap_loss_G1_E2), i)
 
  print(f"The mean of OL (G1-->(E2,G2)) = {statistics.mean(overlap_loss_G1_E2)}" )
  print(f"The mean of OL (G2-->(E1,G1)) = {statistics.mean(overlap_loss_G2_E1)}" )
