@@ -1,11 +1,11 @@
 \python3 train_PGANs_encoder.py \
           --dataset mnist \
-          --ckptG            ../../presgan_lambda_G_0.0/netG_presgan_mnist_epoch_46.pth \
-          --logsigma_file    ../../presgan_lambda_G_0.0/log_sigma_mnist_46.pth \
-          --ckptE            ../../VAEncoder_E_lambda0.0_beta10_lr0.0002_test \
-          --save_imgs_folder ../../VAEncoder_E_lambda0.0_beta10_lr0.0002_Images_test \
+          --ckptG            ../../../PresGANs/presgan_lambda_0.0_GS2020/netG_presgan_mnist_epoch_20.pth \
+          --logsigma_file    ../../../PresGANs/presgan_lambda_0.0_GS2020/log_sigma_mnist_20.pth \
+          --ckptE            ../../../PresGANs/VAEncoder_lambda0.0_GS2020epoch20 \
+          --save_imgs_folder ../../../PresGANs/VAEncoder_lambda0.0_GS2020epoch20_Images \
           --beta  10 \
           --nz 64 \
-          --epochs 2
+          --epochs 100
 
 
