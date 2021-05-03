@@ -169,14 +169,12 @@ def dist(args, device, mu, logvar, mean, scale, data):
 def sample_from_generator(args,netG):
  ##-- sample from standard normal distribution
  nz=100
- mean = torch.zeros(args.batchSize,nz).to(device)
+ mean = torch.zeros(args.OLbatchSize,nz).to(device)
  scale = torch.ones(nz).to(device)
  mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, nz, nz))
  sample_z_shape = torch.Size([])
  sample_z = mvn.sample(sample_z_shape).view(-1,nz,1,1)
- #pdb.set_trace()
  recon_images = netG(sample_z)
- #pdb.set_trace()
  return recon_images
 
 
@@ -274,7 +272,7 @@ if __name__ == "__main__":
   print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
 
   # write moving average to TB
-  writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(overlap_loss_G1_E2), i)
+  writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(overlap_loss_G2_E1), i)
 
  print(f"The mean of OL (G1-->(E2,G2)) = {statistics.mean(overlap_loss_G1_E2)}" )
  print(f"The mean of OL (G2-->(E1,G1)) = {statistics.mean(overlap_loss_G2_E1)}" )

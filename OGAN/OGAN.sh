@@ -17,6 +17,6 @@
           --beta  10 \
           --nz 64 \
           --epochs 1000 \
-          --OLbatchSize 40
+          --OLbatchSize 200
 
 
