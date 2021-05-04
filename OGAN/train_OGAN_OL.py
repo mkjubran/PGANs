@@ -49,6 +49,7 @@ parser.add_argument('--OLbatchSize', type=int, default=100, help='Overlap Loss b
 
 parser.add_argument('--dataset', required=True, help=' ring | mnist | stackedmnist | cifar10 ')
 parser.add_argument('--batchSize', type=int, default=100, help='input batch size')
+parser.add_argument('--OLepochs', type=int, default=1000, help='number of epochs to train for Overlap Loss')
 parser.add_argument('--epochs', type=int, default=1000, help='number of epochs to train for')
 parser.add_argument('--lrE', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta', type=float, default=1, help='beta for KLD in ELBO')
@@ -83,6 +84,7 @@ parser.add_argument('--stepsize_num', type=float, default=1.0, help='initial val
 parser.add_argument('--restrict_sigma', type=int, default=0, help='whether to restrict sigma or not')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam')
 parser.add_argument('--num_gen_images', type=int, default=10, help='number of images to generate for inspection')
+parser.add_argument('--log', type=int, default=200, help='when to log')
 
 args = parser.parse_args()
 
@@ -159,6 +161,7 @@ def load_discriminator(netD,device,ckptD):
     netD.load_state_dict(torch.load(ckptD))
  else:
    print('A valid ckptD for a pretrained PGAN discriminator must be provided')
+ return netD
 
 ##-- loading VAE encoder model
 def load_encoder(netE,ckptE):
@@ -257,45 +260,48 @@ if __name__ == "__main__":
  ##-- Write to tesnorboard
  writer = SummaryWriter(args.ckptOL)
 
- ##-- compute OL where samples from G1 are applied to (E2,G2)
- overlap_loss_G1_E2 = []
- samples_G1 = sample_from_generator(args,netG1) # sample from G1
- for i in range(args.OLbatchSize):
-  #start.record()
-  # copy weights of netE2 to netES
-  netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
+ for epoch in range(1, args.epochs+1):
 
-  #sample_G1 = testset[i].view([1,1,imageSize,imageSize])
-  sample_G1 = samples_G1[i].view([1,1,args.imageSize,args.imageSize]).detach()
-  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG2,scale,args.ckptOL_E2)
-  overlap_loss_G1_E2.append(overlap_loss_sample.item())
-  #print(overlap_loss_G1_E2)
-  print(f"G1-->(E2,G2): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G1_E2)}")
+  ##-- compute OL where samples from G1 are applied to (E2,G2)
+  overlap_loss_G1_E2 = []
+  samples_G1 = sample_from_generator(args,netG1) # sample from G1
+  for i in range(args.OLbatchSize):
+   #start.record()
+   # copy weights of netE2 to netES
+   netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
 
-  # to estimate running time per sample
-  #end.record()
-  #torch.cuda.synchronize()
-  #print(start.elapsed_time(end))  # milliseconds
+   #sample_G1 = testset[i].view([1,1,imageSize,imageSize])
+   sample_G1 = samples_G1[i].view([1,1,args.imageSize,args.imageSize]).detach()
+   overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG2,scale,args.ckptOL_E2)
+   overlap_loss_G1_E2.append(overlap_loss_sample.item())
+   #print(overlap_loss_G1_E2)
+   print(f"G1-->(E2,G2): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G1_E2)}")
 
-  # write moving average to TB
-  writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(overlap_loss_G1_E2), i)
+   # to estimate running time per sample
+   #end.record()
+   #torch.cuda.synchronize()
+   #print(start.elapsed_time(end))  # milliseconds
 
- ##-- compute OL where samples from G2 are applied to (E1,G1)
- overlap_loss_G2_E1 = []
- samples_G2 = sample_from_generator(args,netG2) # sample from G2
- for i in range(args.OLbatchSize):
-  # copy weights of netE1 to netES
-  netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
+   # write moving average to TB
+   writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(overlap_loss_G1_E2), i)
 
-  #sample_G2 = testset[i].view([1,1,imageSize,imageSize])
-  sample_G2 = samples_G2[i].view([1,1,args.imageSize,args.imageSize]).detach()
-  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG1,scale,args.ckptOL_E1)
-  overlap_loss_G2_E1.append(overlap_loss_sample.item())
-  print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
+  ##-- compute OL where samples from G2 are applied to (E1,G1)
+  overlap_loss_G2_E1 = []
+  samples_G2 = sample_from_generator(args,netG2) # sample from G2
+  for i in range(args.OLbatchSize):
+   # copy weights of netE1 to netES
+   netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
 
-  # write moving average to TB
-  writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(overlap_loss_G2_E1), i)
+   #sample_G2 = testset[i].view([1,1,imageSize,imageSize])
+   sample_G2 = samples_G2[i].view([1,1,args.imageSize,args.imageSize]).detach()
+   overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG1,scale,args.ckptOL_E1)
+   overlap_loss_G2_E1.append(overlap_loss_sample.item())
+   print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
 
- ##-- update Generator 1 using Criterion = Dicriminator loss + alpha1 *Overlap Loss(G2-->G1) + alpha2*Overlap Loss(G1-->G2)
- OLoss = 0.5*statistics.mean(overlap_loss_G1_E2) + 0.5*statistics.mean(overlap_loss_G2_E1)
- engine_PresGANs.presgan(args, device, trainset[0:10], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss)
+   # write moving average to TB
+   writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(overlap_loss_G2_E1), i)
+
+  ##-- update Generator 1 using Criterion = Dicriminator loss + alpha1 *Overlap Loss(G2-->G1) + alpha2*Overlap Loss(G1-->G2)
+  OLoss = 0.5*statistics.mean(overlap_loss_G1_E2) + 0.5*statistics.mean(overlap_loss_G2_E1)
+  netD1, netG1, logsigmaG1 = engine_PresGANs.presgan(args, device, trainset[0:args.OLbatchSize], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss)
+  netD2, netG2, logsigmaG2 = engine_PresGANs.presgan(args, device, trainset[0:args.OLbatchSize], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss)

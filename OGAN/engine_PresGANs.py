@@ -150,7 +150,7 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
         logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
     stepsize = args.stepsize_num / args.nz
 
-    bsz = 10 #args.batchSize
+    bsz = args.OLbatchSize
     for epoch in range(1, 2):
         DL=0
         GL=0
@@ -160,8 +160,7 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
         Counter = 0
         for i in range(0, len(X_training), bsz):
             Counter = Counter+1
-            sigma_x = F.softplus(log_sigma).view(1, 1, args.imageSize, args.imageSize)
-
+            sigma_x = F.softplus(log_sigma).view(1, 1, args.imageSize, args.imageSize).to(device)
             netD.zero_grad()
             stop = min(bsz, len(X_training[i:]))
             real_cpu = X_training[i:i+stop].to(device)
@@ -178,7 +177,7 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
 
             # train with fake
            
-            noise = torch.randn(batch_size, args.nz, 1, 1, device=device)
+            noise = torch.randn(batch_size, args.nzg, 1, 1, device=device)
             mu_fake = netG(noise)
             fake = mu_fake + sigma_x * noise_eta
             label.fill_(fake_label)
@@ -195,13 +194,14 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
             sigma_optimizer.zero_grad()
 
             label.fill_(real_label)
-            gen_input = torch.randn(batch_size, args.nz, 1, 1, device=device)
+            gen_input = torch.randn(batch_size, args.nzg, 1, 1, device=device)
             out = netG(gen_input)
             noise_eta = torch.randn_like(out)
             g_fake_data = out + noise_eta * sigma_x
 
             dg_fake_decision = netD(g_fake_data)
             g_error_gan = criterion(dg_fake_decision, label)
+            g_error_gan = g_error_gan + OLoss
             D_G_z2 = dg_fake_decision.mean().item()
 
             if args.lambda_ == 0:
@@ -293,3 +293,4 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
         #    torch.save(netD.state_dict(), os.path.join(args.results_folder, 'netD_presgan_%s_epoch_%s.pth'%(args.dataset, epoch)))
 
     #writer.flush()
+    return netD, netG, log_sigma

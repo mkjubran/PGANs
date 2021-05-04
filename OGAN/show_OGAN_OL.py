@@ -139,6 +139,7 @@ def load_discriminator(netD,device,ckptD):
     netD.load_state_dict(torch.load(ckptD))
  else:
    print('A valid ckptD for a pretrained PGAN discriminator must be provided')
+ return netD
 
 ##-- loading VAE encoder model
 def load_encoder(netE,ckptE):

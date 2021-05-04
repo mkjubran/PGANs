@@ -30,7 +30,7 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
  train_loss = []
  overlap_loss = 0;
  epoch = 0;
- while (epoch <= args.epochs) and (overlap_loss >= 0):
+ while (epoch <= args.OLepochs) and (overlap_loss >= 0):
         epoch +=1
         counter += 1
         optimizerE.zero_grad()

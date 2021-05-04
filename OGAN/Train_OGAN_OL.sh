@@ -16,7 +16,8 @@ python3 train_OGAN_OL.py \
           --lrOL 0.0001 \
           --beta  10 \
           --nz 64 \
-          --epochs 1000 \
+          --OLepochs 1000 \
+          --epochs 10 \
           --OLbatchSize 2
 
 
