@@ -11,6 +11,7 @@ import seaborn as sns
 import os
 import pickle
 import math
+import statistics
 
 import utils
 import hmc
@@ -133,13 +134,17 @@ def dcgan(args, device, dat, netG, netD):
     writer.flush()
 
 
-def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, OLoss):
+def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, overlap_loss_G1_E2, overlap_loss_G2_E1, ckptOLG):
     real_label = 1
     fake_label = 0
     criterion = nn.BCELoss()
     criterion_mse = nn.MSELoss()
 
-    #writer = SummaryWriter(args.results_folder)
+    OLossG1 = args.W1*statistics.mean(overlap_loss_G1_E2)
+    OLossG2 = args.W2*statistics.mean(overlap_loss_G2_E1)
+    OLoss = OLossG1 + OLossG2
+
+    writer = SummaryWriter(ckptOLG)
     X_training = dat.to(device)
     fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
     #optimizerD = optim.Adam(netD.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
@@ -253,13 +258,25 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
         DL_G_z2 = DL_G_z2/Counter
 
         ##log performance to tensorboard
-        #writer.add_scalar("Loss/Loss_D", DL, epoch)
-        #writer.add_scalar("Loss/Loss_G", GL, epoch)
-        #writer.add_scalar("D(x)", Dx, epoch)
-        #writer.add_scalar("DL_G/DL_G_z1", DL_G_z1, epoch)
-        #writer.add_scalar("DL_G/DL_G_z2", DL_G_z2, epoch)
-        #writer.add_scalar("sigma/sigma_min", torch.min(sigma_x), epoch)
-        #writer.add_scalar("sigma/sigma_max", torch.max(sigma_x), epoch)
+        if ckptOLG == args.ckptOL_G1:
+          writer.add_scalar("Overlap Loss/W1*G1-->(G2,E2)", OLossG1, epoch)
+          writer.add_scalar("Overlap Loss/W2*G2-->(G1,E1)", OLossG1, epoch)
+          writer.add_scalar("G1-Loss/Loss_D", DL, epoch)
+          writer.add_scalar("G1-Loss/Loss_G", GL, epoch)
+          writer.add_scalar("G1-D(x)", Dx, epoch)
+          writer.add_scalar("G1-DL_G/DL_G_z1", DL_G_z1, epoch)
+          writer.add_scalar("G1-DL_G/DL_G_z2", DL_G_z2, epoch)
+          writer.add_scalar("G1-sigma/sigma_min", torch.min(sigma_x), epoch)
+          writer.add_scalar("G1-sigma/sigma_max", torch.max(sigma_x), epoch)
+        else:
+          writer.add_scalar("G2-Loss/Loss_D", DL, epoch)
+          writer.add_scalar("G2-Loss/Loss_G", GL, epoch)
+          writer.add_scalar("G2-D(x)", Dx, epoch)
+          writer.add_scalar("G2-DL_G/DL_G_z1", DL_G_z1, epoch)
+          writer.add_scalar("G2-DL_G/DL_G_z2", DL_G_z2, epoch)
+          writer.add_scalar("G2-sigma/sigma_min", torch.min(sigma_x), epoch)
+          writer.add_scalar("G2-sigma/sigma_max", torch.max(sigma_x), epoch)
+
         #----------------
         #pdb.set_trace()
 
@@ -274,7 +291,7 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
             print('| MCMC diagnostics ====> | stepsize: {} | min ar: {} | mean ar: {} | max ar: {} |'.format(
                         stepsize, acceptRate.min().item(), acceptRate.mean().item(), acceptRate.max().item()))
 
-        #if epoch % args.save_imgs_every == 0:
+        if epoch % args.save_imgs_every == 0:
         #    fake = netG(fixed_noise).detach()
         #    vutils.save_image(fake, '%s/presgan_%s_fake_epoch_%03d.png' % (args.results_folder, args.dataset, epoch), normalize=True, nrow=20)
 
@@ -283,7 +300,10 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
             img_grid = torchvision.utils.make_grid(fake)
 
             # write to tensorboard
-        #    writer.add_image('fake_images', img_grid, epoch)
+            if ckptOLG == args.ckptOL_G1:
+               writer.add_image('G1-fake_images', img_grid, epoch)
+            else:
+               writer.add_image('G2-fake_images', img_grid, epoch)
             # --------------
 
 
@@ -292,5 +312,5 @@ def presgan(args, device, dat, netG, optimizerG, netD, optimizerD, log_sigma, si
         #    torch.save(log_sigma, os.path.join(args.results_folder, 'log_sigma_%s_%s.pth'%(args.dataset, epoch)))
         #    torch.save(netD.state_dict(), os.path.join(args.results_folder, 'netD_presgan_%s_epoch_%s.pth'%(args.dataset, epoch)))
 
-    #writer.flush()
+    writer.flush()
     return netD, netG, log_sigma

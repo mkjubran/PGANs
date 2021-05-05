@@ -38,11 +38,12 @@ parser.add_argument('--lrE2', type=float, default=0.0002, help='learning rate fo
 
 parser.add_argument('--ckptOL_E1', type=str, default='', help='a given checkpoint file for Overlap Loss - E1')
 parser.add_argument('--save_OL_E1', type=str, default='../../outputs', help='where to save Overlap Loss results - E1')
-
 parser.add_argument('--ckptOL_E2', type=str, default='', help='a given checkpoint file for Overlap Loss - E2')
 parser.add_argument('--save_OL_E2', type=str, default='../../outputs', help='where to save Overlap Loss results - E2')
-
 parser.add_argument('--ckptOL', type=str, default='', help='a given checkpoint file for Overlap Loss')
+
+parser.add_argument('--ckptOL_G1', type=str, default='', help='a given checkpoint file for G1 with Overlap Loss G2 -->(E1,G1)')
+parser.add_argument('--ckptOL_G2', type=str, default='', help='a given checkpoint file for G2 with Overlap Loss G1 --> (E2,G2)')
 
 parser.add_argument('--lrOL', type=float, default=0.001, help='learning rate for overlap loss, default=0.001')
 parser.add_argument('--OLbatchSize', type=int, default=100, help='Overlap Loss batch size')
@@ -66,6 +67,9 @@ parser.add_argument('--Ntrain', type=int, default=60000, help='training set size
 parser.add_argument('--Ntest', type=int, default=10000, help='test set size for stackedmnist')
 parser.add_argument('--save_imgs_folder', type=str, default='../../outputs', help='where to save generated images')
 
+parser.add_argument('--W1', type=float, default=1, help='wight of OL of G1-->(E2,G2)')
+parser.add_argument('--W2', type=float, default=1, help='wight of OL of G2-->(E1,G1)')
+
 ###### PresGAN-specific arguments
 parser.add_argument('--sigma_lr', type=float, default=0.0002, help='generator variance')
 parser.add_argument('--lambda_', type=float, default=0.01, help='entropy coefficient')
@@ -85,6 +89,7 @@ parser.add_argument('--restrict_sigma', type=int, default=0, help='whether to re
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam')
 parser.add_argument('--num_gen_images', type=int, default=10, help='number of images to generate for inspection')
 parser.add_argument('--log', type=int, default=200, help='when to log')
+parser.add_argument('--save_imgs_every', type=int, default=1, help='when to save generated images')
 
 args = parser.parse_args()
 
@@ -133,6 +138,18 @@ def OL_folders(args):
  else:
      shutil.rmtree(args.ckptOL)
      os.makedirs(args.ckptOL)
+
+ if not os.path.exists(args.ckptOL_G1):
+     os.makedirs(args.ckptOL_G1)
+ else:
+     shutil.rmtree(args.ckptOL_G1)
+     os.makedirs(args.ckptOL_G1)
+
+ if not os.path.exists(args.ckptOL_G2):
+     os.makedirs(args.ckptOL_G2)
+ else:
+     shutil.rmtree(args.ckptOL_G2)
+     os.makedirs(args.ckptOL_G2)
 
 ##-- loading and spliting datasets
 def load_datasets(data,args,device):
@@ -303,5 +320,5 @@ if __name__ == "__main__":
 
   ##-- update Generator 1 using Criterion = Dicriminator loss + alpha1 *Overlap Loss(G2-->G1) + alpha2*Overlap Loss(G1-->G2)
   OLoss = 0.5*statistics.mean(overlap_loss_G1_E2) + 0.5*statistics.mean(overlap_loss_G2_E1)
-  netD1, netG1, logsigmaG1 = engine_PresGANs.presgan(args, device, trainset[0:args.OLbatchSize], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss)
-  netD2, netG2, logsigmaG2 = engine_PresGANs.presgan(args, device, trainset[0:args.OLbatchSize], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss)
+  netD1, netG1, logsigmaG1 = engine_PresGANs.presgan(args, device, trainset[0:args.OLbatchSize], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, overlap_loss_G1_E2 , overlap_loss_G2_E1, args.ckptOL_G1)
+  netD2, netG2, logsigmaG2 = engine_PresGANs.presgan(args, device, trainset[0:args.OLbatchSize], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, overlap_loss_G1_E2, overlap_loss_G2_E1, args.ckptOL_G2)

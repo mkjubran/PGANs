@@ -13,6 +13,10 @@ python3 train_OGAN_OL.py \
           --ckptOL_E2         ../../../PresGANs/OLoss/OLoss_lambda_0.0_GS2019_GS2021_test/OLoss_lambda0.0_E2 \
           --save_OL_E2        ../../../PresGANs/OLoss/OLoss_lambda_0.0_GS2019_GS2021_test/OLoss_lambda0.0_E2_Images \
           --ckptOL            ../../../PresGANs/OLoss/OLoss_lambda_0.0_GS2019_GS2021_test/OLoss_lambda0.0 \
+          --ckptOL_G1         ../../../PresGANs/OLoss/OLoss_lambda_0.0_GS2019_GS2021_test/OLoss_lambda0.0_G1 \
+          --ckptOL_G2         ../../../PresGANs/OLoss/OLoss_lambda_0.0_GS2019_GS2021_test/OLoss_lambda0.0_G2 \
+          --W1 0.0001 \
+          --W2 0.0001 \
           --lrOL 0.0001 \
           --beta  10 \
           --nz 64 \
