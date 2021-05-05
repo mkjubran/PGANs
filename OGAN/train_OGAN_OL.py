@@ -320,5 +320,5 @@ if __name__ == "__main__":
 
   ##-- update Generator 1 using Criterion = Dicriminator loss + alpha1 *Overlap Loss(G2-->G1) + alpha2*Overlap Loss(G1-->G2)
   OLoss = 0.5*statistics.mean(overlap_loss_G1_E2) + 0.5*statistics.mean(overlap_loss_G2_E1)
-  netD1, netG1, logsigmaG1 = engine_PresGANs.presgan(args, device, trainset[0:args.OLbatchSize], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, overlap_loss_G1_E2 , overlap_loss_G2_E1, args.ckptOL_G1)
-  netD2, netG2, logsigmaG2 = engine_PresGANs.presgan(args, device, trainset[0:args.OLbatchSize], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, overlap_loss_G1_E2, overlap_loss_G2_E1, args.ckptOL_G2)
+  netD1, netG1, logsigmaG1 = engine_PresGANs.presgan(args, device, epoch, trainset[0:args.OLbatchSize], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, overlap_loss_G1_E2 , overlap_loss_G2_E1, args.ckptOL_G1)
+  netD2, netG2, logsigmaG2 = engine_PresGANs.presgan(args, device, epoch, trainset[0:args.OLbatchSize], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, overlap_loss_G1_E2, overlap_loss_G2_E1, args.ckptOL_G2)
