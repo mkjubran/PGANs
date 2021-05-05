@@ -140,16 +140,13 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
     criterion = nn.BCELoss()
     criterion_mse = nn.MSELoss()
 
-    OLossG1 = args.W1*statistics.mean(overlap_loss_G1_E2)
-    OLossG2 = args.W2*statistics.mean(overlap_loss_G2_E1)
+    OLossG1 = args.W1*statistics.mean(overlap_loss_G2_E1)
+    OLossG2 = args.W2*statistics.mean(overlap_loss_G1_E2)
     OLoss = OLossG1 + OLossG2
 
     writer = SummaryWriter(ckptOLG)
     X_training = dat.to(device)
     fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
-    #optimizerD = optim.Adam(netD.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
-    #optimizerG = optim.Adam(netG.parameters(), lr=args.lrG, betas=(args.beta1, 0.999))
-    #sigma_optimizer = optim.Adam([log_sigma], lr=args.sigma_lr, betas=(args.beta1, 0.999))
     if args.restrict_sigma:
         logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)
         logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
@@ -259,10 +256,10 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
 
     ##log performance to tensorboard
     if ckptOLG == args.ckptOL_G1:
-       writer.add_scalar("Overlap Loss/W1*G1-->(G2,E2)", OLossG1, epoch)
-       writer.add_scalar("Overlap Loss/W2*G2-->(G1,E1)", OLossG2, epoch)
-       writer.add_scalar("Overlap Loss/W2*G2 + W1*G1", OLoss, epoch)
-       writer.add_scalar("G1-Loas/Loss_D", DL, epoch)
+       writer.add_scalar("Overlap Loss/W1*OL[G2-->(E1,G1)]", OLossG1, epoch)
+       writer.add_scalar("Overlap Loss/W2*OL[G1-->(E2,G2)]", OLossG2, epoch)
+       writer.add_scalar("Overlap Loss/W2*OL[G2-->(E1,G1)] + W1*OL[G1-->(E2,G2)]", OLoss, epoch)
+       writer.add_scalar("G1-Loss/Loss_D", DL, epoch)
        writer.add_scalar("G1-Loss/Loss_G", GL, epoch)
        writer.add_scalar("G1-D(x)", Dx, epoch)
        writer.add_scalar("G1-DL_G/DL_G_z1", DL_G_z1, epoch)
@@ -280,7 +277,7 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
 
     #----------------
     #pdb.set_trace()
-
+    '''
     print('*'*100)
     print('End of epoch {}'.format(epoch))
     print('Epoch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
@@ -291,6 +288,8 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
     if args.lambda_ > 0:
        print('| MCMC diagnostics ====> | stepsize: {} | min ar: {} | mean ar: {} | max ar: {} |'.format(
               stepsize, acceptRate.min().item(), acceptRate.mean().item(), acceptRate.max().item()))
+
+    '''
 
     if epoch % args.save_imgs_every == 0:
     #    fake = netG(fixed_noise).detach()

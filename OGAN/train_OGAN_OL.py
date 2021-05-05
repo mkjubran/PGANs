@@ -67,8 +67,8 @@ parser.add_argument('--Ntrain', type=int, default=60000, help='training set size
 parser.add_argument('--Ntest', type=int, default=10000, help='test set size for stackedmnist')
 parser.add_argument('--save_imgs_folder', type=str, default='../../outputs', help='where to save generated images')
 
-parser.add_argument('--W1', type=float, default=1, help='wight of OL of G1-->(E2,G2)')
-parser.add_argument('--W2', type=float, default=1, help='wight of OL of G2-->(E1,G1)')
+parser.add_argument('--W1', type=float, default=1, help='wight of OL of G2-->(E1,G1)')
+parser.add_argument('--W2', type=float, default=1, help='wight of OL of G1-->(E2,G2)')
 
 ###### PresGAN-specific arguments
 parser.add_argument('--sigma_lr', type=float, default=0.0002, help='generator variance')
