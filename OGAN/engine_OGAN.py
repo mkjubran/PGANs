@@ -29,9 +29,9 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
  counter = 0
  train_loss = []
  overlap_loss = 0;
- epoch = 0;
- while (epoch <= args.OLepochs) and (overlap_loss >= 0):
-        epoch +=1
+ OLepoch = 0;
+ while (OLepoch <= args.OLepochs) and (overlap_loss >= 0):
+        OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
         x_hat, mu, logvar, z, zr = netE(data, netG)
@@ -48,18 +48,18 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
         train_loss = running_loss / counter
         
         ##-- print training loss
-        #if epoch % 5 ==0:
+        #if OLepoch % 5 ==0:
         #   print(f"Train Loss at epoch {epoch}: {train_loss:.4f}")
 
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if overlap_loss > 0:
             overlap_loss_sample_final = overlap_loss
-            writer.add_scalar("Train Loss", overlap_loss, epoch)
+            writer.add_scalar("Train Loss", overlap_loss, OLepoch)
 
         ##-- write to tensorboard
-        if epoch % 10 == 0:
+        if OLepoch % 10 == 0:
             img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
-            writer.add_image('True (or sampled) image and recon_image', img_grid_TB, epoch)
+            writer.add_image('True (or sampled) image and recon_image', img_grid_TB, OLepoch)
  writer.flush()
  writer.close()
  return overlap_loss_sample_final

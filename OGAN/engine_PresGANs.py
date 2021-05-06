@@ -82,7 +82,7 @@ def dcgan(args, device, dat, netG, netD):
             ## log performance
             if i % args.log == 0:
                 print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-                        % (epoch, args.epochs, i, len(X_training), errD.data, errG.data, D_x, D_G_z1, D_G_z2))
+                        % (epoch, args.epochs, i, int(len(X_training)/args.batchSize), errD.data, errG.data, D_x, D_G_z1, D_G_z2))
 
             DL = DL + errD.data
             GL = GL + g_error_gan.data
@@ -134,7 +134,7 @@ def dcgan(args, device, dat, netG, netD):
     writer.flush()
 
 
-def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, overlap_loss_G1_E2, overlap_loss_G2_E1, ckptOLG):
+def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, overlap_loss_G1_E2, overlap_loss_G2_E1, ckptOLG, save_imgs):
     real_label = 1
     fake_label = 0
     criterion = nn.BCELoss()
@@ -153,15 +153,9 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
     stepsize = args.stepsize_num / args.nz
 
     bsz = args.OLbatchSize
-    DL=0
-    GL=0
-    Dx=0
-    DL_G_z1=0
-    DL_G_z2=0
-    Counter = 0
     i = 0
             
-    Counter = Counter+1
+    #Counter = Counter+1
     sigma_x = F.softplus(log_sigma).view(1, 1, args.imageSize, args.imageSize).to(device)
     netD.zero_grad()
     stop = min(bsz, len(X_training[i:]))
@@ -238,60 +232,19 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
        log_sigma.data.clamp_(min=logsigma_min, max=logsigma_max)
 
     ## log performance
-    if i % args.log == 0:
-       print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-           % (epoch, args.epochs, i, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
+    #if i % args.log == 0:
+    #   print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+    #       % (epoch, args.epochs, Counter, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
 
-    DL = DL + errD.data
-    GL = GL + g_error_gan.data
-    Dx = Dx + D_x
-    DL_G_z1 = DL_G_z1 + D_G_z1
-    DL_G_z2 = DL_G_z2 + D_G_z2
+    DL = errD.data
+    GL = g_error_gan.data
+    Dx = D_x
+    DL_G_z1 = D_G_z1
+    DL_G_z2 = D_G_z2
 
-    DL = DL/Counter
-    GL = GL/Counter
-    Dx = Dx/Counter
-    DL_G_z1 = DL_G_z1/Counter
-    DL_G_z2 = DL_G_z2/Counter
+    PresGANResults=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(sigma_x), torch.max(sigma_x)]
 
-    ##log performance to tensorboard
-    if ckptOLG == args.ckptOL_G1:
-       writer.add_scalar("Overlap Loss/W1*OL[G2-->(E1,G1)]", OLossG1, epoch)
-       writer.add_scalar("Overlap Loss/W2*OL[G1-->(E2,G2)]", OLossG2, epoch)
-       writer.add_scalar("Overlap Loss/W2*OL[G2-->(E1,G1)] + W1*OL[G1-->(E2,G2)]", OLoss, epoch)
-       writer.add_scalar("G1-Loss/Loss_D", DL, epoch)
-       writer.add_scalar("G1-Loss/Loss_G", GL, epoch)
-       writer.add_scalar("G1-D(x)", Dx, epoch)
-       writer.add_scalar("G1-DL_G/DL_G_z1", DL_G_z1, epoch)
-       writer.add_scalar("G1-DL_G/DL_G_z2", DL_G_z2, epoch)
-       writer.add_scalar("G1-sigma/sigma_min", torch.min(sigma_x), epoch)
-       writer.add_scalar("G1-sigma/sigma_max", torch.max(sigma_x), epoch)
-    else:
-       writer.add_scalar("G2-Loss/Loss_D", DL, epoch)
-       writer.add_scalar("G2-Loss/Loss_G", GL, epoch)
-       writer.add_scalar("G2-D(x)", Dx, epoch)
-       writer.add_scalar("G2-DL_G/DL_G_z1", DL_G_z1, epoch)
-       writer.add_scalar("G2-DL_G/DL_G_z2", DL_G_z2, epoch)
-       writer.add_scalar("G2-sigma/sigma_min", torch.min(sigma_x), epoch)
-       writer.add_scalar("G2-sigma/sigma_max", torch.max(sigma_x), epoch)
-
-    #----------------
-    #pdb.set_trace()
-    '''
-    print('*'*100)
-    print('End of epoch {}'.format(epoch))
-    print('Epoch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-          % (epoch, args.epochs, DL, GL, Dx, DL_G_z1, DL_G_z2))
-
-    print('sigma min: {} .. sigma max: {}'.format(torch.min(sigma_x), torch.max(sigma_x)))
-    print('*'*100)
-    if args.lambda_ > 0:
-       print('| MCMC diagnostics ====> | stepsize: {} | min ar: {} | mean ar: {} | max ar: {} |'.format(
-              stepsize, acceptRate.min().item(), acceptRate.mean().item(), acceptRate.max().item()))
-
-    '''
-
-    if epoch % args.save_imgs_every == 0:
+    if save_imgs:
     #    fake = netG(fixed_noise).detach()
     #    vutils.save_image(fake, '%s/presgan_%s_fake_epoch_%03d.png' % (args.results_folder, args.dataset, epoch), normalize=True, nrow=20)
 
@@ -300,17 +253,12 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
          img_grid = torchvision.utils.make_grid(fake)
 
          # write to tensorboard
-         if ckptOLG == args.ckptOL_G1:
+         if ckptOLG == 'G1':
             writer.add_image('G1-fake_images', img_grid, epoch)
          else:
             writer.add_image('G2-fake_images', img_grid, epoch)
          # --------------
 
-
-    #if epoch % args.save_ckpt_every == 0:
-    #    torch.save(netG.state_dict(), os.path.join(args.results_folder, 'netG_presgan_%s_epoch_%s.pth'%(args.dataset, epoch)))
-    #    torch.save(log_sigma, os.path.join(args.results_folder, 'log_sigma_%s_%s.pth'%(args.dataset, epoch)))
-    #    torch.save(netD.state_dict(), os.path.join(args.results_folder, 'netD_presgan_%s_epoch_%s.pth'%(args.dataset, epoch)))
-
     writer.flush()
-    return netD, netG, log_sigma
+    return netD, netG, log_sigma, PresGANResults
+
