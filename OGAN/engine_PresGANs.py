@@ -134,15 +134,11 @@ def dcgan(args, device, dat, netG, netD):
     writer.flush()
 
 
-def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, overlap_loss_G1_E2, overlap_loss_G2_E1, ckptOLG, save_imgs,generator):
+def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, OLoss, ckptOLG, save_imgs,generator):
     real_label = 1
     fake_label = 0
     criterion = nn.BCELoss()
     criterion_mse = nn.MSELoss()
-
-    OLossG1 = args.W1*statistics.mean(overlap_loss_G2_E1)
-    OLossG2 = args.W2*statistics.mean(overlap_loss_G1_E2)
-    OLoss = OLossG1 + OLossG2
 
     writer = SummaryWriter(ckptOLG)
     X_training = dat.to(device)
