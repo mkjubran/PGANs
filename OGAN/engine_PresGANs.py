@@ -134,7 +134,7 @@ def dcgan(args, device, dat, netG, netD):
     writer.flush()
 
 
-def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, overlap_loss_G1_E2, overlap_loss_G2_E1, ckptOLG, save_imgs):
+def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, overlap_loss_G1_E2, overlap_loss_G2_E1, ckptOLG, save_imgs,generator):
     real_label = 1
     fake_label = 0
     criterion = nn.BCELoss()
@@ -253,7 +253,7 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
          img_grid = torchvision.utils.make_grid(fake)
 
          # write to tensorboard
-         if ckptOLG == 'G1':
+         if generator == 'G1':
             writer.add_image('G1-fake_images', img_grid, epoch)
          else:
             writer.add_image('G2-fake_images', img_grid, epoch)
