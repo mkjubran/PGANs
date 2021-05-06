@@ -354,7 +354,7 @@ if __name__ == "__main__":
     else:
        save_imgs = False
 
-    if ((Counter == 1) or (Counter % 10 == 0)):
+    if ((Counter == 1) or (Counter % 20 == 0)):
       ##-- compute OL where samples from G1 are applied to (E2,G2)
       overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
       OLossG2 = args.W2*(1/statistics.mean(overlap_loss_G1_E2))
@@ -364,7 +364,6 @@ if __name__ == "__main__":
       OLossG1 = args.W1*(1/statistics.mean(overlap_loss_G2_E1))
 
       OLoss = OLossG1+OLossG2
-      pdb.set_trace()
 
     ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
     netD1, netG1, logsigmaG1, PresGANResults = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1')
