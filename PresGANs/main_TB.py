@@ -19,7 +19,7 @@ import data
 import nets
 import train_TB
 import shutil
-
+import pdb
 
 parser = argparse.ArgumentParser()
 
@@ -129,9 +129,13 @@ print('{} Discriminator: {}'.format(args.model.upper(), netD))
 netG.apply(utils.weights_init)
 if args.ckptG != '':
     netG.load_state_dict(torch.load(args.ckptG))
+
 netD.apply(utils.weights_init)
 if args.ckptD != '':
     netD.load_state_dict(torch.load(args.ckptD))
+
+if args.logsigma_file != '':
+    log_sigma = torch.load(args.logsigma_file)
 
 #### train a given model
 if args.model == 'dcgan':

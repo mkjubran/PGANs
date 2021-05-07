@@ -142,16 +142,15 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
 
     writer = SummaryWriter(ckptOLG)
     X_training = dat.to(device)
-    fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
+    fixed_noise = torch.randn(args.num_gen_images, args.nzg, 1, 1, device=device)
     if args.restrict_sigma:
         logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)
         logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
-    stepsize = args.stepsize_num / args.nz
+    stepsize = args.stepsize_num / args.nzg
 
     bsz = args.batchSize
     i = 0
             
-    #Counter = Counter+1
     sigma_x = F.softplus(log_sigma).view(1, 1, args.imageSize, args.imageSize).to(device)
     netD.zero_grad()
     stop = min(bsz, len(X_training[i:]))
@@ -242,17 +241,17 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
     PresGANResults=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(sigma_x), torch.max(sigma_x)]
 
     if save_imgs:
-    #    fake = netG(fixed_noise).detach()
+        fake = netG(fixed_noise).detach()
     #    vutils.save_image(fake, '%s/presgan_%s_fake_epoch_%03d.png' % (args.results_folder, args.dataset, epoch), normalize=True, nrow=20)
 
          # log images to tensorboard
          # create grid of images
-         img_grid = torchvision.utils.make_grid(fake)
+        img_grid = torchvision.utils.make_grid(fake)
 
          # write to tensorboard
-         if generator == 'G1':
+        if generator == 'G1':
             writer.add_image('G1-fake_images', img_grid, Counter_epoch_batch)
-         else:
+        else:
             writer.add_image('G2-fake_images', img_grid, Counter_epoch_batch)
          # --------------
 

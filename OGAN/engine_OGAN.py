@@ -42,7 +42,7 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
         ##-- definning overlap loss abd backpropagation 
         #overlap_loss = -1*(log_pxz_mvn + log_pz_normal) ## results of option#1
         overlap_loss = (torch.exp(log_pxz_mvn)) ## results of option#2 are not ready because torch.exp(log_pxz_mvn) always zero
-        pdb.set_trace()
+        #pdb.set_trace()
         overlap_loss.backward()
         running_loss += overlap_loss.item()
         optimizerE.step()
