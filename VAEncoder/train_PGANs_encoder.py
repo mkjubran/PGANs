@@ -126,7 +126,7 @@ if __name__ == "__main__":
     writer.add_scalar("elbo/reconloss", reconloss, epoch)
     writer.add_scalar("elbo/elbo", elbo, epoch)
     writer.add_histogram('distribution centers/enc1', netE.enc1.weight, epoch)
-    writer.add_histogram('distribution centers/enc2', netE.enc2.weight, epoch)
+    #writer.add_histogram('distribution centers/enc2', netE.enc2.weight, epoch)
 
     # write images to tensorboard
     img_grid_TB = torchvision.utils.make_grid(recon_images.detach().cpu())

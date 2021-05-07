@@ -134,7 +134,7 @@ def dcgan(args, device, dat, netG, netD):
     writer.flush()
 
 
-def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, OLoss, ckptOLG, save_imgs,generator):
+def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, OLoss, ckptOLG, save_imgs,generator, Counter_epoch_batch):
     real_label = 1
     fake_label = 0
     criterion = nn.BCELoss()
@@ -148,7 +148,7 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
         logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
     stepsize = args.stepsize_num / args.nz
 
-    bsz = args.OLbatchSize
+    bsz = args.batchSize
     i = 0
             
     #Counter = Counter+1
@@ -193,6 +193,7 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
 
     dg_fake_decision = netD(g_fake_data)
     g_error_gan = criterion(dg_fake_decision, label)
+    #pdb.set_trace()
     g_error_gan = g_error_gan + OLoss
     D_G_z2 = dg_fake_decision.mean().item()
 
@@ -250,9 +251,9 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
 
          # write to tensorboard
          if generator == 'G1':
-            writer.add_image('G1-fake_images', img_grid, epoch)
+            writer.add_image('G1-fake_images', img_grid, Counter_epoch_batch)
          else:
-            writer.add_image('G2-fake_images', img_grid, epoch)
+            writer.add_image('G2-fake_images', img_grid, Counter_epoch_batch)
          # --------------
 
     writer.flush()

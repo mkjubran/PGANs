@@ -30,7 +30,7 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
  train_loss = []
  overlap_loss = 0;
  OLepoch = 0;
- while (OLepoch <= args.OLepochs) and (overlap_loss >= 0):
+ while (OLepoch <= args.OLepochs): # and (overlap_loss >= 0):
         OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
@@ -40,8 +40,9 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
 
         ##-- definning overlap loss abd backpropagation 
-        overlap_loss = -1*(log_pxz_mvn + log_pz_normal)
-        #overlap_loss = -1*(log_pxz_mvn)
+        #overlap_loss = -1*(log_pxz_mvn + log_pz_normal) ## results of option#1
+        overlap_loss = (torch.exp(log_pxz_mvn)) ## results of option#2 are not ready because torch.exp(log_pxz_mvn) always zero
+        pdb.set_trace()
         overlap_loss.backward()
         running_loss += overlap_loss.item()
         optimizerE.step()
@@ -52,7 +53,7 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
         #   print(f"Train Loss at epoch {epoch}: {train_loss:.4f}")
 
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
-        if overlap_loss > 0:
+        if overlap_loss >= 0:
             overlap_loss_sample_final = overlap_loss
             writer.add_scalar("Train Loss", overlap_loss, OLepoch)
 

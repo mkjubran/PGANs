@@ -119,3 +119,61 @@ class ConvVAE(nn.Module):
         x = netG(z)
         reconstruction = x #torch.sigmoid(x)
         return reconstruction, mu, log_var , z, zr
+
+
+# define a Conv VAE
+class ConvVAEReduced(nn.Module):
+    def __init__(self,args):
+        super(ConvVAEReduced, self).__init__()
+ 
+        # encoder
+        self.enc1 = nn.Conv2d(
+            in_channels=args.nc, out_channels=init_channels*8, kernel_size=8, 
+            stride=6, padding=1
+        )
+        #self.enc1 = nn.Conv2d(
+        #    in_channels=args.nc, out_channels=init_channels*8, kernel_size=24, 
+        #    stride=21, padding=1
+        #)
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(64, 128)
+        self.fc_mu = nn.Linear(128, args.nz)
+        self.fc_log_var = nn.Linear(128, args.nz)
+        self.fc2 = nn.Linear(args.nz, 100)
+
+    def reparameterize(self, mu, log_var):
+        """
+        :param mu: mean from the encoder's latent space
+        :param log_var: log variance from the encoder's latent space
+        """
+        std = torch.exp(0.5*log_var) # standard deviation
+        eps = torch.randn_like(std) # `randn_like` as we need the same size
+        sample = mu + (eps * std) # sampling
+        return sample
+ 
+    def forward(self, x, netG):
+        # encoding
+        x = F.relu(self.enc1(x))
+        #pdb.set_trace()
+        #x = F.relu(self.enc2(x))
+        #pdb.set_trace()
+        #x = F.relu(self.enc3(x))
+        #pdb.set_trace()
+        #x = F.relu(self.enc4(x))
+        #pdb.set_trace()
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        hidden = self.fc1(x)
+        # get `mu` and `log_var`
+        mu = self.fc_mu(hidden)
+        log_var = self.fc_log_var(hidden)
+        # get the latent vector through reparameterization
+        zr = self.reparameterize(mu, log_var)
+        z = self.fc2(zr)
+        #pdb.set_trace()
+        z = z.view(-1, 100, 1, 1)
+ 
+        # decoding using PGAN
+        x = netG(z)
+        reconstruction = x #torch.sigmoid(x)
+        return reconstruction, mu, log_var , z, zr
