@@ -22,8 +22,8 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  return log_pxz_mvn, log_pz_normal
 
 def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
- log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
- writer = SummaryWriter(log_dir)
+# log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+# writer = SummaryWriter(log_dir)
 
  running_loss = 0.0
  counter = 0
@@ -55,12 +55,12 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if overlap_loss >= 0:
             overlap_loss_sample_final = overlap_loss
-            writer.add_scalar("Train Loss", overlap_loss, OLepoch)
+#            writer.add_scalar("Train Loss", overlap_loss, OLepoch)
 
         ##-- write to tensorboard
-        if OLepoch % 10 == 0:
-            img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
-            writer.add_image('True (or sampled) image and recon_image', img_grid_TB, OLepoch)
- writer.flush()
- writer.close()
+#        if OLepoch % 10 == 0:
+#            img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
+#            writer.add_image('True (or sampled) image and recon_image', img_grid_TB, OLepoch)
+# writer.flush()
+# writer.close()
  return overlap_loss_sample_final
