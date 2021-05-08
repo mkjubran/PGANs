@@ -215,6 +215,7 @@ def dist(args, device, mu, logvar, mean, scale, data):
  pz_normal = torch.exp(mvnz.log_prob(zr))
  return log_pxz_mvn, pz_normal
 
+'''
 ##-- Sample from Generator
 def sample_from_generator(args, netG, netE):
  ##-- sample from standard normal distribution
@@ -223,7 +224,20 @@ def sample_from_generator(args, netG, netE):
  mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.imageSize**2, args.imageSize**2))
  sample_z_shape = torch.Size([])
  sample_z = mvn.sample(sample_z_shape).view(-1,1,args.imageSize, args.imageSize)
- recon_images = netE(sample_z, netG)
+ recon_images, _, _, _, _ = netE(sample_z, netG)
+ return recon_images
+'''
+
+##-- Sample from Generator
+def sample_from_generator(args,netG):
+ ##-- sample from standard normal distribution
+ nz=100
+ mean = torch.zeros(args.OLbatchSize,nz).to(device)
+ scale = torch.ones(nz).to(device)
+ mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, nz, nz))
+ sample_z_shape = torch.Size([])
+ sample_z = mvn.sample(sample_z_shape).view(-1,nz,1,1)
+ recon_images = netG(sample_z)
  return recon_images
 
 ##-- get overlap loss when sample from G1 and apply to E2,G2
@@ -233,11 +247,10 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES,
  #start.record()
 
  overlap_loss_G1_E2 = []
- samples_G1 = sample_from_generator(args, netG1, netE1) # sample from G1
+ samples_G1 = sample_from_generator(args, netG1) # sample from G1
  for i in range(args.OLbatchSize):
   # copy weights of netE2 to netES
   netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
-
   sample_G1 = samples_G1[i].view([1,1,args.imageSize,args.imageSize]).detach()
   overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG2,scale,args.ckptOL_E2)
   overlap_loss_G1_E2.append(overlap_loss_sample.item())
@@ -259,7 +272,7 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES,
  #start.record()
 
  overlap_loss_G2_E1 = []
- samples_G2 = sample_from_generator(args, netG2, netE2) # sample from G2
+ samples_G2 = sample_from_generator(args, netG2) # sample from G2
  for i in range(args.OLbatchSize):
   # copy weights of netE1 to netES
   netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
@@ -281,16 +294,23 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES,
 
 def distance_loss_G1_G2(netG1, netG2):
 
+ G1_L0 = netG1.main[0].weight.view(100*512*4*4)
+ G1_L3 = netG1.main[3].weight.view(512*256*4*4)
  G1_L6 = netG1.main[6].weight.view(256*128*4*4)
  G1_L9 = netG1.main[9].weight.view(128*64*4*4)
  G1_L12= netG1.main[12].weight.view(64*4*4)
 
+ G2_L0 = netG2.main[0].weight.view(100*512*4*4)
+ G2_L3 = netG2.main[3].weight.view(512*256*4*4)
  G2_L6 = netG2.main[6].weight.view(256*128*4*4)
  G2_L9 = netG2.main[9].weight.view(128*64*4*4)
  G2_L12= netG2.main[12].weight.view(64*4*4)
 
- G1_L = torch.cat([G1_L6, G1_L9, G1_L12], dim=0)
- G2_L = torch.cat([G2_L6, G2_L9, G2_L12], dim=0)
+ #G1_L = torch.cat([G1_L6, G1_L9, G1_L12], dim=0)
+ #G2_L = torch.cat([G2_L6, G2_L9, G2_L12], dim=0)
+
+ G1_L = G1_L0
+ G2_L = G2_L0
 
  G1_G2_L = (G1_L - G2_L)**2
 
@@ -355,7 +375,7 @@ if __name__ == "__main__":
  testset= testset.to(device)
 
  ##-- Write to tesnorboard
- writer = SummaryWriter(args.ckptOL)
+ writer = SummaryWriter(args.ckptOL_G)
 
  PresGANResultsG1=np.zeros(7)
  PresGANResultsG2=np.zeros(7)
@@ -375,20 +395,27 @@ if __name__ == "__main__":
     else:
        save_imgs = False
 
-    if ((Counter == 1) or (Counter % 10000000 == 0)):
+#    if ((Counter == 1) or (Counter % 10000000 == 0)):
+    if Counter_epoch_batch % 50 == 0:
      
       ##-- compute OL where samples from G1 are applied to (E2,G2)
       overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
       OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
+      OLossG2_No_W2 = (-1*statistics.mean(overlap_loss_G1_E2))
 
       ##-- compute OL where samples from G2 are applied to (E1,G1)
       overlap_loss_G2_E1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES, scale)
       OLossG1 = args.W1*(-1*statistics.mean(overlap_loss_G2_E1))
+      OLossG1_No_W1 = (-1*statistics.mean(overlap_loss_G2_E1))
 
       TrueOLoss = OLossG1+OLossG2
-     
 
-    OLoss = 0*(-1)*0.00001*distance_loss_G1_G2(netG1, netG2) #option#3
+      TrueOLoss_No_W1W2 = OLossG1_No_W1+OLossG2_No_W2
+
+    Distance_G1G2 = (-1)*0.00000001*distance_loss_G1_G2(netG1, netG2) #option#3
+    Distance_G1G2_No_W = distance_loss_G1_G2(netG1, netG2) #option#3
+
+    OLoss = Distance_G1G2
 
     ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
     netD1, netG1, logsigmaG1, PresGANResults = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
@@ -399,6 +426,13 @@ if __name__ == "__main__":
     ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
     netD2, netG2, logsigmaG2, PresGANResults = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
     PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
+
+    if Counter_epoch_batch % 50 == 0:
+       writer.add_scalar("Overlap Loss_batch/W1*OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
+       writer.add_scalar("Overlap Loss_batch/W2*OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
+       writer.add_scalar("Overlap Loss_batch/W2*OL[G2-->(E1,G1)] + W1*OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
+
+       writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
 
   DL_G1 = PresGANResultsG1[0]/Counter
   GL_G1 = PresGANResultsG1[1]/Counter
@@ -418,11 +452,11 @@ if __name__ == "__main__":
 
   writer = SummaryWriter(args.ckptOL_G)
 
-  writer.add_scalar("Overlap Loss/W1*OL[G2-->(E1,G1)]", OLossG1, epoch)
-  writer.add_scalar("Overlap Loss/W2*OL[G1-->(E2,G2)]", OLossG2, epoch)
-  writer.add_scalar("Overlap Loss/W2*OL[G2-->(E1,G1)] + W1*OL[G1-->(E2,G2)]", OLoss, epoch)
+  writer.add_scalar("Overlap Loss_epoch/W1*OL[G2-->(E1,G1)]", OLossG1_No_W1, epoch)
+  writer.add_scalar("Overlap Loss_epoch/W2*OL[G1-->(E2,G2)]", OLossG2_No_W2, epoch)
+  writer.add_scalar("Overlap Loss_epoch/W2*OL[G2-->(E1,G1)] + W1*OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, epoch)
 
-  writer.add_scalar("Overlap Loss/W2*OL[G2-->(E1,G1)] + W1*OL[G1-->(E2,G2)]", TrueOLoss, epoch)
+  writer.add_scalar("Overlap Loss_epoch/Distance(G1,G2)", Distance_G1G2_No_W, epoch)
 
   writer.add_scalar("G1-Loss/Loss_D", DL_G1, epoch)
   writer.add_scalar("G1-Loss/Loss_G", GL_G1, epoch)
