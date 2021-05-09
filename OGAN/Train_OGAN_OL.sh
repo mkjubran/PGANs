@@ -16,15 +16,16 @@ python3 train_OGAN_OL.py \
           --ckptOL_G         ../../../PresGANs/OLoss/tOLoss_lambda_0.0_GS2020_GS2021/OLoss_lambda0.0_G \
           --ckptOL_G1         ../../../PresGANs/OLoss/tOLoss_lambda_0.0_GS2020_GS2021/OLoss_lambda0.0_G1_Images \
           --ckptOL_G2         ../../../PresGANs/OLoss/tOLoss_lambda_0.0_GS2020_GS2021/OLoss_lambda0.0_G2_Images \
-          --W1 0.000001 \
-          --W2 0.000001 \
+          --lambda_ 0 \
+          --W1 0.00000001 \
+          --W2 0.00000001 \
           --lrOL 0.0001 \
           --beta  10 \
           --nz 64 \
           --OLepochs 20 \
           --epochs 500 \
           --batchSize 100\
-          --OLbatchSize 10\
+          --OLbatchSize 1\
           --num_gen_images 100
 
 

@@ -133,112 +133,119 @@ def dcgan(args, device, dat, netG, netD):
 
     writer.flush()
 
-
-def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, OLoss, ckptOLG, save_imgs,generator, Counter_epoch_batch):
-    real_label = 1
-    fake_label = 0
-    criterion = nn.BCELoss()
-    criterion_mse = nn.MSELoss()
-
+#def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, OLoss, ckptOLG, save_imgs,generator, Counter_epoch_batch):
+def presgan(args, device, epoch, dat, netG, netD, log_sigma, OLoss, ckptOLG, save_imgs,generator, Counter_epoch_batch):
     writer = SummaryWriter(ckptOLG)
+    #device = args.device
     X_training = dat.to(device)
     fixed_noise = torch.randn(args.num_gen_images, args.nzg, 1, 1, device=device)
+    
+    if generator == 'G1':
+     optimizerD = optim.Adam(netD.parameters(), lr=args.lrD1, betas=(args.beta1, 0.999))
+     optimizerG = optim.Adam(netG.parameters(), lr=args.lrG1, betas=(args.beta1, 0.999)) 
+     sigma_optimizer = optim.Adam([log_sigma], lr=args.sigma_lr, betas=(args.beta1, 0.999))
+    else:
+     optimizerD = optim.Adam(netD.parameters(), lr=args.lrD2, betas=(args.beta1, 0.999))
+     optimizerG = optim.Adam(netG.parameters(), lr=args.lrG2, betas=(args.beta1, 0.999)) 
+     sigma_optimizer = optim.Adam([log_sigma], lr=args.sigma_lr, betas=(args.beta1, 0.999))
+    
+
     if args.restrict_sigma:
         logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)
         logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
     stepsize = args.stepsize_num / args.nzg
 
     bsz = args.batchSize
-    i = 0
+    for epoch in range(1,2):
+        for i in range(0, len(X_training), bsz): 
+            sigma_x = F.softplus(log_sigma).view(1, 1, args.imageSize, args.imageSize).to(device)
+
+            netD.zero_grad()
+            stop = min(bsz, len(X_training[i:]))
+            real_cpu = X_training[i:i+stop].to(device)
+
+            batch_size = real_cpu.size(0)
+            label = torch.full((batch_size,), real_label, device=device, dtype=torch.float32)
+
+            noise_eta = torch.randn_like(real_cpu)
+            noised_data = real_cpu + sigma_x.detach() * noise_eta
+            out_real = netD(noised_data)
+            errD_real = criterion(out_real, label)
+            errD_real.backward()
+            D_x = out_real.mean().item()
+
+            # train with fake
             
-    sigma_x = F.softplus(log_sigma).view(1, 1, args.imageSize, args.imageSize).to(device)
-    netD.zero_grad()
-    stop = min(bsz, len(X_training[i:]))
-    real_cpu = X_training[i:i+stop].to(device)
+            noise = torch.randn(batch_size, args.nzg, 1, 1, device=device)
+            mu_fake = netG(noise) 
+            fake = mu_fake + sigma_x * noise_eta
+            label.fill_(fake_label)
+            out_fake = netD(fake.detach())
+            errD_fake = criterion(out_fake, label)
+            errD_fake.backward()
+            D_G_z1 = out_fake.mean().item()
+            errD = errD_real + errD_fake
+            optimizerD.step()
 
-    batch_size = real_cpu.size(0)
-    label = torch.full((batch_size,), real_label, device=device, dtype=torch.float32)
+            # update G network: maximize log(D(G(z)))
 
-    noise_eta = torch.randn_like(real_cpu)
-    noised_data = real_cpu + sigma_x.detach() * noise_eta
-    out_real = netD(noised_data)
-    errD_real = criterion(out_real, label)
-    errD_real.backward()
-    D_x = out_real.mean().item()
+            netG.zero_grad()
+            sigma_optimizer.zero_grad()
 
-    # train with fake
-           
-    noise = torch.randn(batch_size, args.nzg, 1, 1, device=device)
-    mu_fake = netG(noise)
-    fake = mu_fake + sigma_x * noise_eta
-    label.fill_(fake_label)
-    out_fake = netD(fake.detach())
-    errD_fake = criterion(out_fake, label)
-    errD_fake.backward()
-    D_G_z1 = out_fake.mean().item()
-    errD = errD_real + errD_fake
-    optimizerD.step()
+            label.fill_(real_label)  
+            gen_input = torch.randn(batch_size, args.nzg, 1, 1, device=device)
+            out = netG(gen_input)
+            noise_eta = torch.randn_like(out)
+            g_fake_data = out + noise_eta * sigma_x
 
-    # update G network: maximize log(D(G(z)))
+            dg_fake_decision = netD(g_fake_data)
+            g_error_gan = criterion(dg_fake_decision, label)+ OLoss 
+            AdvLoss = g_error_gan
+            D_G_z2 = dg_fake_decision.mean().item()
 
-    netG.zero_grad()
-    sigma_optimizer.zero_grad()
+            if args.lambda_ == 0:
+                g_error_gan.backward()
+                optimizerG.step() 
+                sigma_optimizer.step()
 
-    label.fill_(real_label)
-    gen_input = torch.randn(batch_size, args.nzg, 1, 1, device=device)
-    out = netG(gen_input)
-    noise_eta = torch.randn_like(out)
-    g_fake_data = out + noise_eta * sigma_x
+            else:
+                hmc_samples, acceptRate, stepsize = hmc.get_samples(
+                    netG, g_fake_data.detach(), gen_input.clone(), sigma_x.detach(), args.burn_in, 
+                        args.num_samples_posterior, args.leapfrog_steps, stepsize, args.flag_adapt, 
+                            args.hmc_learning_rate, args.hmc_opt_accept)
+                
+                bsz, d = hmc_samples.size()
+                mean_output = netG(hmc_samples.view(bsz, d, 1, 1).to(device))
+                bsz = g_fake_data.size(0)
 
-    dg_fake_decision = netD(g_fake_data)
-    g_error_gan = criterion(dg_fake_decision, label)
-    #pdb.set_trace()
-    g_error_gan = g_error_gan + OLoss
-    D_G_z2 = dg_fake_decision.mean().item()
+                mean_output_summed = torch.zeros_like(g_fake_data)
+                for cnt in range(args.num_samples_posterior):
+                    mean_output_summed = mean_output_summed + mean_output[cnt*bsz:(cnt+1)*bsz]
+                mean_output_summed = mean_output_summed / args.num_samples_posterior  
 
-    if args.lambda_ == 0:
-       g_error_gan.backward()
-       optimizerG.step()
-       sigma_optimizer.step()
+                c = ((g_fake_data - mean_output_summed) / sigma_x**2).detach()
+                g_error_entropy = torch.mul(c, out + sigma_x * noise_eta).mean(0).sum()
 
-    else:
-       hmc_samples, acceptRate, stepsize = hmc.get_samples(
-       netG, g_fake_data.detach(), gen_input.clone(), sigma_x.detach(), args.burn_in,
-             args.num_samples_posterior, args.leapfrog_steps, stepsize, args.flag_adapt,
-                   args.hmc_learning_rate, args.hmc_opt_accept)
-               
-       bsz, d = hmc_samples.size()
-       mean_output = netG(hmc_samples.view(bsz, d, 1, 1).to(device))
-       bsz = g_fake_data.size(0)
+                g_error = g_error_gan - args.lambda_ * g_error_entropy
+                g_error.backward()
+                optimizerG.step() 
+                sigma_optimizer.step()
 
-       mean_output_summed = torch.zeros_like(g_fake_data)
-       for cnt in range(args.num_samples_posterior):
-           mean_output_summed = mean_output_summed + mean_output[cnt*bsz:(cnt+1)*bsz]
-       mean_output_summed = mean_output_summed / args.num_samples_posterior
+            if args.restrict_sigma:
+                log_sigma.data.clamp_(min=logsigma_min, max=logsigma_max)
 
-       c = ((g_fake_data - mean_output_summed) / sigma_x**2).detach()
-       g_error_entropy = torch.mul(c, out + sigma_x * noise_eta).mean(0).sum()
+            ## log performance
+            #if i % args.log == 0:
+            #    print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+            #            % (epoch, args.epochs, i, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
 
-       g_error = g_error_gan - args.lambda_ * g_error_entropy
-       g_error.backward()
-       optimizerG.step()
-       sigma_optimizer.step()
+            DL = errD.data
+            GL = g_error_gan.data
+            Dx = D_x
+            DL_G_z1 = D_G_z1
+            DL_G_z2 = D_G_z2
 
-    if args.restrict_sigma:
-       log_sigma.data.clamp_(min=logsigma_min, max=logsigma_max)
-
-    ## log performance
-    #if i % args.log == 0:
-    #   print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-    #       % (epoch, args.epochs, Counter, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
-
-    DL = errD.data
-    GL = g_error_gan.data
-    Dx = D_x
-    DL_G_z1 = D_G_z1
-    DL_G_z2 = D_G_z2
-
-    PresGANResults=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(sigma_x), torch.max(sigma_x)]
+            PresGANResults=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(sigma_x), torch.max(sigma_x)]
 
     if save_imgs:
         fake = netG(fixed_noise).detach()
@@ -256,5 +263,4 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
          # --------------
 
     writer.flush()
-    return netD, netG, log_sigma, PresGANResults
-
+    return netD, netG, log_sigma, AdvLoss, PresGANResults, optimizerG, optimizerD, sigma_optimizer
