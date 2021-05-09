@@ -20,6 +20,22 @@ import statistics
 import engine_PresGANs
 import numpy as np
 
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.utils as vutils
+import seaborn as sns
+import os
+import pickle
+import math
+import utils
+import hmc
+
+from torch.distributions.normal import Normal
+
+real_label = 1
+fake_label = 0
+criterion = nn.BCELoss()
+criterion_mse = nn.MSELoss()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -410,11 +426,113 @@ if __name__ == "__main__":
        save_imgs = False
 
     ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-    #netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
-    #netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, Counter, trainset[j:j+stop], netG1, netD1, logsigmaG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
-    PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResults)
-    print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-           % (epoch, args.epochs, Counter, int(len(trainset)/args.batchSize), PresGANResults[0], PresGANResults[1], PresGANResults[2], PresGANResults[3], PresGANResults[4]))
+    ##-----------------------
+    writer = SummaryWriter(args.ckptOL_G1I)
+    X_training = trainset[j:j+stop].to(device)
+    fixed_noise = torch.randn(args.num_gen_images, args.nzg, 1, 1, device=device)
+
+    #optimizerD1 = optim.Adam(netD1.parameters(), lr=args.lrD1, betas=(args.beta1, 0.999))
+    #optimizerG1 = optim.Adam(netG1.parameters(), lr=args.lrG1, betas=(args.beta1, 0.999)) 
+    #sigma_optimizerG1 = optim.Adam([logsigmaG1], lr=args.sigma_lr, betas=(args.beta1, 0.999))
+
+    if args.restrict_sigma:
+        logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)
+        logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
+    stepsize = args.stepsize_num / args.nzg
+
+    bsz = args.batchSize
+    sigma_x = F.softplus(logsigmaG1).view(1, 1, args.imageSize, args.imageSize).to(device)
+
+    netD1.zero_grad()
+    real_cpu = X_training.to(device)
+
+    batch_size = real_cpu.size(0)
+    label = torch.full((batch_size,), real_label, device=device, dtype=torch.float32)
+
+    noise_eta = torch.randn_like(real_cpu)
+    noised_data = real_cpu + sigma_x.detach() * noise_eta
+    out_real = netD1(noised_data)
+    errD_real = criterion(out_real, label)
+    errD_real.backward()
+    D_x = out_real.mean().item()
+
+    # train with fake
+    noise = torch.randn(batch_size, args.nzg, 1, 1, device=device)
+    mu_fake = netG1(noise) 
+    fake = mu_fake + sigma_x * noise_eta
+    label.fill_(fake_label)
+    out_fake = netD1(fake.detach())
+    errD_fake = criterion(out_fake, label)
+    errD_fake.backward()
+    D_G_z1 = out_fake.mean().item()
+    errD = errD_real + errD_fake
+    optimizerD1.step()
+
+    # update G network: maximize log(D(G(z)))
+    netG1.zero_grad()
+    sigma_optimizerG1.zero_grad()
+    label.fill_(real_label)  
+    gen_input = torch.randn(batch_size, args.nzg, 1, 1, device=device)
+    out = netG1(gen_input)
+    noise_eta = torch.randn_like(out)
+    g_fake_data = out + noise_eta * sigma_x
+
+    dg_fake_decision = netD1(g_fake_data)
+    g_error_gan = criterion(dg_fake_decision, label)+ OLoss 
+    AdvLossG1 = g_error_gan
+    D_G_z2 = dg_fake_decision.mean().item()
+
+    if args.lambda_ == 0:
+       g_error_gan.backward()
+       optimizerG1.step() 
+       sigma_optimizerG1.step()
+    else:
+       hmc_samples, acceptRate, stepsize = hmc.get_samples(
+                    netG1, g_fake_data.detach(), gen_input.clone(), sigma_x.detach(), args.burn_in, 
+                        args.num_samples_posterior, args.leapfrog_steps, stepsize, args.flag_adapt, 
+                            args.hmc_learning_rate, args.hmc_opt_accept)
+                
+       bsz, d = hmc_samples.size()
+       mean_output = netG1(hmc_samples.view(bsz, d, 1, 1).to(device))
+       bsz = g_fake_data.size(0)
+
+       mean_output_summed = torch.zeros_like(g_fake_data)
+       for cnt in range(args.num_samples_posterior):
+           mean_output_summed = mean_output_summed + mean_output[cnt*bsz:(cnt+1)*bsz]
+       mean_output_summed = mean_output_summed / args.num_samples_posterior  
+
+       c = ((g_fake_data - mean_output_summed) / sigma_x**2).detach()
+       g_error_entropy = torch.mul(c, out + sigma_x * noise_eta).mean(0).sum()
+
+       g_error = g_error_gan - args.lambda_ * g_error_entropy
+       g_error.backward()
+       optimizerG1.step() 
+       sigma_optimizerG1.step()
+
+    if args.restrict_sigma:
+       log_sigma.data.clamp_(min=logsigma_min, max=logsigma_max)
+
+    ## log performance
+    #if i % args.log == 0:
+    #    print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+    #            % (epoch, args.epochs, i, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
+
+    DL = errD.data
+    GL = g_error_gan.data
+    Dx = D_x
+    DL_G_z1 = D_G_z1
+    DL_G_z2 = D_G_z2
+
+    PresGANResultsG1sample=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(sigma_x), torch.max(sigma_x)]
+
+    if save_imgs:
+        fake = netG1(fixed_noise).detach()
+        #vutils.save_image(fake, '%s/presgan_%s_fake_epoch_%03d.png' % (args.results_folder, args.dataset, epoch), normalize=True, nrow=20)
+        img_grid = torchvision.utils.make_grid(fake)
+        writer.add_image('G1-fake_images', img_grid, Counter_epoch_batch)
+    writer.flush()
+    PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResultsG1sample)
+    ##-----------------------
 
 
     ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
