@@ -12,6 +12,7 @@ import shutil
 import os
 import pdb
 import nets
+import utils
 import utilsG
 import data
 import engine_OGAN
@@ -170,6 +171,7 @@ def load_datasets(data,args,device):
 
 ##-- loading PGAN generator model with sigma
 def load_generator_wsigma(netG,device,ckptG,logsigma_file):
+ netG.apply(utils.weights_init)
  if ckptG != '':
     netG.load_state_dict(torch.load(ckptG))
  else:
@@ -184,6 +186,7 @@ def load_generator_wsigma(netG,device,ckptG,logsigma_file):
 
 ##-- loading PGAN discriminator model
 def load_discriminator(netD,device,ckptD):
+ netD.apply(utils.weights_init)
  if ckptD != '':
     netD.load_state_dict(torch.load(ckptD))
  else:
@@ -319,35 +322,35 @@ if __name__ == "__main__":
 
  ##-- loading PGAN generator model with sigma and setting generator training parameters - G1
  netG1 = nets.Generator(args).to(device)
- optimizerG1 = optim.Adam(netG1.parameters(), lr=args.lrG1)
  netG1, logsigmaG1 = load_generator_wsigma(netG1,device,args.ckptG1,args.logsigma_file_G1)
+ optimizerG1 = optim.Adam(netG1.parameters(), lr=args.lrG1, betas=(args.beta1, 0.999))
  sigma_optimizerG1 = optim.Adam([logsigmaG1], lr=args.sigma_lr, betas=(args.beta1, 0.999))
 
  ##-- loading PGAN generator model with sigma and setting generator training parameters - G2
  netG2 = nets.Generator(args).to(device)
- optimizerG2 = optim.Adam(netG2.parameters(), lr=args.lrG2)
  netG2, logsigmaG2 = load_generator_wsigma(netG2,device,args.ckptG2,args.logsigma_file_G2)
+ optimizerG2 = optim.Adam(netG2.parameters(), lr=args.lrG2, betas=(args.beta1, 0.999))
  sigma_optimizerG2 = optim.Adam([logsigmaG2], lr=args.sigma_lr, betas=(args.beta1, 0.999))
 
  ##-- loading PGAN discriminator model and setting discriminator training parameters - D1
  netD1 = nets.Discriminator(args).to(device)
- optimizerD1 = optim.Adam(netD1.parameters(), lr=args.lrD1)
  netD1 = load_discriminator(netD1,device,args.ckptD1)
+ optimizerD1 = optim.Adam(netD1.parameters(), lr=args.lrD1, betas=(args.beta1, 0.999))
 
  ##-- loading PGAN discriminator model and setting discriminator training parameters - D2
  netD2 = nets.Discriminator(args).to(device)
- optimizerD2 = optim.Adam(netD2.parameters(), lr=args.lrD2)
  netD2 = load_discriminator(netD2,device,args.ckptD2)
+ optimizerD2 = optim.Adam(netD2.parameters(), lr=args.lrD2, betas=(args.beta1, 0.999))
 
  ##-- loading VAE Encoder and setting encoder training parameters - E1
  netE1 = nets.ConvVAE(args).to(device)
- optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
  netE1 = load_encoder(netE1,args.ckptE1)
+ optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1, betas=(args.beta1, 0.999))
 
  ##-- loading VAE Encoder and setting encoder training parameters - E2
  netE2 = nets.ConvVAE(args).to(device)
- optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
  netE2 = load_encoder(netE2,args.ckptE2)
+ optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2, betas=(args.beta1, 0.999))
 
  ##-- setting scale and selecting a random test sample
  scale = 0.01*torch.ones(args.imageSize**2)
@@ -410,7 +413,7 @@ if __name__ == "__main__":
        save_imgs = False
 
     ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-    #netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
+    netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
     #netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, Counter, trainset[j:j+stop], netG1, netD1, logsigmaG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
     PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResults)
     print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
@@ -418,7 +421,7 @@ if __name__ == "__main__":
 
 
     ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-    #netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
+    netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
     #netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, Counter, trainset[j:j+stop], netG2, netD2, logsigmaG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
     PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
 

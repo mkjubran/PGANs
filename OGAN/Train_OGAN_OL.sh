@@ -1,4 +1,4 @@
-python3 train_OGAN_OL_v1.py \
+python3 train_OGAN_OL_v0.py \
           --dataset mnist \
           --ckptG1            ../../../PresGANs/S2020/presgan_lambda_0.0_GS2020/netG_presgan_mnist_epoch_20.pth \
           --logsigma_file_G1  ../../../PresGANs/S2020/presgan_lambda_0.0_GS2020/log_sigma_mnist_20.pth \
@@ -25,7 +25,7 @@ python3 train_OGAN_OL_v1.py \
           --OLepochs 20 \
           --epochs 500 \
           --batchSize 100\
-          --OLbatchSize 1\
+          --OLbatchSize 2\
           --num_gen_images 100
 
 

@@ -335,35 +335,35 @@ if __name__ == "__main__":
 
  ##-- loading PGAN generator model with sigma and setting generator training parameters - G1
  netG1 = nets.Generator(args).to(device)
- optimizerG1 = optim.Adam(netG1.parameters(), lr=args.lrG1)
  netG1, logsigmaG1 = load_generator_wsigma(netG1,device,args.ckptG1,args.logsigma_file_G1)
+ optimizerG1 = optim.Adam(netG1.parameters(), lr=args.lrG1)
  sigma_optimizerG1 = optim.Adam([logsigmaG1], lr=args.sigma_lr, betas=(args.beta1, 0.999))
 
  ##-- loading PGAN generator model with sigma and setting generator training parameters - G2
  netG2 = nets.Generator(args).to(device)
- optimizerG2 = optim.Adam(netG2.parameters(), lr=args.lrG2)
  netG2, logsigmaG2 = load_generator_wsigma(netG2,device,args.ckptG2,args.logsigma_file_G2)
+ optimizerG2 = optim.Adam(netG2.parameters(), lr=args.lrG2)
  sigma_optimizerG2 = optim.Adam([logsigmaG2], lr=args.sigma_lr, betas=(args.beta1, 0.999))
 
  ##-- loading PGAN discriminator model and setting discriminator training parameters - D1
  netD1 = nets.Discriminator(args).to(device)
- optimizerD1 = optim.Adam(netD1.parameters(), lr=args.lrD1)
  netD1 = load_discriminator(netD1,device,args.ckptD1)
+ optimizerD1 = optim.Adam(netD1.parameters(), lr=args.lrD1)
 
  ##-- loading PGAN discriminator model and setting discriminator training parameters - D2
  netD2 = nets.Discriminator(args).to(device)
- optimizerD2 = optim.Adam(netD2.parameters(), lr=args.lrD2)
  netD2 = load_discriminator(netD2,device,args.ckptD2)
+ optimizerD2 = optim.Adam(netD2.parameters(), lr=args.lrD2)
 
  ##-- loading VAE Encoder and setting encoder training parameters - E1
  netE1 = nets.ConvVAE(args).to(device)
- optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
  netE1 = load_encoder(netE1,args.ckptE1)
+ optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
 
  ##-- loading VAE Encoder and setting encoder training parameters - E2
  netE2 = nets.ConvVAE(args).to(device)
- optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
  netE2 = load_encoder(netE2,args.ckptE2)
+ optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
 
  ##-- setting scale and selecting a random test sample
  scale = 0.01*torch.ones(args.imageSize**2)
@@ -379,6 +379,7 @@ if __name__ == "__main__":
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
  testset= testset.to(device)
 
+ 
  ##-- Write to tesnorboard
  writer = SummaryWriter(args.ckptOL_G)
 
@@ -395,7 +396,7 @@ if __name__ == "__main__":
     Counter_epoch_batch += 1
 
     #if ((Counter == 1) or (Counter % 10000000 == 0)):
-    if Counter_epoch_batch % 1 == 0:
+    if Counter_epoch_batch % 100000000 == 0:
      
       ##-- compute OL where samples from G1 are applied to (E2,G2)
       overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
@@ -419,7 +420,7 @@ if __name__ == "__main__":
     #OLoss = TrueOLoss
     OLoss = 0
 
-    ##-- writing to Tensorboard
+    ##-- when to write to Tensorboard and harddrive the  images
     if Counter_epoch_batch % 20 == 0:
        save_imgs = True
     else:
@@ -428,107 +429,101 @@ if __name__ == "__main__":
     ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
     ##-----------------------
     writer = SummaryWriter(args.ckptOL_G1I)
-    X_training = trainset[j:j+stop].to(device)
-    fixed_noise = torch.randn(args.num_gen_images, args.nzg, 1, 1, device=device)
-
-    #optimizerD1 = optim.Adam(netD1.parameters(), lr=args.lrD1, betas=(args.beta1, 0.999))
-    #optimizerG1 = optim.Adam(netG1.parameters(), lr=args.lrG1, betas=(args.beta1, 0.999)) 
-    #sigma_optimizerG1 = optim.Adam([logsigmaG1], lr=args.sigma_lr, betas=(args.beta1, 0.999))
+    G1_X_training = trainset[j:j+stop].to(device)
+    G1_fixed_noise = torch.randn(args.num_gen_images, args.nzg, 1, 1, device=device)
 
     if args.restrict_sigma:
-        logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)
-        logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
-    stepsize = args.stepsize_num / args.nzg
+        G1_logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)
+        G1_logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
+    G1_stepsize = args.stepsize_num / args.nzg
 
-    bsz = args.batchSize
-    sigma_x = F.softplus(logsigmaG1).view(1, 1, args.imageSize, args.imageSize).to(device)
+    G1_bsz = args.batchSize
+    G1_sigma_x = F.softplus(logsigmaG1).view(1, 1, args.imageSize, args.imageSize).to(device)
 
     netD1.zero_grad()
-    real_cpu = X_training.to(device)
+    G1_real_cpu = G1_X_training.to(device)
 
-    batch_size = real_cpu.size(0)
-    label = torch.full((batch_size,), real_label, device=device, dtype=torch.float32)
+    G1_batch_size = G1_real_cpu.size(0)
+    G1_label = torch.full((G1_batch_size,), real_label, device=device, dtype=torch.float32)
 
-    noise_eta = torch.randn_like(real_cpu)
-    noised_data = real_cpu + sigma_x.detach() * noise_eta
-    out_real = netD1(noised_data)
-    errD_real = criterion(out_real, label)
-    errD_real.backward()
-    D_x = out_real.mean().item()
+    G1_noise_eta = torch.randn_like(G1_real_cpu)
+    G1_noised_data = G1_real_cpu + G1_sigma_x.detach() * G1_noise_eta
+    G1_out_real = netD1(G1_noised_data)
+    G1_errD_real = criterion(G1_out_real, G1_label)
+    G1_errD_real.backward()
+    G1_D_x = G1_out_real.mean().item()
 
     # train with fake
-    noise = torch.randn(batch_size, args.nzg, 1, 1, device=device)
-    mu_fake = netG1(noise) 
-    fake = mu_fake + sigma_x * noise_eta
-    label.fill_(fake_label)
-    out_fake = netD1(fake.detach())
-    errD_fake = criterion(out_fake, label)
-    errD_fake.backward()
-    D_G_z1 = out_fake.mean().item()
-    errD = errD_real + errD_fake
+    G1_noise = torch.randn(G1_batch_size, args.nzg, 1, 1, device=device)
+    G1_mu_fake = netG1(G1_noise) 
+    G1_fake = G1_mu_fake + G1_sigma_x * G1_noise_eta
+    G1_label.fill_(fake_label)
+    G1_out_fake = netD1(G1_fake.detach())
+    G1_errD_fake = criterion(G1_out_fake, G1_label)
+    G1_errD_fake.backward()
+    G1_D_G_z1 = G1_out_fake.mean().item()
+    G1_errD = G1_errD_real + G1_errD_fake
     optimizerD1.step()
 
     # update G network: maximize log(D(G(z)))
     netG1.zero_grad()
     sigma_optimizerG1.zero_grad()
-    label.fill_(real_label)  
-    gen_input = torch.randn(batch_size, args.nzg, 1, 1, device=device)
-    out = netG1(gen_input)
-    noise_eta = torch.randn_like(out)
-    g_fake_data = out + noise_eta * sigma_x
+    G1_label.fill_(real_label)  
+    G1_gen_input = torch.randn(G1_batch_size, args.nzg, 1, 1, device=device)
+    G1_out = netG1(G1_gen_input)
+    G1_noise_eta = torch.randn_like(G1_out)
+    G1_g_fake_data = G1_out + G1_noise_eta * G1_sigma_x
 
-    dg_fake_decision = netD1(g_fake_data)
-    g_error_gan = criterion(dg_fake_decision, label)+ OLoss 
-    AdvLossG1 = g_error_gan
-    D_G_z2 = dg_fake_decision.mean().item()
+    G1_dg_fake_decision = netD1(G1_g_fake_data)
+    G1_g_error_gan = criterion(G1_dg_fake_decision, G1_label)+ OLoss 
+    AdvLossG1 = G1_g_error_gan
+    G1_D_G_z2 = G1_dg_fake_decision.mean().item()
 
     if args.lambda_ == 0:
-       g_error_gan.backward()
+       G1_g_error_gan.backward()
        optimizerG1.step() 
        sigma_optimizerG1.step()
     else:
-       hmc_samples, acceptRate, stepsize = hmc.get_samples(
-                    netG1, g_fake_data.detach(), gen_input.clone(), sigma_x.detach(), args.burn_in, 
-                        args.num_samples_posterior, args.leapfrog_steps, stepsize, args.flag_adapt, 
+       G1_hmc_samples, G1_acceptRate, G1_stepsize = hmc.get_samples(
+                    netG1, G1_g_fake_data.detach(), G1_gen_input.clone(), G1_sigma_x.detach(), args.burn_in, 
+                        args.num_samples_posterior, args.leapfrog_steps, G1_stepsize, args.flag_adapt, 
                             args.hmc_learning_rate, args.hmc_opt_accept)
                 
-       bsz, d = hmc_samples.size()
-       mean_output = netG1(hmc_samples.view(bsz, d, 1, 1).to(device))
-       bsz = g_fake_data.size(0)
+       G1_bsz, G1_d = G1_hmc_samples.size()
+       G1_mean_output = netG1(G1_hmc_samples.view(G1_bsz, G1_d, 1, 1).to(device))
+       G1_bsz = G1_g_fake_data.size(0)
 
-       mean_output_summed = torch.zeros_like(g_fake_data)
+       G1_mean_output_summed = torch.zeros_like(G1_g_fake_data)
        for cnt in range(args.num_samples_posterior):
-           mean_output_summed = mean_output_summed + mean_output[cnt*bsz:(cnt+1)*bsz]
-       mean_output_summed = mean_output_summed / args.num_samples_posterior  
+           G1_mean_output_summed = G1_mean_output_summed + G1_mean_output[cnt*G1_bsz:(cnt+1)*G1_bsz]
+       G1_mean_output_summed = G1_mean_output_summed / args.num_samples_posterior  
 
-       c = ((g_fake_data - mean_output_summed) / sigma_x**2).detach()
-       g_error_entropy = torch.mul(c, out + sigma_x * noise_eta).mean(0).sum()
+       G1_c = ((G1_g_fake_data - G1_mean_output_summed) / G1_sigma_x**2).detach()
+       G1_g_error_entropy = torch.mul(G1_c, G1_out + G1_sigma_x * G1_noise_eta).mean(0).sum()
 
-       g_error = g_error_gan - args.lambda_ * g_error_entropy
-       g_error.backward()
+       G1_g_error = G1_g_error_gan - args.lambda_ * G1_g_error_entropy
+       G1_g_error.backward()
        optimizerG1.step() 
        sigma_optimizerG1.step()
 
     if args.restrict_sigma:
-       log_sigma.data.clamp_(min=logsigma_min, max=logsigma_max)
+       G1_log_sigma.data.clamp_(min=G1_logsigma_min, max=G1_logsigma_max)
 
-    ## log performance
-    #if i % args.log == 0:
-    #    print('Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-    #            % (epoch, args.epochs, i, len(X_training), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
+    print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+                % (epoch, args.epochs, Counter, int(len(trainset)/args.batchSize), G1_errD.data, G1_g_error_gan.data, G1_D_x, G1_D_G_z1, G1_D_G_z2))
 
-    DL = errD.data
-    GL = g_error_gan.data
-    Dx = D_x
-    DL_G_z1 = D_G_z1
-    DL_G_z2 = D_G_z2
+    DL = G1_errD.data
+    GL = G1_g_error_gan.data
+    Dx = G1_D_x
+    DL_G_z1 = G1_D_G_z1
+    DL_G_z2 = G1_D_G_z2
 
-    PresGANResultsG1sample=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(sigma_x), torch.max(sigma_x)]
+    PresGANResultsG1sample=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(G1_sigma_x), torch.max(G1_sigma_x)]
 
     if save_imgs:
-        fake = netG1(fixed_noise).detach()
-        #vutils.save_image(fake, '%s/presgan_%s_fake_epoch_%03d.png' % (args.results_folder, args.dataset, epoch), normalize=True, nrow=20)
-        img_grid = torchvision.utils.make_grid(fake)
+        G1_fake = netG1(G1_fixed_noise).detach()
+        vutils.save_image(G1_fake, '%s/G1_presgan_%s_fake_epoch_%03d.png' % (args.ckptOL_G1I, args.dataset, Counter_epoch_batch), normalize=True, nrow=20)
+        img_grid = torchvision.utils.make_grid(G1_fake)
         writer.add_image('G1-fake_images', img_grid, Counter_epoch_batch)
     writer.flush()
     PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResultsG1sample)
@@ -536,19 +531,118 @@ if __name__ == "__main__":
 
 
     ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-    #netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
-    #netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, Counter, trainset[j:j+stop], netG2, netD2, logsigmaG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
-    PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
+    ##-----------------------
 
+    writer = SummaryWriter(args.ckptOL_G2I)
+    G2_X_training = trainset[j:j+stop].to(device)
+    G2_fixed_noise = torch.randn(args.num_gen_images, args.nzg, 1, 1, device=device)
+
+    if args.restrict_sigma:
+        G2_logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)
+        G2_logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
+    G2_stepsize = args.stepsize_num / args.nzg
+
+    G2_bsz = args.batchSize
+    G2_sigma_x = F.softplus(logsigmaG2).view(1, 1, args.imageSize, args.imageSize).to(device)
+
+    netD2.zero_grad()
+    G2_real_cpu = G2_X_training.to(device)
+
+    G2_batch_size = G2_real_cpu.size(0)
+    G2_label = torch.full((G2_batch_size,), real_label, device=device, dtype=torch.float32)
+
+    G2_noise_eta = torch.randn_like(G2_real_cpu)
+    G2_noised_data = G2_real_cpu + G2_sigma_x.detach() * G2_noise_eta
+    G2_out_real = netD2(G2_noised_data)
+    G2_errD_real = criterion(G2_out_real, G2_label)
+    G2_errD_real.backward()
+    G2_D_x = G2_out_real.mean().item()
+
+    # train with fake
+    G2_noise = torch.randn(G2_batch_size, args.nzg, 1, 1, device=device)
+    G2_mu_fake = netG2(G2_noise) 
+    G2_fake = G2_mu_fake + G2_sigma_x * G2_noise_eta
+    G2_label.fill_(fake_label)
+    G2_out_fake = netD2(G2_fake.detach())
+    G2_errD_fake = criterion(G2_out_fake, G2_label)
+    G2_errD_fake.backward()
+    G2_D_G_z1 = G2_out_fake.mean().item()
+    G2_errD = G2_errD_real + G2_errD_fake
+    optimizerD2.step()
+
+    # update G network: maximize log(D(G(z)))
+    netG2.zero_grad()
+    sigma_optimizerG2.zero_grad()
+    G2_label.fill_(real_label)  
+    G2_gen_input = torch.randn(G2_batch_size, args.nzg, 1, 1, device=device)
+    G2_out = netG2(G2_gen_input)
+    G2_noise_eta = torch.randn_like(G2_out)
+    G2_g_fake_data = G2_out + G2_noise_eta * G2_sigma_x
+
+    G2_dg_fake_decision = netD2(G2_g_fake_data)
+    G2_g_error_gan = criterion(G2_dg_fake_decision, G2_label)+ OLoss 
+    AdvLossG2 = G2_g_error_gan
+    G2_D_G_z2 = G2_dg_fake_decision.mean().item()
+
+    if args.lambda_ == 0:
+       G2_g_error_gan.backward()
+       optimizerG2.step() 
+       sigma_optimizerG2.step()
+    else:
+       G2_hmc_samples, G2_acceptRate, G2_stepsize = hmc.get_samples(
+                    netG2, G2_g_fake_data.detach(), G2_gen_input.clone(), G2_sigma_x.detach(), args.burn_in, 
+                        args.num_samples_posterior, args.leapfrog_steps, G2_stepsize, args.flag_adapt, 
+                            args.hmc_learning_rate, args.hmc_opt_accept)
+                
+       G2_bsz, G2_d = G2_hmc_samples.size()
+       G2_mean_output = netG2(G2_hmc_samples.view(G2_bsz, G2_d, 1, 1).to(device))
+       G2_bsz = G2_g_fake_data.size(0)
+
+       G2_mean_output_summed = torch.zeros_like(G2_g_fake_data)
+       for cnt in range(args.num_samples_posterior):
+           G2_mean_output_summed = G2_mean_output_summed + mean_output[cnt*G2_bsz:(cnt+1)*G2_bsz]
+       G2_mean_output_summed = G2_mean_output_summed / args.num_samples_posterior  
+
+       G2_c = ((G2_g_fake_data - G2_mean_output_summed) / G2_sigma_x**2).detach()
+       G2_g_error_entropy = torch.mul(G2_c, G2_out + G2_sigma_x * G2_noise_eta).mean(0).sum()
+
+       G2_g_error = G2_g_error_gan - args.lambda_ * G2_g_error_entropy
+       G2_g_error.backward()
+       optimizerG2.step() 
+       sigma_optimizerG2.step()
+
+    if args.restrict_sigma:
+       G2_log_sigma.data.clamp_(min=G2_logsigma_min, max=G2_logsigma_max)
+
+    #print('G2: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+    #            % (epoch, args.epochs, Counter, int(len(trainset)/args.batchSize), errD.data, g_error_gan.data, D_x, D_G_z1, D_G_z2))
+
+    DL = G2_errD.data
+    GL = G2_g_error_gan.data
+    Dx = G2_D_x
+    DL_G_z1 = G2_D_G_z1
+    DL_G_z2 = G2_D_G_z2
+
+    PresGANResultsG2sample=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(G2_sigma_x), torch.max(G2_sigma_x)]
+
+    if save_imgs:
+        G2_fake = netG2(G2_fixed_noise).detach()
+        vutils.save_image(G2_fake, '%s/G2_presgan_%s_fake_epoch_%03d.png' % (args.ckptOL_G2I, args.dataset, Counter_epoch_batch), normalize=True, nrow=20)
+        img_grid = torchvision.utils.make_grid(G2_fake)
+        writer.add_image('G2-fake_images', img_grid, Counter_epoch_batch)
+    writer.flush()
+    PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResultsG2sample)
+
+    ##-----------------------
 
     ##-- writing to Tensorboard
-    if Counter_epoch_batch % 1 == 0:
+    if Counter_epoch_batch % 100000000 == 0:
        writer.add_scalar("Overlap Loss_batch/W1*OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
        writer.add_scalar("Overlap Loss_batch/W2*OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
        writer.add_scalar("Overlap Loss_batch/W2*OL[G2-->(E1,G1)] + W1*OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
        writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
        writer.add_scalar("Adversarial Loss/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
-       writer.add_scalar("Adversarial Loss/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
+       #writer.add_scalar("Adversarial Loss/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
     
 
     if Counter_epoch_batch % 1 == 0:
@@ -585,4 +679,4 @@ if __name__ == "__main__":
        writer.add_scalar("G2-sigma/sigma_max", sigma_x_G2_max, Counter_epoch_batch)
 
        writer.flush()
-   
+
