@@ -139,16 +139,6 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
     #device = args.device
     X_training = dat.to(device)
     fixed_noise = torch.randn(args.num_gen_images, args.nzg, 1, 1, device=device)
-    '''
-    if generator == 'G1':
-     optimizerD = optim.Adam(netD.parameters(), lr=args.lrD1, betas=(args.beta1, 0.999))
-     optimizerG = optim.Adam(netG.parameters(), lr=args.lrG1, betas=(args.beta1, 0.999)) 
-     sigma_optimizer = optim.Adam([log_sigma], lr=args.sigma_lr, betas=(args.beta1, 0.999))
-    else:
-     optimizerD = optim.Adam(netD.parameters(), lr=args.lrD2, betas=(args.beta1, 0.999))
-     optimizerG = optim.Adam(netG.parameters(), lr=args.lrG2, betas=(args.beta1, 0.999)) 
-     sigma_optimizer = optim.Adam([log_sigma], lr=args.sigma_lr, betas=(args.beta1, 0.999))
-    '''
 
     if args.restrict_sigma:
         logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)

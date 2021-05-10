@@ -430,8 +430,8 @@ if __name__ == "__main__":
        writer.add_scalar("Overlap Loss_batch/OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
        writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
        writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
-       writer.add_scalar("Adversarial Loss/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
-       writer.add_scalar("Adversarial Loss/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
+       writer.add_scalar("Adversarial Loss_batch/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
+       writer.add_scalar("Adversarial Loss_batch/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
     
 
     if Counter_epoch_batch % 1 == 0:
@@ -466,6 +466,14 @@ if __name__ == "__main__":
        writer.add_scalar("G2-DL_G/DL_G_z2", DL_G2_z2, Counter_epoch_batch)
        writer.add_scalar("G2-sigma/sigma_min", sigma_x_G2_min, Counter_epoch_batch)
        writer.add_scalar("G2-sigma/sigma_max", sigma_x_G2_max, Counter_epoch_batch)
+
+    if ((Counter_epoch_batch % int(len(trainset)/args.batchSize) == 0)):
+       writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)]", OLossG1_No_W1, epoch)
+       writer.add_scalar("Overlap Loss_epoch/OL[G1-->(E2,G2)]", OLossG2_No_W2, epoch)
+       writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, epoch)
+       writer.add_scalar("Overlap Loss_epoch/ Distance(G1,G2)", Distance_G1G2_No_W, epoch)
+       writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G1", AdvLossG1, epoch)
+       writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G2", AdvLossG2, epoch)
 
        writer.flush()
    
