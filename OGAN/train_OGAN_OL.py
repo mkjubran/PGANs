@@ -381,8 +381,8 @@ if __name__ == "__main__":
     Counter += 1
     Counter_epoch_batch += 1
 
-    #if ((Counter == 1) or (Counter % 10000000 == 0)):
-    if Counter_epoch_batch % 1 == 0:
+    if ((Counter == 1) or (Counter % 10000000 == 0)):
+    #if Counter_epoch_batch % 1 == 0:
      
       ##-- compute OL where samples from G1 are applied to (E2,G2)
       overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
@@ -402,9 +402,9 @@ if __name__ == "__main__":
     Distance_G1G2_No_W = distance_loss_G1_G2(netG1, netG2) #option#3
 
     ##-- OLoss is the use used to train the generators G1 and G2
-    #OLoss = Distance_G1G2
+    OLoss = Distance_G1G2
     #OLoss = TrueOLoss
-    OLoss = 0
+    #OLoss = 0
 
     ##-- writing to Tensorboard
     if Counter_epoch_batch % 20 == 0:
@@ -426,9 +426,9 @@ if __name__ == "__main__":
 
     ##-- writing to Tensorboard
     if Counter_epoch_batch % 1 == 0:
-       writer.add_scalar("Overlap Loss_batch/W1*OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
-       writer.add_scalar("Overlap Loss_batch/W2*OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
-       writer.add_scalar("Overlap Loss_batch/W2*OL[G2-->(E1,G1)] + W1*OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
+       writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
+       writer.add_scalar("Overlap Loss_batch/OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
+       writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
        writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
        writer.add_scalar("Adversarial Loss/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
        writer.add_scalar("Adversarial Loss/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
