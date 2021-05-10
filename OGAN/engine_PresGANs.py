@@ -249,7 +249,6 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
 
     if save_imgs:
         fake = netG(fixed_noise).detach()
-    #    vutils.save_image(fake, '%s/presgan_%s_fake_epoch_%03d.png' % (args.results_folder, args.dataset, epoch), normalize=True, nrow=20)
 
          # log images to tensorboard
          # create grid of images
@@ -257,8 +256,10 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
 
          # write to tensorboard
         if generator == 'G1':
+            vutils.save_image(fake, '%s/G1_presgan_%s_fake_epoch_%04d.png' % (ckptOLG, args.dataset, Counter_epoch_batch), normalize=True, nrow=20)
             writer.add_image('G1-fake_images', img_grid, Counter_epoch_batch)
         else:
+            vutils.save_image(fake, '%s/G2_presgan_%s_fake_epoch_%04d.png' % (ckptOLG, args.dataset, Counter_epoch_batch), normalize=True, nrow=20)
             writer.add_image('G2-fake_images', img_grid, Counter_epoch_batch)
          # --------------
 

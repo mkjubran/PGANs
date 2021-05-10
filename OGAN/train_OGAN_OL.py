@@ -345,12 +345,12 @@ if __name__ == "__main__":
  ##-- loading VAE Encoder and setting encoder training parameters - E1
  netE1 = nets.ConvVAE(args).to(device)
  netE1 = load_encoder(netE1,args.ckptE1)
- optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1, betas=(args.beta1, 0.999))
+ optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
 
  ##-- loading VAE Encoder and setting encoder training parameters - E2
  netE2 = nets.ConvVAE(args).to(device)
  netE2 = load_encoder(netE2,args.ckptE2)
- optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2, betas=(args.beta1, 0.999))
+ optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
 
  ##-- setting scale and selecting a random test sample
  scale = 0.01*torch.ones(args.imageSize**2)
@@ -414,7 +414,6 @@ if __name__ == "__main__":
 
     ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
     netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
-    #netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, Counter, trainset[j:j+stop], netG1, netD1, logsigmaG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
     PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResults)
     print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
            % (epoch, args.epochs, Counter, int(len(trainset)/args.batchSize), PresGANResults[0], PresGANResults[1], PresGANResults[2], PresGANResults[3], PresGANResults[4]))
@@ -422,7 +421,6 @@ if __name__ == "__main__":
 
     ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
     netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
-    #netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, Counter, trainset[j:j+stop], netG2, netD2, logsigmaG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
     PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
 
 
