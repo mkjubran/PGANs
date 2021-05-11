@@ -381,8 +381,8 @@ if __name__ == "__main__":
     Counter += 1
     Counter_epoch_batch += 1
 
-    if ((Counter == 1) or (Counter % 10000000 == 0)):
-    #if Counter_epoch_batch % 1 == 0:
+    #if ((Counter == 1) or (Counter % 10000000 == 0)):
+    if Counter_epoch_batch % 1 == 0:
      
       ##-- compute OL where samples from G1 are applied to (E2,G2)
       overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
@@ -402,12 +402,12 @@ if __name__ == "__main__":
     Distance_G1G2_No_W = distance_loss_G1_G2(netG1, netG2) #option#3
 
     ##-- OLoss is the use used to train the generators G1 and G2
-    OLoss = Distance_G1G2
-    #OLoss = TrueOLoss
+    #OLoss = Distance_G1G2
+    OLoss = TrueOLoss
     #OLoss = 0
 
     ##-- writing to Tensorboard
-    if Counter_epoch_batch % 20 == 0:
+    if Counter_epoch_batch % 100 == 0:
        save_imgs = True
     else:
        save_imgs = False
@@ -476,4 +476,13 @@ if __name__ == "__main__":
        writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G2", AdvLossG2, epoch)
 
        writer.flush()
-   
+
+    ## save models
+    if Counter_epoch_batch % 100 ==0:
+       torch.save(netG1.state_dict(), os.path.join(args.ckptOL_G, 'netG1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+       torch.save(logsigmaG1, os.path.join(args.ckptOL_G, 'log_sigma_G1_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+       torch.save(netD1.state_dict(), os.path.join(args.ckptOL_G, 'netD1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+
+       torch.save(netG2.state_dict(), os.path.join(args.ckptOL_G, 'netG2_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+       torch.save(logsigmaG2, os.path.join(args.ckptOL_G, 'log_sigma_G2_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+       torch.save(netD2.state_dict(), os.path.join(args.ckptOL_G, 'netD2_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))

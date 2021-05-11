@@ -56,7 +56,7 @@ writer = SummaryWriter(savefolder)
 
 ## Input Standard Gaussian to netG
 print('Create a Standard Multivariate Normal (MVN)')
-mean = torch.ones(batch_size,nz).to(device)
+mean = torch.zeros(batch_size,nz).to(device)
 scale = torch.ones(nz).to(device)
 mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, nz, nz))
 sample_shape = torch.Size([])
