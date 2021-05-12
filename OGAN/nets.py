@@ -96,7 +96,7 @@ class ConvVAE(nn.Module):
         self.fc1 = nn.Linear(64, 128)
         self.fc_mu = nn.Linear(128, args.nz)
         self.fc_log_var = nn.Linear(128, args.nz)
-        self.fc2 = nn.Linear(args.nz, 100)
+        #self.fc2 = nn.Linear(args.nz, 100)
 
         # decoder 
         self.dec1 = nn.ConvTranspose2d(
@@ -143,9 +143,9 @@ class ConvVAE(nn.Module):
         log_var = self.fc_log_var(hidden)
         # get the latent vector through reparameterization
         zr = self.reparameterize(mu, log_var)
-        z = self.fc2(zr)
+        #z = self.fc2(zr)
         #pdb.set_trace()
-        z = z.view(-1, 100, 1, 1)
+        z = zr.view(-1, 100, 1, 1)
  
         # decoding using PGAN
         x = netG(z)

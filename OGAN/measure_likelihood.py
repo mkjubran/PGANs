@@ -166,14 +166,14 @@ def sample_from_generator(args,netG):
  return recon_images
 
 ##-- get likelihood when sample from G1 and apply to E2,G2
-def get_likelihood_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale):
+def get_likelihood_sampleG1_applyE2G2(args, device, netG1, netG2, logsigmaG2, netE2, netES, optimizerES):
 
  likelihood_G1_E2 = []
  samples_G1 = sample_from_generator(args, netG1) # sample from G1
  for i in range(args.OLbatchSize):
   netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
   sample_G1 = samples_G1[i].view([1,1,args.imageSize,args.imageSize]).detach()
-  likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G1,netG2,scale,args.save_likelihood_folder)
+  likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
   likelihood_G1_E2.append(likelihood_sample.item())
   print(f"G1-->(E2,G2): sample {i} of {args.OLbatchSize}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1_E2)}")
 
@@ -244,4 +244,4 @@ if __name__ == "__main__":
     Counter += 1
 
     ##-- compute OL where samples from G1 are applied to (E2,G2)
-    likelihood_G1_E2 = get_likelihood_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
+    likelihood_G1_E2 = get_likelihood_sampleG1_applyE2G2(args, device, netG1, netG2, logsigmaG2, netE2, netES, optimizerES)

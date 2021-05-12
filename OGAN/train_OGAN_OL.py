@@ -271,7 +271,7 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES,
   sample_G2 = samples_G2[i].view([1,1,args.imageSize,args.imageSize]).detach()
   overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG1,scale,args.ckptOL_E1)
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
-  #print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
+  print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
 
   # write moving average to TB
   #writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(overlap_loss_G2_E1), i)
