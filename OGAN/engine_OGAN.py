@@ -3,6 +3,7 @@ import torchvision
 from torch.utils.tensorboard import SummaryWriter
 import datetime
 import pdb
+import numpy as np
 
 ##-- loading get distribution
 def dist(args, device, mu, logvar, mean, scale, data, zr):
@@ -30,7 +31,7 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
  train_loss = []
  overlap_loss = 0;
  OLepoch = 0;
- while (OLepoch <= args.OLepochs): # and (overlap_loss >= 0):
+ while (OLepoch <= args.OLepochs) and (overlap_loss >= 0):
         OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
@@ -76,11 +77,13 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
  overlap_loss = 0;
  OLepoch = 0;
  scale = 0.01*torch.ones(args.imageSize**2).to(device)
- while (OLepoch <= args.OLepochs): # and (overlap_loss >= 0):
+ while (OLepoch <= args.OLepochs) and (overlap_loss >= 0):
         OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
         x_hat, mu, logvar, z, zr = netE(data, netG)
+        if counter == 1:
+          logvar_first = logvar
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
@@ -107,40 +110,57 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         if OLepoch % 10 == 0:
             img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
             writer.add_image('True (or sampled) image and recon_image', img_grid_TB, OLepoch)
-
-
- ##-- Create a standard MVN
- mean = torch.zeros(args.nzg).to(device)
- scale = torch.ones(args.nzg).to(device)
- mvns = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
-
- ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
- mean = z.view([-1,args.nzg]).to(device)
- scale = torch.exp(logvar.view([args.nzg])).to(device)
- mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
- sample_shape = torch.Size([])
-
- likelihood_sample_final = 0
- ## sample and compute
- S = 10
- for iter in range(0,S):
-  sample = mvnz.sample(sample_shape)
-  log_pz = torch.exp(mvns.log_prob(sample))
-  log_rzx = torch.exp(mvnz.log_prob(sample))
-
-  pz = torch.exp(log_pz)
-  rzx = torch.exp(log_rzx)
+ Counter = 0
+ for k in np.arange(0.10,10,0.01):
+  Counter += 1
+  ##-- Create a standard MVN
+  mean = torch.zeros(args.nzg).to(device)
+  scale = torch.ones(args.nzg).to(device)
+  mvns = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
-  mean = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
-  scale = torch.exp(logsigmaG).to(device)
-  mvnx = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.imageSize**2, args.imageSize**2))
-  pxz = torch.exp(mvnx.log_prob(data.view(-1,args.imageSize*args.imageSize)))
+  mean = z.view([-1,args.nzg]).to(device)
+  scale = k*torch.exp(logvar_first.view([args.nzg])).to(device)
+  #scale = 0.01*torch.ones(args.nzg).to(device)
+  mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
+  sample_shape = torch.Size([])
 
-  print('Likelihood: pxz = %.8f .. pz = %.8f (%.8f) .. rzx = %.8f (%.8f)' % (pxz, pz, log_pz, rzx, log_rzx))
+  likelihood_sample_final = 0
+  ## sample and compute
+  S = 1
+  for iter in range(0,S):
+   sample = mvnz.sample(sample_shape)
+   log_pz = mvns.log_prob(sample)
+   log_rzx = mvnz.log_prob(sample)
 
-  likelihood_sample_final = likelihood_sample_final + (pxz*pz/rzx)
-  pdb.set_trace()
+   pz = torch.exp(log_pz)
+   rzx = torch.exp(log_rzx)
+
+   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
+   mean = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
+   scale = torch.exp(logsigmaG).to(device)
+   mvnx = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.imageSize**2, args.imageSize**2))
+   log_pxz = mvnx.log_prob(data.view(-1,args.imageSize*args.imageSize))
+   pxz = torch.exp(log_pxz)
+
+   print('Likelihood: pxz = %.8f (%.8f) .. pz = %.8f (%.8f) .. rzx = %.8f (%.8f)' % (pxz, log_pxz, pz, log_pz, rzx, log_rzx))
+
+   #likelihood_sample_final = likelihood_sample_final + (pxz*pz/rzx)
+
+   likelihood_sample_final = likelihood_sample_final + torch.exp(log_pxz + log_pz - log_rzx)
+   print(torch.exp(log_pxz + log_pz - log_rzx))
+
+  #pdb.set_trace()
+
+  img_grid_TB = torchvision.utils.make_grid(torch.cat((data.view(args.imageSize,args.imageSize), mean.view(args.imageSize,args.imageSize)), 0).detach().cpu())
+  writer.add_image('mean of z', img_grid_TB, iter)
+
+  writer.add_scalar("Likelihood/log_pz", log_pz, Counter)
+  writer.add_scalar("Likelihood/log_rzz", log_rzx, Counter)
+  writer.add_scalar("Likelihood/log_pxz", log_pxz, Counter)
+  writer.add_scalar("Likelihood/k - overdispersing hyperparameter", k, Counter)
+
+  #pdb.set_trace()
 
 
  likelihood_sample_final = torch.log(likelihood_sample_final/S)
