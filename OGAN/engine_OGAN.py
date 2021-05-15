@@ -5,6 +5,9 @@ import datetime
 import pdb
 import numpy as np
 
+from scipy.stats import mvn as scipy_mvn
+from scipy.stats import norm as scipy_norm
+
 ##-- loading get distribution
 def dist(args, device, mu, logvar, mean, scale, data, zr):
  imageSize = args.imageSize
@@ -114,7 +117,9 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
             img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
             writer.add_image('True (or sampled) image and recon_image', img_grid_TB, OLepoch)
  Counter = 0
- for k in np.arange(0.1,2,0.01):
+ for k in np.arange(0.1,5,0.1):
+ #k = 1
+ #if True:
   Counter += 1
   ##-- Create a standard MVN
   mean = torch.zeros(args.nzg).to(device)
@@ -134,49 +139,91 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   S = 1
   for iter in range(0,S):
    sample = mvnz.sample(sample_shape)
-   log_pz = mvns.log_prob(sample)
-   log_rzx = mvnz.log_prob(sample)
+   log_pz = mvns.log_prob(sample).to('cpu')
+   log_rzx = mvnz.log_prob(sample).to('cpu')
 
-   pz = torch.exp(log_pz)
-   rzx = torch.exp(log_rzx)
+   pz = torch.exp(log_pz).to('cpu')
+   rzx = torch.exp(log_rzx).to('cpu')
 
-   
+   '''
+   ##------- method #1
    ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
    mean = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
    scale = torch.exp(logsigmaG).to(device)
    mvnx = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.imageSize**2, args.imageSize**2))
    log_pxz_mvn = mvnx.log_prob(data.view(-1,args.imageSize*args.imageSize))
    pxz_mvn = torch.exp(log_pxz_mvn)
+   print(log_pxz_mvn)
 
-
-   ##----------
+   ##------- method #2
    mean = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
    scale = torch.exp(logsigmaG).to(device)
-   ### Normal full batch
+   x = data.view(-1,args.imageSize*args.imageSize)
    normal = torch.distributions.Normal(mean, scale.reshape(1, args.imageSize*args.imageSize))
    diagn = torch.distributions.Independent(normal, 1)
-   log_pxz = diagn.log_prob(data.view(-1,args.imageSize*args.imageSize))
-   pdb.set_trace()
-   ##----------
+   log_pxz = diagn.log_prob(x)
 
-   print('Likelihood: pxz = %.8f (%.8f) .. pz = %.8f (%.8f) .. rzx = %.8f (%.8f)' % (pxz, log_pxz, pz, log_pz, rzx, log_rzx))
+   low = -1*np.ones(args.imageSize**2)
+   upp = np.ones(args.imageSize**2)
+   pp = scipy_mvn.mvnun(low,upp,mean.view(args.imageSize**2).detach().to('cpu'),torch.diag(scale).view(1, args.imageSize**2, args.imageSize**2).detach().to('cpu'))
+   print(log_pxz)
+   '''
+
+   ##------- method #3
+   log_pxz_scipy = 0
+   meanG = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
+   scale = torch.exp(logsigmaG).to(device)
+   x = data.view(-1,args.imageSize*args.imageSize)
+
+   mean = meanG.view(args.imageSize**2).detach().to('cpu')
+   scale = scale.view(args.imageSize**2).detach().to('cpu')
+   x = x.view(args.imageSize**2).detach().to('cpu')
+   for cnt in range(0, args.imageSize**2):
+     P = scipy_norm.pdf(x[cnt],mean[cnt],scale[cnt])
+     P = max(P,0.01)
+     CDF_minus1=scipy_norm.cdf(-1,mean[cnt],scale[cnt])
+     CDF_1=scipy_norm.cdf(1,mean[cnt],scale[cnt])
+     log_pxz_scipy = log_pxz_scipy + np.log(P/(CDF_1-CDF_minus1))
+     pxz_scipy = np.exp(log_pxz_scipy)
+
+     #print('mean = {}, scale = {}, CDF_minus1 = {}, CDF_1 = {}, P = {}, P/(CDF_1-CDF_minus1) = {}, np.log() = {}'.format(mean[cnt],scale[cnt],CDF_minus1,CDF_1,P, P/(CDF_1-CDF_minus1), np.log(P/(CDF_1-CDF_minus1))))
+     #if P < 1:
+     # pdb.set_trace()
+   ##----- test
+   '''
+   mean = torch.zeros(2).to(device)
+   scale = 4*torch.ones(2).to(device)
+   x = torch.rand(2).to(device)
+   mvns = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, len(scale), len(scale)))
+   P1 = mvns.log_prob(x) # 2*log(1/sqrt(2*pi))
+   print(P1)
+
+   P2 = 0
+   mean = mean.detach().to('cpu')
+   scale = scale.detach().to('cpu')
+   x = x.detach().to('cpu')
+   for cnt in range(0, len(mean)):
+     P = scipy_norm.pdf(x[cnt],mean[cnt],scale[cnt])
+     P2 = P2 + np.log(P)
+   print(P2)
+   '''
+
+   log_likelihood_sample = (log_pxz_scipy + log_pz - log_rzx)
+   likelihood_sample = torch.exp(log_likelihood_sample)
+   print('Likelihood = %.8f (%.8f) .. pxz = %.8f (%.8f) .. pz = %.8f (%.8f) .. rzx = %.8f (%.8f)' % (likelihood_sample, log_likelihood_sample, pxz_scipy, log_pxz_scipy, pz, log_pz, rzx, log_rzx))
 
    #likelihood_sample_final = likelihood_sample_final + (pxz*pz/rzx)
+   likelihood_sample_final = likelihood_sample_final + likelihood_sample
 
-   likelihood_sample_final = likelihood_sample_final + torch.exp(log_pxz + log_pz - log_rzx)
-   print(torch.exp(log_pxz + log_pz - log_rzx))
-
-  #pdb.set_trace()
-
-  img_grid_TB = torchvision.utils.make_grid(torch.cat((data.view(args.imageSize,args.imageSize), mean.view(args.imageSize,args.imageSize)), 0).detach().cpu())
+  img_grid_TB = torchvision.utils.make_grid(torch.cat((data.view(args.imageSize,args.imageSize), meanG.view(args.imageSize,args.imageSize)), 0).detach().cpu())
   writer.add_image('mean of z', img_grid_TB, iter)
 
-  writer.add_scalar("Likelihood/log_pz", log_pz, Counter)
-  writer.add_scalar("Likelihood/log_rzx", log_rzx, Counter)
-  writer.add_scalar("Likelihood/log_pxz", log_pxz, Counter)
-  writer.add_scalar("Likelihood/k - overdispersing hyperparameter", k, Counter)
-  writer.add_scalar("Likelihood/log_pxz+log_pz-log_rzx", log_pxz+log_pz-log_rzx, Counter)
-  writer.add_scalar("Likelihood/(pxz*pz/rzx)", torch.exp(log_pxz+log_pz-log_rzx), Counter)
+  #writer.add_scalar("Likelihood/log_pz", log_pz, Counter)
+  #writer.add_scalar("Likelihood/log_rzx", log_rzx, Counter)
+  #writer.add_scalar("Likelihood/log_pxz", log_pxz, Counter)
+  #writer.add_scalar("Likelihood/k - overdispersing hyperparameter", k, Counter)
+  #writer.add_scalar("Likelihood/log_pxz+log_pz-log_rzx", log_pxz+log_pz-log_rzx, Counter)
+  #writer.add_scalar("Likelihood/(pxz*pz/rzx)", torch.exp(log_pxz+log_pz-log_rzx), Counter)
   #pdb.set_trace()
 
 
