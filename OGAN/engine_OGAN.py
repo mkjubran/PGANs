@@ -210,7 +210,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
    log_likelihood_sample = (log_pxz_scipy + log_pz - log_rzx)
    likelihood_sample = torch.exp(log_likelihood_sample)
-   print('Likelihood = %.8f (%.8f) .. pxz = %.8f (%.8f) .. pz = %.8f (%.8f) .. rzx = %.8f (%.8f)' % (likelihood_sample, log_likelihood_sample, pxz_scipy, log_pxz_scipy, pz, log_pz, rzx, log_rzx))
+   print('Likelihood (k= %.3f) = %.6f (%.6f) .. pxz = %.6f (%.6f) .. pz = %.6f (%.6f) .. rzx = %.6f (%.6f)' % (k, likelihood_sample, log_likelihood_sample, pxz_scipy, log_pxz_scipy, pz, log_pz, rzx, log_rzx))
 
    #likelihood_sample_final = likelihood_sample_final + (pxz*pz/rzx)
    likelihood_sample_final = likelihood_sample_final + likelihood_sample
