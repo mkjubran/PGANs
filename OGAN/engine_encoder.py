@@ -29,13 +29,14 @@ def measure_elbo(args, mu, logvar, x, x_hat, z, zr,device, logsigmaG):
 
     ## compute the expectation - sum(p(z)*log_p(x/z))
     # 1'st reshape the std from [batch size, 16] to [batch size, diag(16,16)]
-    std = torch.exp(0.5*logvar) # standard deviation
+    #std = torch.exp(0.5*logvar) # standard deviation
+    std = torch.exp(logvar) # standard deviation
     std_b = torch.eye(std.size(1)).to(device)
     std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
     std_3d = std_c * std_b
     mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
-
     pz_normal = torch.exp(mvnz.log_prob(zr))
+
     pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
     reconloss = pz_log_pxz_mvn
 

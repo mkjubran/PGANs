@@ -13,13 +13,14 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
  log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
 
- ##-- sample from standard normal distribution
- std = torch.exp(0.5*logvar)
+ #std = torch.exp(0.5*logvar)
+ std = torch.exp(logvar)
  std_b = torch.eye(std.size(1)).to(device)
  std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
  std_3d = std_c * std_b
  mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
  log_pz_normal = mvnz.log_prob(zr)
+
  return log_pxz_mvn, log_pz_normal
 
 def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
@@ -104,14 +105,16 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if overlap_loss >= 0:
             likelihood_sample_final = overlap_loss
-            writer.add_scalar("Train Loss", overlap_loss, OLepoch)
+            writer.add_scalar("Train Loss/total", overlap_loss, OLepoch)
+            writer.add_scalar("Train Loss/log_pz_normal", log_pz_normal, OLepoch)
+            writer.add_scalar("Train Loss/log_pxz_mvn", log_pxz_mvn, OLepoch)
 
         ##-- write to tensorboard
         if OLepoch % 10 == 0:
             img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
             writer.add_image('True (or sampled) image and recon_image', img_grid_TB, OLepoch)
  Counter = 0
- for k in np.arange(0.10,10,0.01):
+ for k in np.arange(0.1,2,0.01):
   Counter += 1
   ##-- Create a standard MVN
   mean = torch.zeros(args.nzg).to(device)
@@ -119,9 +122,10 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   mvns = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
-  mean = z.view([-1,args.nzg]).to(device)
+  #mean = z.view([-1,args.nzg]).to(device)
+  mean = mu.view([-1,args.nzg]).to(device)
   scale = k*torch.exp(logvar_first.view([args.nzg])).to(device)
-  #scale = 0.01*torch.ones(args.nzg).to(device)
+  #scale = k*torch.ones(args.nzg).to(device)
   mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
   sample_shape = torch.Size([])
 
@@ -136,12 +140,24 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
    pz = torch.exp(log_pz)
    rzx = torch.exp(log_rzx)
 
+   
    ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
    mean = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
    scale = torch.exp(logsigmaG).to(device)
    mvnx = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.imageSize**2, args.imageSize**2))
-   log_pxz = mvnx.log_prob(data.view(-1,args.imageSize*args.imageSize))
-   pxz = torch.exp(log_pxz)
+   log_pxz_mvn = mvnx.log_prob(data.view(-1,args.imageSize*args.imageSize))
+   pxz_mvn = torch.exp(log_pxz_mvn)
+
+
+   ##----------
+   mean = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
+   scale = torch.exp(logsigmaG).to(device)
+   ### Normal full batch
+   normal = torch.distributions.Normal(mean, scale.reshape(1, args.imageSize*args.imageSize))
+   diagn = torch.distributions.Independent(normal, 1)
+   log_pxz = diagn.log_prob(data.view(-1,args.imageSize*args.imageSize))
+   pdb.set_trace()
+   ##----------
 
    print('Likelihood: pxz = %.8f (%.8f) .. pz = %.8f (%.8f) .. rzx = %.8f (%.8f)' % (pxz, log_pxz, pz, log_pz, rzx, log_rzx))
 
@@ -156,10 +172,11 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   writer.add_image('mean of z', img_grid_TB, iter)
 
   writer.add_scalar("Likelihood/log_pz", log_pz, Counter)
-  writer.add_scalar("Likelihood/log_rzz", log_rzx, Counter)
+  writer.add_scalar("Likelihood/log_rzx", log_rzx, Counter)
   writer.add_scalar("Likelihood/log_pxz", log_pxz, Counter)
   writer.add_scalar("Likelihood/k - overdispersing hyperparameter", k, Counter)
-
+  writer.add_scalar("Likelihood/log_pxz+log_pz-log_rzx", log_pxz+log_pz-log_rzx, Counter)
+  writer.add_scalar("Likelihood/(pxz*pz/rzx)", torch.exp(log_pxz+log_pz-log_rzx), Counter)
   #pdb.set_trace()
 
 
@@ -167,5 +184,6 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
  writer.flush()
  writer.close()
+
  return likelihood_sample_final
 
