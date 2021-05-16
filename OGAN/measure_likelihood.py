@@ -219,12 +219,12 @@ if __name__ == "__main__":
  optimizerD2 = optim.Adam(netD2.parameters(), lr=args.lrD2, betas=(args.beta1, 0.999))
 
  ##-- loading VAE Encoder and setting encoder training parameters - E1
- netE1 = nets.ConvVAE(args).to(device)
+ netE1 = nets.ConvVAEType2(args).to(device)
  netE1 = load_encoder(netE1,args.ckptE1)
  optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
 
  ##-- loading VAE Encoder and setting encoder training parameters - E2
- netE2 = nets.ConvVAE(args).to(device)
+ netE2 = nets.ConvVAEType2(args).to(device)
  netE2 = load_encoder(netE2,args.ckptE2)
  optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
 
@@ -234,7 +234,7 @@ if __name__ == "__main__":
  #i = torch.randint(0, len(testset),(1,1)) ## selection of the index of test image
 
  ##-- define a new encoder netES to find OL per sample (need to keep the orogonal netE))
- netES = nets.ConvVAE(args).to(device)
+ netES = nets.ConvVAEType2(args).to(device)
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
  testset= testset.to(device)
 
