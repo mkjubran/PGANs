@@ -159,23 +159,23 @@ class ConvVAEType2(nn.Module):
         super(ConvVAEType2, self).__init__()
 
         # encoder
-        self.enc1 = nn.Conv2d(args.nc, args.ndfg, 4, 2, 1, bias=False)
+        self.enc1 = nn.Conv2d(args.nc, init_channels, 4, 2, 1, bias=False)
         self.leaky1 = nn.LeakyReLU(0.2, inplace=False)
             # state size. (ndf) x 32 x 32
-        self.enc2 = nn.Conv2d(args.ndfg, args.ndfg * 2, 4, 2, 1, bias=False)
-        self.bn2 = nn.BatchNorm2d(args.ndfg * 2)
+        self.enc2 = nn.Conv2d(init_channels, init_channels * 2, 4, 2, 1, bias=False)
+        self.bn2 = nn.BatchNorm2d(init_channels * 2)
         self.leaky2 = nn.LeakyReLU(0.2, inplace=False)
             # state size. (ndf*2) x 16 x 16
-        self.enc3 = nn.Conv2d(args.ndfg * 2, args.ndfg * 4, 4, 2, 1, bias=False)
-        self.bn3 = nn.BatchNorm2d(args.ndfg * 4)
+        self.enc3 = nn.Conv2d(init_channels * 2, init_channels * 4, 4, 2, 1, bias=False)
+        self.bn3 = nn.BatchNorm2d(init_channels * 4)
         self.leaky3 = nn.LeakyReLU(0.2, inplace=False)
             # state size. (ndf*4) x 8 x 8
-        self.enc4 = nn.Conv2d(args.ndfg * 4, args.ndfg * 8, 4, 2, 1, bias=False)
-        self.bn4 = nn.BatchNorm2d(args.ndfg * 8)
+        self.enc4 = nn.Conv2d(init_channels * 4, init_channels * 8, 4, 2, 1, bias=False)
+        self.bn4 = nn.BatchNorm2d(init_channels * 8)
         self.leaky4 = nn.LeakyReLU(0.2, inplace=False)
 
         # fully connected layers for learning representations
-        self.fc1 = nn.Linear(args.ndfg * 8, 128)
+        self.fc1 = nn.Linear(init_channels * 8, 128)
         self.fc_mu = nn.Linear(128, args.nz)
         self.fc_log_var = nn.Linear(128, args.nz)
 

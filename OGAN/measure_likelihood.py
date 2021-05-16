@@ -123,6 +123,7 @@ def load_generator_wsigma(netG,device,ckptG,logsigma_file):
 def load_discriminator(netD,device,ckptD):
  netD.apply(utils.weights_init)
  if ckptD != '':
+    pdb.set_trace()
     netD.load_state_dict(torch.load(ckptD))
  else:
    print('A valid ckptD for a pretrained PGAN discriminator must be provided')
