@@ -20,7 +20,8 @@ import copy
 import statistics
 import engine_PresGANs
 import numpy as np
-
+import datetime
+import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -39,7 +40,9 @@ parser.add_argument('--lrD2', type=float, default=0.0002, help='learning rate fo
 parser.add_argument('--ckptE2', type=str, default='', help='a given checkpoint file for VA encoder 2')
 parser.add_argument('--lrE2', type=float, default=0.0002, help='learning rate for encoder 2, default=0.0002')
 
+parser.add_argument('--sample_from', type=str, default='generator', help='Sample from generator | dataset')
 parser.add_argument('--save_likelihood_folder', type=str, default='../../outputs', help='where to save generated images')
+parser.add_argument('--number_samples_likelihood', type=int, default=100, help='Number of Samples to considered to compute Likelihood')
 
 parser.add_argument('--lrOL', type=float, default=0.001, help='learning rate for overlap loss, default=0.001')
 parser.add_argument('--OLbatchSize', type=int, default=100, help='Overlap Loss batch size')
@@ -123,7 +126,6 @@ def load_generator_wsigma(netG,device,ckptG,logsigma_file):
 def load_discriminator(netD,device,ckptD):
  netD.apply(utils.weights_init)
  if ckptD != '':
-    pdb.set_trace()
     netD.load_state_dict(torch.load(ckptD))
  else:
    print('A valid ckptD for a pretrained PGAN discriminator must be provided')
@@ -155,10 +157,10 @@ def dist(args, device, mu, logvar, mean, scale, data):
  return log_pxz_mvn, pz_normal
 
 ##-- Sample from Generator
-def sample_from_generator(args,netG):
+def sample_from_generator(args,netG ,NoSamples):
  ##-- sample from standard normal distribution
  nz=100
- mean = torch.zeros(args.OLbatchSize,nz).to(device)
+ mean = torch.zeros(NoSamples,nz).to(device)
  scale = torch.ones(nz).to(device)
  mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, nz, nz))
  sample_z_shape = torch.Size([])
@@ -167,10 +169,10 @@ def sample_from_generator(args,netG):
  return recon_images
 
 ##-- get likelihood when sample from G1 and apply to E2,G2
-def get_likelihood_sampleG1_applyE2G2(args, device, netG1, netG2, logsigmaG2, netE2, netES, optimizerES):
+def get_likelihood_sampleG1_applyE2G2(likelihood_G1_E2, args, device, netG1, netG2, logsigmaG2, netE2, netES, optimizerES, writer):
 
- likelihood_G1_E2 = []
- samples_G1 = sample_from_generator(args, netG1) # sample from G1
+ #likelihood_G1_E2 = []
+ samples_G1 = sample_from_generator(args, netG1, args.OLbatchSize) # sample from G1
  for i in range(args.OLbatchSize):
   netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
   sample_G1 = samples_G1[i].view([1,1,args.imageSize,args.imageSize]).detach()
@@ -178,14 +180,25 @@ def get_likelihood_sampleG1_applyE2G2(args, device, netG1, netG2, logsigmaG2, ne
   likelihood_G1_E2.append(likelihood_sample.item())
   print(f"G1-->(E2,G2): sample {i} of {args.OLbatchSize}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1_E2)}")
 
-  # write moving average to TB
-  #writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(overlap_loss_G1_E2), i)
-
- #end.record()
- #torch.cuda.synchronize()
- #print(start.elapsed_time(end))
- #print('Done G1 ---')
+  #write moving average to TB
+  writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(likelihood_G1_E2), i)
  return likelihood_G1_E2
+
+##-- get likelihood when sample from G2 and apply to E1,G1
+def get_likelihood_sampleG2_applyE1G1(likelihood_G2_E1, args, device, netG2, netG1, logsigmaG1, netE1, netES, optimizerES, writer):
+
+ #likelihood_G2_E1 = []
+ samples_G2 = sample_from_generator(args, netG2, args.OLbatchSize) # sample from G2
+ for i in range(args.OLbatchSize):
+  netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
+  sample_G2 = samples_G2[i].view([1,1,args.imageSize,args.imageSize]).detach()
+  likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
+  likelihood_G2_E1.append(likelihood_sample.item())
+  print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2_E1)}")
+
+  #write moving average to TB
+  writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(likelihood_G2_E1), i)
+ return likelihood_G2_E1
 
 if __name__ == "__main__":
  ##-- run on the available GPU otherwise CPUs
@@ -237,12 +250,49 @@ if __name__ == "__main__":
  ##-- define a new encoder netES to find OL per sample (need to keep the orogonal netE))
  netES = nets.ConvVAEType2(args).to(device)
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
+
  testset= testset.to(device)
+ trainset= trainset.to(device)
+
+ log_dir = args.save_likelihood_folder+"/LResults_"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+ writer = SummaryWriter(log_dir)
 
  Counter = 0
- for j in range(0, 1): #len(trainset), args.batchSize):
-    stop = min(args.batchSize, len(trainset[j:]))
+ likelihood_G1_E2 = []
+ likelihood_G2_E1 = []
+ if args.sample_from == 'generator':
+    samples_G1 = sample_from_generator(args, netG1, args.number_samples_likelihood)
+    samples_G2 = sample_from_generator(args, netG2, args.number_samples_likelihood)
+ elif args.sample_from == 'dataset':
+    samples_G1 = trainset[random.sample(range(0, len(trainset)), args.number_samples_likelihood)] 
+    samples_G2 = trainset[random.sample(range(0, len(trainset)), args.number_samples_likelihood)] 
+ else:
+    print('Can not sample from {}. Sample from should be either generator or dataset!!!'.format(args.sample_from))
+
+ for j in range(0, args.number_samples_likelihood):
     Counter += 1
 
     ##-- compute OL where samples from G1 are applied to (E2,G2)
-    likelihood_G1_E2 = get_likelihood_sampleG1_applyE2G2(args, device, netG1, netG2, logsigmaG2, netE2, netES, optimizerES)
+    #likelihood_G1_E2 = get_likelihood_sampleG1_applyE2G2(likelihood_G1_E2, args, device, netG1, netG2, logsigmaG2, netE2, netES, optimizerES, writer)
+    #sample_G1 = sample_from_generator(args, netG1, 1).view([1,1,args.imageSize,args.imageSize]).detach() # sample from G1
+    sample_G1 = samples_G1[j].view([1,1,args.imageSize,args.imageSize]).detach()
+    netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
+    likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
+    likelihood_G1_E2.append(likelihood_sample.item())
+    print(f"G1-->(E2,G2): sample {Counter} of {args.number_samples_likelihood}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1_E2)}")
+    writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(likelihood_G1_E2), Counter)
+
+
+    ##-- compute OL where samples from G2 are applied to (E1,G1)
+    #likelihood_G2_E1 = get_likelihood_sampleG2_applyE1G1(likelihood_G2_E1, args, device, netG2, netG1, logsigmaG1, netE1, netES, optimizerES, writer)
+    #sample_G2 = sample_from_generator(args, netG2, 1).view([1,1,args.imageSize,args.imageSize]).detach() # sample from G2
+    sample_G2 = samples_G2[j].view([1,1,args.imageSize,args.imageSize]).detach()
+    netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
+    likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
+    likelihood_G2_E1.append(likelihood_sample.item())
+    print(f"G2-->(E1,G1): sample {Counter} of {args.number_samples_likelihood}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2_E1)}")
+    writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(likelihood_G2_E1), Counter)
+
+
+ writer.flush()
+ writer.close()
