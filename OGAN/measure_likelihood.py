@@ -22,6 +22,7 @@ import engine_PresGANs
 import numpy as np
 import datetime
 import random
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -268,6 +269,7 @@ if __name__ == "__main__":
     samples_G2 = trainset[random.sample(range(0, len(trainset)), args.number_samples_likelihood)] 
  else:
     print('Can not sample from {}. Sample from should be either generator or dataset!!!'.format(args.sample_from))
+    sys.exit(1)
 
  for j in range(0, args.number_samples_likelihood):
     Counter += 1

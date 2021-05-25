@@ -1,15 +1,15 @@
 python3 measure_likelihood.py \
           --dataset mnist \
-          --sample_from dataset \
+          --sample_from generator \
           --ckptG1                    ../../../PresGANs/S2019/presgan_lambda_0.0_GS2019/netG_presgan_mnist_epoch_20.pth \
           --logsigma_file_G1          ../../../PresGANs/S2019/presgan_lambda_0.0_GS2019/log_sigma_mnist_20.pth \
           --ckptD1                    ../../../PresGANs/S2019/presgan_lambda_0.0_GS2019/netD_presgan_mnist_epoch_20.pth \
           --ckptE1                    ../../../PresGANs/S2019/VAEncoderType2_lambda0.0_GS2019epoch20/netE_presgan_MNIST_epoch_19.pth\
-          --ckptG2                    ../../../PresGANs/S2021/presgan_lambda_0.0_GS2021/netG_presgan_mnist_epoch_20.pth \
-          --logsigma_file_G2          ../../../PresGANs/S2021/presgan_lambda_0.0_GS2021/log_sigma_mnist_20.pth \
-          --ckptD2                    ../../../PresGANs/S2021/presgan_lambda_0.0_GS2021/netD_presgan_mnist_epoch_20.pth \
-          --ckptE2                    ../../../PresGANs/S2021/VAEncoderType2_lambda0.0_GS2021epoch20/netE_presgan_MNIST_epoch_19.pth\
-          --save_likelihood_folder    ../../../PresGANs/Likelihood/True0.0_OLoss_lambda_0.0_GS2019_GS2021/Likelihood_EType2 \
+          --ckptG2                    ../../../PresGANs/S2019/presgan_lambda_0.0_GS2019/netG_presgan_mnist_epoch_20.pth \
+          --logsigma_file_G2          ../../../PresGANs/S2019/presgan_lambda_0.0_GS2019/log_sigma_mnist_20.pth \
+          --ckptD2                    ../../../PresGANs/S2019/presgan_lambda_0.0_GS2019/netD_presgan_mnist_epoch_20.pth \
+          --ckptE2                    ../../../PresGANs/S2019/VAEncoderType2_lambda0.0_GS2019epoch20/netE_presgan_MNIST_epoch_19.pth\
+          --save_likelihood_folder    ../../../PresGANs/Likelihood/True0.0_OLoss_lambda_0.0_GS2019_GS2019/Likelihood_EType2 \
           --number_samples_likelihood 1000\
           --lambda_ 0 \
           --W1 0.0 \
