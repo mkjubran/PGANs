@@ -84,3 +84,63 @@ def validate_encoder(netE, args, X_testing, device, netG, logsigmaG):
     return val_loss, recon_images
 
 
+def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion):
+    netE.train()
+    running_loss = 0.0
+    counter = 0
+    for i in tqdm(range(0, len(X_training), args.batchSize)):
+        stop = min(args.batchSize, len(X_training[i:]))
+        data = X_training[i:i+stop].to(device)
+
+        counter += 1
+        optimizer.zero_grad()
+        reconstruction, mu, logvar, z, zr = netE(data)
+        #elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
+        #loss = elbo
+
+        bce_loss = criterion(reconstruction, data)
+        loss = final_loss(bce_loss, mu, logvar)
+
+        loss.backward()
+        running_loss += loss.item()
+        optimizer.step()
+    train_loss = running_loss / counter
+    return train_loss
+
+def validate_encoder_decoder(netE, args, X_testing, device, criterion):
+    netE.eval()
+    running_loss = 0.0
+    counter = 0
+    with torch.no_grad():
+        for i in tqdm(range(0, len(X_testing), args.batchSize)):
+            stop = min(args.batchSize, len(X_testing[i:]))
+            data = X_testing[i:i+stop].to(device)
+            counter += 1
+            reconstruction, mu, logvar, z, zr = netE(data)
+            #elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
+            #loss = elbo
+
+            bce_loss = criterion(reconstruction, data)
+            loss = final_loss(bce_loss, mu, logvar)
+        
+            running_loss += loss.item()
+       
+            # save the last batch input and output of every epoch
+            if (i+stop) == X_testing.size(0):
+                recon_images = reconstruction
+    val_loss = running_loss / counter
+    return val_loss, recon_images
+
+
+def final_loss(bce_loss, mu, logvar):
+    """
+    This function will add the reconstruction loss (BCELoss) and the 
+    KL-Divergence.
+    KL-Divergence = 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+    :param bce_loss: recontruction loss
+    :param mu: the mean from the latent vector
+    :param logvar: log variance from the latent vector
+    """
+    BCE = bce_loss 
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    return BCE + KLD

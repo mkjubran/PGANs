@@ -383,16 +383,24 @@ if __name__ == "__main__":
 
     #if ((Counter == 1) or (Counter % 10000000 == 0)):
     if Counter_epoch_batch % 1 == 0:
-     
-      ##-- compute OL where samples from G1 are applied to (E2,G2)
-      overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
-      OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
-      OLossG2_No_W2 = (-1*statistics.mean(overlap_loss_G1_E2))
 
-      ##-- compute OL where samples from G2 are applied to (E1,G1)
-      overlap_loss_G2_E1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES, scale)
-      OLossG1 = args.W1*(-1*statistics.mean(overlap_loss_G2_E1))
-      OLossG1_No_W1 = (-1*statistics.mean(overlap_loss_G2_E1))
+      if args.W2 != 0:     
+         ##-- compute OL where samples from G1 are applied to (E2,G2)
+         overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
+         OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
+         OLossG2_No_W2 = (-1*statistics.mean(overlap_loss_G1_E2))
+      else:
+         overlap_loss_G1_E2=0
+         OLossG2_No_W2 = 0
+
+      if args.W1 != 0:
+         ##-- compute OL where samples from G2 are applied to (E1,G1)
+         overlap_loss_G2_E1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES, scale)
+         OLossG1 = args.W1*(-1*statistics.mean(overlap_loss_G2_E1))
+         OLossG1_No_W1 = (-1*statistics.mean(overlap_loss_G2_E1))
+      else:
+         overlap_loss_G2_E1 = 0
+         OLossG1_No_W1 = 0
 
       TrueOLoss = OLossG1+OLossG2
       TrueOLoss_No_W1W2 = OLossG1_No_W1+OLossG2_No_W2
