@@ -6,7 +6,6 @@ import pdb
 kernel_size = 4 # (4, 4) kernel
 init_channels = 8 # initial number of filters
 
-## PressGAN Generator
 class Generator(nn.Module):
     def __init__(self, args):
         super(Generator, self).__init__()
@@ -38,7 +37,6 @@ class Generator(nn.Module):
         output = self.main(input)
         return output
 
-
 ## PressGAN Discriminator
 class Discriminator(nn.Module):
     def __init__(self, args):
@@ -68,7 +66,6 @@ class Discriminator(nn.Module):
     def forward(self, input):
         output = self.main(input)
         return output.view(-1, 1).squeeze(1)
-
 
 # define a Conv VAE
 class ConvVAE(nn.Module):
@@ -146,6 +143,65 @@ class ConvVAE(nn.Module):
         #z = self.fc2(zr)
         #pdb.set_trace()
         z = zr.view(-1, 100, 1, 1)
+
+        # decoding using PGAN
+        x = netG(z)
+        reconstruction = x #torch.sigmoid(x)
+        return reconstruction, mu, log_var , z, zr
+
+
+
+# define a Conv VAE
+class ConvVAEReduced(nn.Module):
+    def __init__(self,args):
+        super(ConvVAEReduced, self).__init__()
+ 
+        # encoder
+        self.enc1 = nn.Conv2d(
+            in_channels=args.nc, out_channels=init_channels*8, kernel_size=8, 
+            stride=6, padding=1
+        )
+        #self.enc1 = nn.Conv2d(
+        #    in_channels=args.nc, out_channels=init_channels*8, kernel_size=24, 
+        #    stride=21, padding=1
+        #)
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(64, 128)
+        self.fc_mu = nn.Linear(128, args.nz)
+        self.fc_log_var = nn.Linear(128, args.nz)
+        #self.fc2 = nn.Linear(args.nz, 100)
+
+    def reparameterize(self, mu, log_var):
+        """
+        :param mu: mean from the encoder's latent space
+        :param log_var: log variance from the encoder's latent space
+        """
+        std = torch.exp(0.5*log_var) # standard deviation
+        eps = torch.randn_like(std) # `randn_like` as we need the same size
+        sample = mu + (eps * std) # sampling
+        return sample
+ 
+    def forward(self, x, netG):
+        # encoding
+        x = F.relu(self.enc1(x))
+        #pdb.set_trace()
+        #x = F.relu(self.enc2(x))
+        #pdb.set_trace()
+        #x = F.relu(self.enc3(x))
+        #pdb.set_trace()
+        #x = F.relu(self.enc4(x))
+        #pdb.set_trace()
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        hidden = self.fc1(x)
+        # get `mu` and `log_var`
+        mu = self.fc_mu(hidden)
+        log_var = self.fc_log_var(hidden)
+        # get the latent vector through reparameterization
+        zr = self.reparameterize(mu, log_var)
+        #z = self.fc2(zr)
+        #pdb.set_trace()
+        z = zr.view(-1, 100, 1, 1)
  
         # decoding using PGAN
         x = netG(z)
@@ -189,6 +245,7 @@ class ConvVAEType2(nn.Module):
         sample = mu + (eps * std) # sampling
         return sample
  
+    #def forward(self, x, netG):
     def forward(self, x, args):
         # encoding
         x = self.enc1(x)
@@ -214,11 +271,11 @@ class ConvVAEType2(nn.Module):
         #pdb.set_trace()
         z = zr.view(-1, 100, 1, 1)
  
-        # decoding using PGAN
+        # decoding using PGAN *******************************<<<<
         #x = netG(z)
         #reconstruction = x #torch.sigmoid(x)
+        #return reconstruction, mu, log_var , z, zr
         return mu, log_var , z, zr
-
 
 ## VAE based on FC layers only
 class LinearVAEncoderDecoder(nn.Module):
@@ -260,6 +317,76 @@ class LinearVAEncoderDecoder(nn.Module):
         reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
         return reconstruction, mu, log_var, z, z
 
+class MixVAEncoder(nn.Module):
+    def __init__(self,args):
+        super(MixVAEncoder, self).__init__()
+        x_dim=args.imageSize**2
+        h_dim1=int((args.imageSize**2)/2)
+        h_dim2=int((args.imageSize**2)/4)
+
+        # encoder part
+        self.enc1 = nn.Conv2d(
+            in_channels=args.nc, out_channels=init_channels, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc2 = nn.Conv2d(
+            in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc3 = nn.Conv2d(
+            in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc4 = nn.Conv2d(
+            in_channels=init_channels*4, out_channels=args.nz, kernel_size=kernel_size, 
+            stride=2, padding=0
+        )
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(args.nz, 128)
+        self.fc_mu = nn.Linear(128, args.nz)
+        self.fc_log_var = nn.Linear(128, args.nz)
+
+    def encoder(self, x):
+        x = F.relu(self.enc1(x))
+        x = F.relu(self.enc2(x))
+        x = F.relu(self.enc3(x))
+        x = F.relu(self.enc4(x))
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        x = F.relu(self.fc1(x))
+        return self.fc_mu(x), self.fc_log_var(x) # mu, log_var
+
+    def sampling(self, mu, log_var):
+        std = torch.exp(0.5*log_var)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu) # return z sample
+      
+    def forward(self, x, args):
+        mu, log_var = self.encoder(x)
+        z = self.sampling(mu, log_var)
+        return  mu, log_var, z, z
+
+class MixVADecoder(nn.Module):
+    def __init__(self,args):
+        super(MixVADecoder, self).__init__()
+        x_dim=args.imageSize**2
+        h_dim1=int((args.imageSize**2)/2)
+        h_dim2=int((args.imageSize**2)/4)
+
+        # decoder part
+        self.dec1 = nn.Linear(args.nz, h_dim2)
+        self.dec2 = nn.Linear(h_dim2, h_dim1)
+        self.dec3 = nn.Linear(h_dim1, x_dim)
+
+    def decoder(self, z):
+        x = F.relu(self.dec1(z))
+        x = F.relu(self.dec2(x))
+        x = F.sigmoid(self.dec3(x))
+        return x
+
+    def forward(self, z, args):
+        reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
+        return reconstruction
 
 
 # define a Conv VAE - Encode and decode using VAE (similar to arg.max "proposal" VAE but decoding without using the PGAN generator)

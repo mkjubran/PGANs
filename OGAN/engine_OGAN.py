@@ -39,7 +39,11 @@ def get_overlap_loss(args,device,netE,optimizerE,data,netG,scale,ckptOL):
         OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
-        x_hat, mu, logvar, z, zr = netE(data, netG)
+
+        #x_hat, mu, logvar, z, zr = netE(data, netG)
+        mu, logvar, z, zr = netE(data, args)
+        x_hat = netG(z)
+
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
@@ -85,7 +89,11 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
-        x_hat, mu, logvar, z, zr = netE(data, netG)
+
+        #x_hat, mu, logvar, z, zr = netE(data, netG)
+        mu, logvar, z, zr = netE(data, args)
+        x_hat = netG(z)
+
         if counter == 1:
           logvar_first = logvar
         mean = x_hat.view(-1,args.imageSize*args.imageSize)

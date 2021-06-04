@@ -55,7 +55,11 @@ def train_encoder(netE, args, X_training, device, optimizer, netG, logsigmaG):
 
         counter += 1
         optimizer.zero_grad()
-        reconstruction, mu, logvar, z, zr = netE(data, netG)
+
+        #reconstruction, mu, logvar, z, zr = netE(data, netG)
+        mu, logvar, z, zr = netE(data, args)
+        reconstruction = netG(z)
+
         elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
         loss = elbo
         loss.backward()
@@ -73,7 +77,11 @@ def validate_encoder(netE, args, X_testing, device, netG, logsigmaG):
             stop = min(args.batchSize, len(X_testing[i:]))
             data = X_testing[i:i+stop].to(device)
             counter += 1
-            reconstruction, mu, logvar, z, zr = netE(data, netG)
+
+            #reconstruction, mu, logvar, z, zr = netE(data, netG)
+            mu, logvar, z, zr = netE(data, args)
+            reconstruction = netG(z)
+
             elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
             loss = elbo
             running_loss += loss.item()
