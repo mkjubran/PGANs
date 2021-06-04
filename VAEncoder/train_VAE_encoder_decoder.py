@@ -72,8 +72,12 @@ if __name__ == "__main__":
  trainset, testset = load_datasets(data,args,device)
 
  ##-- setup the VAE Encoder and encoder training parameters
- netE = nets.MixVAEncoderDecoder(args).to(device)
+ netE = nets.MixVAEncoder(args).to(device)
  optimizer = optim.Adam(netE.parameters(), lr=args.lrE)
+
+ ##-- setup the VAE Decoder and decoder training parameters
+ netDec = nets.MixVADecoder(args).to(device)
+ optimizerDec = optim.Adam(netDec.parameters(), lr=args.lrE)
 
  ##-- write to tensor board
  writer = SummaryWriter(args.ckptE+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -88,11 +92,11 @@ if __name__ == "__main__":
     print(f"Epoch {epoch+1} of {args.epochs}")
 
     train_epoch_loss, train_recon_images = train_encoder_decoder(
-        netE, args, trainset, device, optimizer, criterion
+        netE, args, trainset, device, optimizer, criterion, netDec, optimizerDec
     )
 
     valid_epoch_loss, recon_images = validate_encoder_decoder(
-        netE, args, testset, device, criterion
+        netE, args, testset, device, criterion, netDec, optimizerDec
     )
 
     train_loss.append(train_epoch_loss)
@@ -137,7 +141,8 @@ if __name__ == "__main__":
     writer.add_histogram('distribution centers/dec2', netE.dec2.weight, epoch)
     '''
 
-    torch.save(netE.state_dict(), os.path.join(args.ckptE,'netEncDec_MNIST_epoch_%s.pth'%(epoch)))
+    torch.save(netE.state_dict(), os.path.join(args.ckptE,'netVAEEnc_MNIST_epoch_%s.pth'%(epoch)))
+    torch.save(netDec.state_dict(), os.path.join(args.ckptE,'netVAEDec_MNIST_epoch_%s.pth'%(epoch)))
 
  writer.flush()
  writer.close()

@@ -121,6 +121,7 @@ class ConvVAE(nn.Module):
         return reconstruction, mu, log_var , z, zr
 
 
+
 # define a Conv VAE
 class ConvVAEReduced(nn.Module):
     def __init__(self,args):
@@ -215,7 +216,8 @@ class ConvVAEType2(nn.Module):
         sample = mu + (eps * std) # sampling
         return sample
  
-    def forward(self, x, netG):
+    #def forward(self, x, netG):
+    def forward(self, x, args):
         # encoding
         x = self.enc1(x)
         x = self.leaky1(x)
@@ -241,9 +243,10 @@ class ConvVAEType2(nn.Module):
         z = zr.view(-1, 100, 1, 1)
  
         # decoding using PGAN *******************************<<<<
-        x = netG(z)
-        reconstruction = x #torch.sigmoid(x)
-        return reconstruction, mu, log_var , z, zr
+        #x = netG(z)
+        #reconstruction = x #torch.sigmoid(x)
+        #return reconstruction, mu, log_var , z, zr
+        return mu, log_var , z, zr
 
 ## VAE based on FC layers only
 class LinearVAEncoderDecoder(nn.Module):
@@ -285,9 +288,9 @@ class LinearVAEncoderDecoder(nn.Module):
         reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
         return reconstruction, mu, log_var, z, z
 
-class MixVAEncoderDecoder(nn.Module):
+class MixVAEncoder(nn.Module):
     def __init__(self,args):
-        super(MixVAEncoderDecoder, self).__init__()
+        super(MixVAEncoder, self).__init__()
         x_dim=args.imageSize**2
         h_dim1=int((args.imageSize**2)/2)
         h_dim2=int((args.imageSize**2)/4)
@@ -314,11 +317,6 @@ class MixVAEncoderDecoder(nn.Module):
         self.fc_mu = nn.Linear(128, args.nz)
         self.fc_log_var = nn.Linear(128, args.nz)
 
-        # decoder part
-        self.dec1 = nn.Linear(args.nz, h_dim2)
-        self.dec2 = nn.Linear(h_dim2, h_dim1)
-        self.dec3 = nn.Linear(h_dim1, x_dim)
-
     def encoder(self, x):
         x = F.relu(self.enc1(x))
         x = F.relu(self.enc2(x))
@@ -334,17 +332,32 @@ class MixVAEncoderDecoder(nn.Module):
         eps = torch.randn_like(std)
         return eps.mul(std).add_(mu) # return z sample
       
+    def forward(self, x, args):
+        mu, log_var = self.encoder(x)
+        z = self.sampling(mu, log_var)
+        return  mu, log_var, z, z
+
+class MixVADecoder(nn.Module):
+    def __init__(self,args):
+        super(MixVADecoder, self).__init__()
+        x_dim=args.imageSize**2
+        h_dim1=int((args.imageSize**2)/2)
+        h_dim2=int((args.imageSize**2)/4)
+
+        # decoder part
+        self.dec1 = nn.Linear(args.nz, h_dim2)
+        self.dec2 = nn.Linear(h_dim2, h_dim1)
+        self.dec3 = nn.Linear(h_dim1, x_dim)
+
     def decoder(self, z):
         x = F.relu(self.dec1(z))
         x = F.relu(self.dec2(x))
         x = F.sigmoid(self.dec3(x))
         return x
 
-    def forward(self, x, args):
-        mu, log_var = self.encoder(x)
-        z = self.sampling(mu, log_var)
+    def forward(self, z, args):
         reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
-        return reconstruction, mu, log_var, z, z
+        return reconstruction
 
 
 # define a Conv VAE - Encode and decode using VAE (similar to arg.max "proposal" VAE but decoding without using the PGAN generator)

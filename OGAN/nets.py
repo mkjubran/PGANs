@@ -189,7 +189,7 @@ class ConvVAEType2(nn.Module):
         sample = mu + (eps * std) # sampling
         return sample
  
-    def forward(self, x, netG):
+    def forward(self, x, args):
         # encoding
         x = self.enc1(x)
         x = self.leaky1(x)
@@ -215,6 +215,224 @@ class ConvVAEType2(nn.Module):
         z = zr.view(-1, 100, 1, 1)
  
         # decoding using PGAN
-        x = netG(z)
-        reconstruction = x #torch.sigmoid(x)
+        #x = netG(z)
+        #reconstruction = x #torch.sigmoid(x)
+        return mu, log_var , z, zr
+
+
+## VAE based on FC layers only
+class LinearVAEncoderDecoder(nn.Module):
+    def __init__(self,args):
+        super(LinearVAEncoderDecoder, self).__init__()
+        x_dim=args.imageSize**2
+        h_dim1=int((args.imageSize**2)/2)
+        h_dim2=int((args.imageSize**2)/4)
+        z_dim=16
+
+        # encoder part
+        self.fc1 = nn.Linear(x_dim, h_dim1)
+        self.fc2 = nn.Linear(h_dim1, h_dim2)
+        self.fc31 = nn.Linear(h_dim2, z_dim)
+        self.fc32 = nn.Linear(h_dim2, z_dim)
+        # decoder part
+        self.fc4 = nn.Linear(z_dim, h_dim2)
+        self.fc5 = nn.Linear(h_dim2, h_dim1)
+        self.fc6 = nn.Linear(h_dim1, x_dim)
+
+    def encoder(self, x):
+        h = F.relu(self.fc1(x))
+        h = F.relu(self.fc2(h))
+        return self.fc31(h), self.fc32(h) # mu, log_var
+
+    def sampling(self, mu, log_var):
+        std = torch.exp(0.5*log_var)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu) # return z sample
+      
+    def decoder(self, z):
+        h = F.relu(self.fc4(z))
+        h = F.relu(self.fc5(h))
+        return F.sigmoid(self.fc6(h))
+
+    def forward(self, x, args):
+        mu, log_var = self.encoder(x.view(-1, args.imageSize**2))
+        z = self.sampling(mu, log_var)
+        reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
+        return reconstruction, mu, log_var, z, z
+
+
+
+# define a Conv VAE - Encode and decode using VAE (similar to arg.max "proposal" VAE but decoding without using the PGAN generator)
+class ConvVAEncoderDecoder_LikeEq18(nn.Module):
+    def __init__(self,args):
+        super(ConvVAEncoderDecoder_LikeEq18, self).__init__()
+
+        # encoder
+        self.enc1 = nn.Conv2d(args.nc, init_channels, 4, 2, 1, bias=False)
+        self.leaky1 = nn.LeakyReLU(0.2, inplace=False)
+            # state size. (ndf) x 32 x 32
+        self.enc2 = nn.Conv2d(init_channels, init_channels * 2, 4, 2, 1, bias=False)
+        self.bn2 = nn.BatchNorm2d(init_channels * 2)
+        self.leaky2 = nn.LeakyReLU(0.2, inplace=False)
+            # state size. (ndf*2) x 16 x 16
+        self.enc3 = nn.Conv2d(init_channels * 2, init_channels * 4, 4, 2, 1, bias=False)
+        self.bn3 = nn.BatchNorm2d(init_channels * 4)
+        self.leaky3 = nn.LeakyReLU(0.2, inplace=False)
+            # state size. (ndf*4) x 8 x 8
+        self.enc4 = nn.Conv2d(init_channels * 4, init_channels * 8, 4, 2, 1, bias=False)
+        self.bn4 = nn.BatchNorm2d(init_channels * 8)
+        self.leaky4 = nn.LeakyReLU(0.2, inplace=False)
+
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(init_channels * 8, 128)
+        self.fc_mu = nn.Linear(128, args.nz)
+        self.fc_log_var = nn.Linear(128, args.nz)
+
+
+        # decoder
+        self.dec1 = nn.ConvTranspose2d(
+            in_channels=args.nz, out_channels=init_channels*16, kernel_size=kernel_size, 
+            stride=1, padding=0
+        )
+        self.dec2 = nn.ConvTranspose2d(
+            in_channels=init_channels*16, out_channels=init_channels*8, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec3 = nn.ConvTranspose2d(
+            in_channels=init_channels*8, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec4 = nn.ConvTranspose2d(
+            in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec5 = nn.ConvTranspose2d(
+            in_channels=init_channels*2, out_channels=args.nc, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+
+    def reparameterize(self, mu, log_var):
+        """
+        :param mu: mean from the encoder's latent space
+        :param log_var: log variance from the encoder's latent space
+        """
+        std = torch.exp(0.5*log_var) # standard deviation
+        eps = torch.randn_like(std) # `randn_like` as we need the same size
+        sample = mu + (eps * std) # sampling
+        return sample
+ 
+    def forward(self, x, args):
+        # encoding
+        x = self.enc1(x)
+        x = self.leaky1(x)
+        x = self.enc2(x)
+        x = self.bn2(x)
+        x = self.leaky2(x)
+        x = self.enc3(x)
+        x = self.bn3(x)
+        x = self.leaky3(x)
+        x = self.enc4(x)
+        x = self.bn4(x)
+        x = self.leaky4(x)
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        hidden = self.fc1(x)
+        # get `mu` and `log_var`
+        mu = self.fc_mu(hidden)
+        log_var = self.fc_log_var(hidden)
+        # get the latent vector through reparameterization
+        zr = self.reparameterize(mu, log_var)
+        z = zr.view(-1, args.nz, 1, 1)
+
+        # decoding using VAE decoder
+        x = F.relu(self.dec1(z))
+        x = F.relu(self.dec2(x))
+        x = F.relu(self.dec3(x))
+        x = F.relu(self.dec4(x))
+        reconstruction = torch.sigmoid(self.dec5(x))
         return reconstruction, mu, log_var , z, zr
+
+
+## Convolutional VAE without the use of BatchNormalization and Leaky layers
+class ConvVAEncoderDecoder(nn.Module):
+    def __init__(self,args):
+        super(ConvVAEncoderDecoder, self).__init__()
+        # encoder
+        self.enc1 = nn.Conv2d(
+            in_channels=args.nc, out_channels=init_channels, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc2 = nn.Conv2d(
+            in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc3 = nn.Conv2d(
+            in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc4 = nn.Conv2d(
+            in_channels=init_channels*4, out_channels=args.nz, kernel_size=kernel_size, 
+            stride=2, padding=0
+        )
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(args.nz, 128)
+        self.fc_mu = nn.Linear(128, args.nz)
+        self.fc_log_var = nn.Linear(128, args.nz)
+        self.fc2 = nn.Linear(args.nz, args.nz)
+
+        # decoder 
+        self.dec1 = nn.ConvTranspose2d(
+            in_channels=args.nz, out_channels=init_channels*16, kernel_size=kernel_size, 
+            stride=1, padding=0
+        )
+        self.dec2 = nn.ConvTranspose2d(
+            in_channels=init_channels*16, out_channels=init_channels*8, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec3 = nn.ConvTranspose2d(
+            in_channels=init_channels*8, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec4 = nn.ConvTranspose2d(
+            in_channels=init_channels*4, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.dec5 = nn.ConvTranspose2d(
+            in_channels=init_channels*2, out_channels=args.nc, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+
+    def reparameterize(self, mu, log_var):
+        """
+        :param mu: mean from the encoder's latent space
+        :param log_var: log variance from the encoder's latent space
+        """
+        std = torch.exp(0.5*log_var) # standard deviation
+        eps = torch.randn_like(std) # `randn_like` as we need the same size
+        sample = mu + (eps * std) # sampling
+        return sample
+ 
+    def forward(self, x, args):
+        # encoding
+        x = F.relu(self.enc1(x))
+        x = F.relu(self.enc2(x))
+        x = F.relu(self.enc3(x))
+        x = F.relu(self.enc4(x))
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        hidden = self.fc1(x)
+        # get `mu` and `log_var`
+        mu = self.fc_mu(hidden)
+        log_var = self.fc_log_var(hidden)
+        # get the latent vector through reparameterization
+        zr = self.reparameterize(mu, log_var)
+        z = self.fc2(zr)
+        z = z.view(-1, args.nz, 1, 1)
+ 
+        # decoding
+        x = F.relu(self.dec1(z))
+        x = F.relu(self.dec2(x))
+        x = F.relu(self.dec3(x))
+        x = F.relu(self.dec4(x))
+        reconstruction = torch.sigmoid(self.dec5(x))
+        return reconstruction, mu, log_var, z, zr

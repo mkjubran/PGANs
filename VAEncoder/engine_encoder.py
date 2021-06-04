@@ -54,7 +54,11 @@ def train_encoder(netE, args, X_training, device, optimizer, netG, logsigmaG):
 
         counter += 1
         optimizer.zero_grad()
-        reconstruction, mu, logvar, z, zr = netE(data, netG)
+
+        #reconstruction, mu, logvar, z, zr = netE(data, netG)
+        mu, logvar, z, zr = netE(data, args)
+        reconstruction = netG(z)
+
         elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
         loss = elbo
         loss.backward()
@@ -72,7 +76,11 @@ def validate_encoder(netE, args, X_testing, device, netG, logsigmaG):
             stop = min(args.batchSize, len(X_testing[i:]))
             data = X_testing[i:i+stop].to(device)
             counter += 1
-            reconstruction, mu, logvar, z, zr = netE(data, netG)
+
+            #reconstruction, mu, logvar, z, zr = netE(data, netG)
+            mu, logvar, z, zr = netE(data, args)
+            reconstruction = netG(z)
+
             elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
             loss = elbo
             running_loss += loss.item()
@@ -84,8 +92,9 @@ def validate_encoder(netE, args, X_testing, device, netG, logsigmaG):
     return val_loss, recon_images
 
 
-def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion):
+def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion, netDec, optimizerDec):
     netE.train()
+    netDec.train()
     running_loss = 0.0
     counter = 0
     for i in tqdm(range(0, len(X_training), args.batchSize)):
@@ -94,7 +103,11 @@ def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion):
 
         counter += 1
         optimizer.zero_grad()
-        reconstruction, mu, logvar, z, zr = netE(data, args)
+        optimizerDec.zero_grad()
+
+        #reconstruction, mu, logvar, z, zr = netE(data, args)
+        mu, logvar, z, zr = netE(data, args)
+        reconstruction = netDec(z, args)
 
         #logscale = 1*torch.ones(args.imageSize**2).to(device)
         #elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logscale)
@@ -106,6 +119,7 @@ def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion):
         loss.backward()
         running_loss += loss.item()
         optimizer.step()
+        optimizerDec.step()
 
         if (i+stop) == X_training.size(0):
             recon_images = reconstruction
@@ -113,7 +127,7 @@ def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion):
     train_loss = running_loss / counter
     return train_loss, recon_images
 
-def validate_encoder_decoder(netE, args, X_testing, device, criterion):
+def validate_encoder_decoder(netE, args, X_testing, device, criterion, netDec, optimizerDec):
     netE.eval()
     running_loss = 0.0
     counter = 0
@@ -122,7 +136,10 @@ def validate_encoder_decoder(netE, args, X_testing, device, criterion):
             stop = min(args.batchSize, len(X_testing[i:]))
             data = X_testing[i:i+stop].to(device)
             counter += 1
-            reconstruction, mu, logvar, z, zr = netE(data, args)
+
+            #reconstruction, mu, logvar, z, zr = netE(data, args)
+            mu, logvar, z, zr = netE(data, args)
+            reconstruction = netDec(z, args)
 
             #logscale = 1*torch.ones(args.imageSize**2).to(device)
             #elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logscale)
