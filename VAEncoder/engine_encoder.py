@@ -94,8 +94,10 @@ def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion):
 
         counter += 1
         optimizer.zero_grad()
-        reconstruction, mu, logvar, z, zr = netE(data)
-        #elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
+        reconstruction, mu, logvar, z, zr = netE(data, args)
+
+        #logscale = 1*torch.ones(args.imageSize**2).to(device)
+        #elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logscale)
         #loss = elbo
 
         bce_loss = criterion(reconstruction, data)
@@ -104,8 +106,12 @@ def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion):
         loss.backward()
         running_loss += loss.item()
         optimizer.step()
+
+        if (i+stop) == X_training.size(0):
+            recon_images = reconstruction
+
     train_loss = running_loss / counter
-    return train_loss
+    return train_loss, recon_images
 
 def validate_encoder_decoder(netE, args, X_testing, device, criterion):
     netE.eval()
@@ -116,18 +122,21 @@ def validate_encoder_decoder(netE, args, X_testing, device, criterion):
             stop = min(args.batchSize, len(X_testing[i:]))
             data = X_testing[i:i+stop].to(device)
             counter += 1
-            reconstruction, mu, logvar, z, zr = netE(data)
-            #elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logsigmaG)
+            reconstruction, mu, logvar, z, zr = netE(data, args)
+
+            #logscale = 1*torch.ones(args.imageSize**2).to(device)
+            #elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logscale)
             #loss = elbo
 
             bce_loss = criterion(reconstruction, data)
             loss = final_loss(bce_loss, mu, logvar)
-        
-            running_loss += loss.item()
        
+            running_loss += loss.item()
+      
             # save the last batch input and output of every epoch
             if (i+stop) == X_testing.size(0):
                 recon_images = reconstruction
+
     val_loss = running_loss / counter
     return val_loss, recon_images
 

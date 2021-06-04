@@ -9,6 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from torchvision.utils import save_image
 import torch.nn as nn
+import datetime
 
 import shutil
 import os
@@ -71,11 +72,11 @@ if __name__ == "__main__":
  trainset, testset = load_datasets(data,args,device)
 
  ##-- setup the VAE Encoder and encoder training parameters
- netE = nets.ConvVAEncoderDecoder(args).to(device)
+ netE = nets.MixVAEncoderDecoder(args).to(device)
  optimizer = optim.Adam(netE.parameters(), lr=args.lrE)
 
  ##-- write to tensor board
- writer = SummaryWriter(args.ckptE)
+ writer = SummaryWriter(args.ckptE+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
  criterion = nn.BCELoss(reduction='sum')
 
  # a list to save all the reconstructed images in PyTorch grid format
@@ -86,7 +87,7 @@ if __name__ == "__main__":
  for epoch in range(args.epochs):
     print(f"Epoch {epoch+1} of {args.epochs}")
 
-    train_epoch_loss = train_encoder_decoder(
+    train_epoch_loss, train_recon_images = train_encoder_decoder(
         netE, args, trainset, device, optimizer, criterion
     )
 
@@ -108,8 +109,33 @@ if __name__ == "__main__":
 
     # write images to tensorboard
     img_grid_TB = torchvision.utils.make_grid(recon_images.detach().cpu())
-    if epoch % 2 == 0:
+    if epoch % 1 == 0:
         writer.add_image('recon_images', img_grid_TB, epoch)
+
+
+    # write images to tensorboard
+    img_grid_TB = torchvision.utils.make_grid(train_recon_images.detach().cpu())
+    if epoch % 1 == 0:
+        writer.add_image('train_recon_images', img_grid_TB, epoch)
+
+    writer.add_scalar('train_loss', train_epoch_loss, epoch)
+    writer.add_scalar('valid_loss', valid_epoch_loss, epoch)
+
+    '''
+    writer.add_scalar('distribution centers/enc1', netE.enc1.weight.mean().item(), epoch)
+    writer.add_scalar('distribution centers/enc2', netE.enc2.weight.mean().item(), epoch)
+    writer.add_scalar('distribution centers/dec1', netE.dec1.weight.mean().item(), epoch)
+    writer.add_scalar('distribution centers/dec2', netE.dec2.weight.mean().item(), epoch)
+
+
+    
+    writer.add_histogram('distribution centers/enc1', netE.enc1.weight, epoch)
+    writer.add_histogram('distribution centers/enc2', netE.enc2.weight, epoch)
+    writer.add_histogram('distribution centers/enc3', netE.enc3.weight, epoch)
+    writer.add_histogram('distribution centers/enc4', netE.enc4.weight, epoch)
+    writer.add_histogram('distribution centers/dec1', netE.dec1.weight, epoch)
+    writer.add_histogram('distribution centers/dec2', netE.dec2.weight, epoch)
+    '''
 
     torch.save(netE.state_dict(), os.path.join(args.ckptE,'netEncDec_MNIST_epoch_%s.pth'%(epoch)))
 
