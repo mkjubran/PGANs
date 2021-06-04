@@ -245,6 +245,46 @@ class ConvVAEType2(nn.Module):
         reconstruction = x #torch.sigmoid(x)
         return reconstruction, mu, log_var , z, zr
 
+## VAE based on FC layers only
+class LinearVAEncoderDecoder(nn.Module):
+    def __init__(self,args):
+        super(LinearVAEncoderDecoder, self).__init__()
+        x_dim=args.imageSize**2
+        h_dim1=int((args.imageSize**2)/2)
+        h_dim2=int((args.imageSize**2)/4)
+        z_dim=16
+
+        # encoder part
+        self.fc1 = nn.Linear(x_dim, h_dim1)
+        self.fc2 = nn.Linear(h_dim1, h_dim2)
+        self.fc31 = nn.Linear(h_dim2, z_dim)
+        self.fc32 = nn.Linear(h_dim2, z_dim)
+        # decoder part
+        self.fc4 = nn.Linear(z_dim, h_dim2)
+        self.fc5 = nn.Linear(h_dim2, h_dim1)
+        self.fc6 = nn.Linear(h_dim1, x_dim)
+
+    def encoder(self, x):
+        h = F.relu(self.fc1(x))
+        h = F.relu(self.fc2(h))
+        return self.fc31(h), self.fc32(h) # mu, log_var
+
+    def sampling(self, mu, log_var):
+        std = torch.exp(0.5*log_var)
+        eps = torch.randn_like(std)
+        return eps.mul(std).add_(mu) # return z sample
+      
+    def decoder(self, z):
+        h = F.relu(self.fc4(z))
+        h = F.relu(self.fc5(h))
+        return F.sigmoid(self.fc6(h))
+
+    def forward(self, x, args):
+        mu, log_var = self.encoder(x.view(-1, args.imageSize**2))
+        z = self.sampling(mu, log_var)
+        reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
+        return reconstruction, mu, log_var, z, z
+
 
 # define a Conv VAE - Encode and decode using VAE (similar to arg.max "proposal" VAE but decoding without using the PGAN generator)
 class ConvVAEncoderDecoder_LikeEq18(nn.Module):
@@ -422,28 +462,49 @@ class ConvVAEncoderDecoder(nn.Module):
         return reconstruction, mu, log_var, z, zr
 
 
-class LinearVAEncoderDecoder(nn.Module):
+class MixVAEncoderDecoder(nn.Module):
     def __init__(self,args):
-        super(LinearVAEncoderDecoder, self).__init__()
+        super(MixVAEncoderDecoder, self).__init__()
         x_dim=args.imageSize**2
         h_dim1=int((args.imageSize**2)/2)
         h_dim2=int((args.imageSize**2)/4)
-        z_dim=16
 
         # encoder part
-        self.fc1 = nn.Linear(x_dim, h_dim1)
-        self.fc2 = nn.Linear(h_dim1, h_dim2)
-        self.fc31 = nn.Linear(h_dim2, z_dim)
-        self.fc32 = nn.Linear(h_dim2, z_dim)
+        self.enc1 = nn.Conv2d(
+            in_channels=args.nc, out_channels=init_channels, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc2 = nn.Conv2d(
+            in_channels=init_channels, out_channels=init_channels*2, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc3 = nn.Conv2d(
+            in_channels=init_channels*2, out_channels=init_channels*4, kernel_size=kernel_size, 
+            stride=2, padding=1
+        )
+        self.enc4 = nn.Conv2d(
+            in_channels=init_channels*4, out_channels=args.nz, kernel_size=kernel_size, 
+            stride=2, padding=0
+        )
+        # fully connected layers for learning representations
+        self.fc1 = nn.Linear(args.nz, 128)
+        self.fc_mu = nn.Linear(128, args.nz)
+        self.fc_log_var = nn.Linear(128, args.nz)
+
         # decoder part
-        self.fc4 = nn.Linear(z_dim, h_dim2)
-        self.fc5 = nn.Linear(h_dim2, h_dim1)
-        self.fc6 = nn.Linear(h_dim1, x_dim)
+        self.dec1 = nn.Linear(args.nz, h_dim2)
+        self.dec2 = nn.Linear(h_dim2, h_dim1)
+        self.dec3 = nn.Linear(h_dim1, x_dim)
 
     def encoder(self, x):
-        h = F.relu(self.fc1(x))
-        h = F.relu(self.fc2(h))
-        return self.fc31(h), self.fc32(h) # mu, log_var
+        x = F.relu(self.enc1(x))
+        x = F.relu(self.enc2(x))
+        x = F.relu(self.enc3(x))
+        x = F.relu(self.enc4(x))
+        batch, _, _, _ = x.shape
+        x = F.adaptive_avg_pool2d(x, 1).reshape(batch, -1)
+        x = F.relu(self.fc1(x))
+        return self.fc_mu(x), self.fc_log_var(x) # mu, log_var
 
     def sampling(self, mu, log_var):
         std = torch.exp(0.5*log_var)
@@ -451,52 +512,13 @@ class LinearVAEncoderDecoder(nn.Module):
         return eps.mul(std).add_(mu) # return z sample
       
     def decoder(self, z):
-        h = F.relu(self.fc4(z))
-        h = F.relu(self.fc5(h))
-        return F.sigmoid(self.fc6(h))
+        x = F.relu(self.dec1(z))
+        x = F.relu(self.dec2(x))
+        x = F.sigmoid(self.dec3(x))
+        return x
 
     def forward(self, x, args):
-        mu, log_var = self.encoder(x.view(-1, args.imageSize**2))
-        z = self.sampling(mu, log_var)
-        reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
-        return reconstruction, mu, log_var, z, z
-
-
-class MixVAEncoderDecoder(nn.Module):
-    def __init__(self,args):
-        super(MixVAEncoderDecoder, self).__init__()
-        x_dim=args.imageSize**2
-        h_dim1=int((args.imageSize**2)/2)
-        h_dim2=int((args.imageSize**2)/4)
-        z_dim=16
-
-        # encoder part
-        self.fc1 = nn.Linear(x_dim, h_dim1)
-        self.fc2 = nn.Linear(h_dim1, h_dim2)
-        self.fc31 = nn.Linear(h_dim2, z_dim)
-        self.fc32 = nn.Linear(h_dim2, z_dim)
-        # decoder part
-        self.fc4 = nn.Linear(z_dim, h_dim2)
-        self.fc5 = nn.Linear(h_dim2, h_dim1)
-        self.fc6 = nn.Linear(h_dim1, x_dim)
-
-    def encoder(self, x):
-        h = F.relu(self.fc1(x))
-        h = F.relu(self.fc2(h))
-        return self.fc31(h), self.fc32(h) # mu, log_var
-
-    def sampling(self, mu, log_var):
-        std = torch.exp(0.5*log_var)
-        eps = torch.randn_like(std)
-        return eps.mul(std).add_(mu) # return z sample
-       
-    def decoder(self, z):
-        h = F.relu(self.fc4(z))
-        h = F.relu(self.fc5(h))
-        return F.sigmoid(self.fc6(h))
-
-    def forward(self, x, args):
-        mu, log_var = self.encoder(x.view(-1, args.imageSize**2))
+        mu, log_var = self.encoder(x)
         z = self.sampling(mu, log_var)
         reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
         return reconstruction, mu, log_var, z, z
