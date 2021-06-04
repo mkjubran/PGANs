@@ -72,11 +72,11 @@ if __name__ == "__main__":
  trainset, testset = load_datasets(data,args,device)
 
  ##-- setup the VAE Encoder and encoder training parameters
- netE = nets.MixVAEncoder(args).to(device)
+ netE = nets.ConvVAEType2(args).to(device)
  optimizer = optim.Adam(netE.parameters(), lr=args.lrE)
 
  ##-- setup the VAE Decoder and decoder training parameters
- netDec = nets.MixVADecoder(args).to(device)
+ netDec = nets.LinearVADecoder(args).to(device)
  optimizerDec = optim.Adam(netDec.parameters(), lr=args.lrE)
 
  ##-- write to tensor board
@@ -141,8 +141,8 @@ if __name__ == "__main__":
     writer.add_histogram('distribution centers/dec2', netE.dec2.weight, epoch)
     '''
 
-    torch.save(netE.state_dict(), os.path.join(args.ckptE,'netVAEEnc_MNIST_epoch_%s.pth'%(epoch)))
-    torch.save(netDec.state_dict(), os.path.join(args.ckptE,'netVAEDec_MNIST_epoch_%s.pth'%(epoch)))
+    torch.save(netE.state_dict(), os.path.join(args.ckptE,'netVAEnc_MNIST_epoch_%s.pth'%(epoch)))
+    torch.save(netDec.state_dict(), os.path.join(args.ckptE,'netVADec_MNIST_epoch_%s.pth'%(epoch)))
 
  writer.flush()
  writer.close()
