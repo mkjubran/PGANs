@@ -183,7 +183,8 @@ if __name__ == "__main__":
  trainset, testset = load_datasets(data,args,device)
 
  ##-- loading VAE Decoder and setting decoder training parameters
- netDec = nets.LinearVADecoder(args).to(device)
+ netDec = nets.VAEGenerator(args).to(device)
+ #netDec = nets.LinearVADecoder(args).to(device)
  netDec = load_decoder(netDec,args.ckptDec)
 
  ##-- loading VAE Encoder and setting encoder training parameters

@@ -329,3 +329,35 @@ class LinearVADecoder(nn.Module):
         z = z.view(batch, -1)
         reconstruction = self.decoder(z).view(-1,1,args.imageSize,args.imageSize)
         return reconstruction
+
+class VAEGenerator(nn.Module):
+    def __init__(self, args):
+        super(VAEGenerator, self).__init__()
+        
+        self.main = nn.Sequential(
+            # input is Z, going into a convolution
+            nn.ConvTranspose2d(     args.nzg, args.ngfg * 8, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(args.ngfg * 8),
+            nn.ReLU(True),
+            # state size. (ngf*8) x 4 x 4
+            nn.ConvTranspose2d(args.ngfg * 8, args.ngfg * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngfg * 4),
+            nn.ReLU(True),
+            # state size. (ngf*4) x 8 x 8
+            nn.ConvTranspose2d(args.ngfg * 4, args.ngfg * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngfg * 2),
+            nn.ReLU(True),
+            # state size. (ngf*2) x 16 x 16
+            nn.ConvTranspose2d(args.ngfg * 2,    args.ngfg, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngfg),
+            nn.ReLU(True),
+            # state size. (ngf) x 32 x 32
+            nn.ConvTranspose2d(    args.ngfg,      args.ncg, 4, 2, 1, bias=False),
+            #nn.Tanh()
+            nn.Sigmoid() # replace the Tanh() of DCGAN, this is required by nn.bce_loss to make sure the output i between 0 and 1
+            # state size. (nc) x 64 x 64
+        )
+
+    def forward(self, input, args):
+        output = self.main(input)
+        return output

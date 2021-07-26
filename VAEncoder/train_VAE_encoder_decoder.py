@@ -76,7 +76,8 @@ if __name__ == "__main__":
  optimizer = optim.Adam(netE.parameters(), lr=args.lrE)
 
  ##-- setup the VAE Decoder and decoder training parameters
- netDec = nets.LinearVADecoder(args).to(device)
+ netDec = nets.VAEGenerator(args).to(device)
+ #netDec = nets.LinearVADecoder(args).to(device)
  optimizerDec = optim.Adam(netDec.parameters(), lr=args.lrE)
 
  ##-- write to tensor board
