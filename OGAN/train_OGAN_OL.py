@@ -231,7 +231,7 @@ def sample_from_generator(args,netG):
  return recon_images
 
 ##-- get overlap loss when sample from G1 and apply to E2,G2
-def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale):
+def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale, logsigmaG2):
  #start = torch.cuda.Event(enable_timing=True)
  #end = torch.cuda.Event(enable_timing=True)
  #start.record()
@@ -242,7 +242,11 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES,
   # copy weights of netE2 to netES
   netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
   sample_G1 = samples_G1[i].view([1,1,args.imageSize,args.imageSize]).detach()
-  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG2,scale,args.ckptOL_E2)
+  #overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG2,scale,args.ckptOL_E2)
+
+  likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G1,netG2,logsigmaG2,args.ckptOL_E2)
+  overlap_loss_sample = likelihood_sample
+
   overlap_loss_G1_E2.append(overlap_loss_sample.item())
   print(f"G1-->(E2,G2): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G1_E2)}")
 
@@ -256,7 +260,7 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES,
  return overlap_loss_G1_E2
 
 ##-- get overlap loss when sample from G2 and apply to E1,G1
-def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES, scale):
+def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES, scale, logsigmaG1):
  #start = torch.cuda.Event(enable_timing=True)
  #end = torch.cuda.Event(enable_timing=True)
  #start.record()
@@ -269,7 +273,11 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES,
 
   #sample_G2 = testset[i].view([1,1,imageSize,imageSize])
   sample_G2 = samples_G2[i].view([1,1,args.imageSize,args.imageSize]).detach()
-  overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG1,scale,args.ckptOL_E1)
+  #overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG1,scale,args.ckptOL_E1)
+
+  likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G2,netG1,logsigmaG1,args.ckptOL_E1)
+  overlap_loss_sample =  likelihood_sample
+
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
   print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
 
@@ -386,7 +394,7 @@ if __name__ == "__main__":
 
       if args.W2 != 0:     
          ##-- compute OL where samples from G1 are applied to (E2,G2)
-         overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale)
+         overlap_loss_G1_E2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES, scale, logsigmaG2)
          OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
          OLossG2_No_W2 = (-1*statistics.mean(overlap_loss_G1_E2))
       else:
@@ -395,7 +403,7 @@ if __name__ == "__main__":
 
       if args.W1 != 0:
          ##-- compute OL where samples from G2 are applied to (E1,G1)
-         overlap_loss_G2_E1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES, scale)
+         overlap_loss_G2_E1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES, scale, logsigmaG1)
          OLossG1 = args.W1*(-1*statistics.mean(overlap_loss_G2_E1))
          OLossG1_No_W1 = (-1*statistics.mean(overlap_loss_G2_E1))
       else:
