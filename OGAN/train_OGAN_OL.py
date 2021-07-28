@@ -245,7 +245,7 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerES,
   #overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G1,netG2,scale,args.ckptOL_E2)
 
   likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G1,netG2,logsigmaG2,args.ckptOL_E2)
-  overlap_loss_sample = likelihood_sample
+  overlap_loss_sample = -1*likelihood_sample
 
   overlap_loss_G1_E2.append(overlap_loss_sample.item())
   print(f"G1-->(E2,G2): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G1_E2)}")
@@ -276,7 +276,7 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerES,
   #overlap_loss_sample = engine_OGAN.get_overlap_loss(args,device,netES,optimizerES,sample_G2,netG1,scale,args.ckptOL_E1)
 
   likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G2,netG1,logsigmaG1,args.ckptOL_E1)
-  overlap_loss_sample =  likelihood_sample
+  overlap_loss_sample =  -1*likelihood_sample
 
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
   print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
