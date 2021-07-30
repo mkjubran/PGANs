@@ -189,7 +189,10 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
             g_fake_data = out + noise_eta * sigma_x
 
             dg_fake_decision = netD(g_fake_data)
-            g_error_gan = criterion(dg_fake_decision, label)+ OLoss 
+            
+            g_error_criterion = criterion(dg_fake_decision, label)
+            g_error_gan = g_error_criterion + OLoss
+
             AdvLoss = g_error_gan
             D_G_z2 = dg_fake_decision.mean().item()
 
@@ -197,6 +200,9 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
                 g_error_gan.backward()
                 optimizerG.step() 
                 sigma_optimizer.step()
+
+                g_error_entropy = 0
+                g_error = 0
 
             else:
                 hmc_samples, acceptRate, stepsize = hmc.get_samples(
@@ -235,7 +241,7 @@ def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_si
             DL_G_z1 = D_G_z1
             DL_G_z2 = D_G_z2
 
-            PresGANResults=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(sigma_x), torch.max(sigma_x)]
+            PresGANResults=[DL, GL, Dx, DL_G_z1, DL_G_z2, torch.min(sigma_x), torch.max(sigma_x), g_error_criterion, g_error_entropy, g_error]
 
     if save_imgs:
         fake = netG(fixed_noise).detach()

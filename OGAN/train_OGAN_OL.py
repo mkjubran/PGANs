@@ -377,8 +377,8 @@ if __name__ == "__main__":
  ##-- Write to tesnorboard
  writer = SummaryWriter(args.ckptOL_G)
 
- PresGANResultsG1=np.zeros(7)
- PresGANResultsG2=np.zeros(7)
+ PresGANResultsG1=np.zeros(10)
+ PresGANResultsG2=np.zeros(10)
  Counter_epoch_batch = 0
  for epoch in range(1, args.epochs+1):
   Counter = 0
@@ -458,6 +458,10 @@ if __name__ == "__main__":
        DL_G1_z2 = PresGANResultsG1[4]/Counter_epoch_batch
        sigma_x_G1_min = PresGANResultsG1[5]/Counter_epoch_batch
        sigma_x_G1_max = PresGANResultsG1[6]/Counter_epoch_batch
+       g_error_criterion_G1 = PresGANResultsG1[7]/Counter_epoch_batch
+       g_error_entropy_G1 = PresGANResultsG1[8]/Counter_epoch_batch
+       g_error_G1 = PresGANResultsG1[9]/Counter_epoch_batch
+
 
        DL_G2 = PresGANResultsG2[0]/Counter_epoch_batch
        GL_G2 = PresGANResultsG2[1]/Counter_epoch_batch
@@ -466,22 +470,33 @@ if __name__ == "__main__":
        DL_G2_z2 = PresGANResultsG2[4]/Counter_epoch_batch
        sigma_x_G2_min = PresGANResultsG2[5]/Counter_epoch_batch
        sigma_x_G2_max = PresGANResultsG2[6]/Counter_epoch_batch
+       g_error_criterion_G2 = PresGANResultsG2[7]/Counter_epoch_batch
+       g_error_entropy_G2 = PresGANResultsG2[8]/Counter_epoch_batch
+       g_error_G2 = PresGANResultsG2[9]/Counter_epoch_batch
 
-       writer.add_scalar("G1-Loss/Loss_D", DL_G1, Counter_epoch_batch)
-       writer.add_scalar("G1-Loss/Loss_G", GL_G1, Counter_epoch_batch)
-       writer.add_scalar("G1-D(x)", Dx_G1, Counter_epoch_batch)
-       writer.add_scalar("G1-DL_G/DL_G_z1", DL_G1_z1, Counter_epoch_batch)
-       writer.add_scalar("G1-DL_G/DL_G_z2", DL_G1_z2, Counter_epoch_batch)
-       writer.add_scalar("G1-sigma/sigma_min", sigma_x_G1_min, Counter_epoch_batch)
-       writer.add_scalar("G1-sigma/sigma_max", sigma_x_G1_max, Counter_epoch_batch)
 
-       writer.add_scalar("G2-Loss/Loss_D", DL_G2, Counter_epoch_batch)
-       writer.add_scalar("G2-Loss/Loss_G", GL_G2, Counter_epoch_batch)
-       writer.add_scalar("G2-D(x)", Dx_G2, Counter_epoch_batch)
-       writer.add_scalar("G2-DL_G/DL_G_z1", DL_G2_z1, Counter_epoch_batch)
-       writer.add_scalar("G2-DL_G/DL_G_z2", DL_G2_z2, Counter_epoch_batch)
-       writer.add_scalar("G2-sigma/sigma_min", sigma_x_G2_min, Counter_epoch_batch)
-       writer.add_scalar("G2-sigma/sigma_max", sigma_x_G2_max, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-Loss/Loss_D", DL_G1, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-Loss/Loss_G", GL_G1, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-D(x)", Dx_G1, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-DL_G/DL_G_z1", DL_G1_z1, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-DL_G/DL_G_z2", DL_G1_z2, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-sigma/sigma_min", sigma_x_G1_min, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-sigma/sigma_max", sigma_x_G1_max, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-g_error_criterion_G1", g_error_criterion_G1, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-g_error_entropy_G1", g_error_entropy_G1, Counter_epoch_batch)
+       writer.add_scalar("G1/G1-g_error_G1", g_error_G1, Counter_epoch_batch)
+
+       writer.add_scalar("G2/G2-Loss/Loss_D", DL_G2, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-Loss/Loss_G", GL_G2, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-D(x)", Dx_G2, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-DL_G/DL_G_z1", DL_G2_z1, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-DL_G/DL_G_z2", DL_G2_z2, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-sigma/sigma_min", sigma_x_G2_min, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-sigma/sigma_max", sigma_x_G2_max, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-g_error_criterion_G2", g_error_criterion_G2, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-g_error_entropy_G2", g_error_entropy_G2, Counter_epoch_batch)
+       writer.add_scalar("G2/G2-g_error_G2", g_error_G2, Counter_epoch_batch)
+
 
     if ((Counter_epoch_batch % int(len(trainset)/args.batchSize) == 0)):
        writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)]", OLossG1_No_W1, epoch)

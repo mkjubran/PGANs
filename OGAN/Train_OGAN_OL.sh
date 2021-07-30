@@ -8,21 +8,21 @@ python3 train_OGAN_OL.py \
           --logsigma_file_G2  ../../../PresGANs/SaveS2020/presgan_lambda_0.0001_GS2020/log_sigma_mnist_20.pth \
           --ckptD2            ../../../PresGANs/SaveS2020/presgan_lambda_0.0001_GS2020/netD_presgan_mnist_epoch_20.pth \
           --ckptE2            ../../../PresGANs/SaveS2020/VAEncoderType2_lambda0.0001_GS2020epoch20/netE_presgan_MNIST_epoch_19.pth\
-          --ckptOL_E1         ../../../PresGANs/OLoss/True1.0_OLb10_OLoss_lambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E1Type2 \
-          --save_OL_E1        ../../../PresGANs/OLoss/True1.0_OLb10_OLoss_lambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E1Type2_Images \
-          --ckptOL_E2         ../../../PresGANs/OLoss/True1.0_OLb10_OLoss_lambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E2Type2 \
-          --save_OL_E2        ../../../PresGANs/OLoss/True1.0_OLb10_OLoss_lambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E2Type2_Images \
-          --ckptOL            ../../../PresGANs/OLoss/True1.0_OLb10_OLoss_lambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001 \
-          --ckptOL_G          ../../../PresGANs/OLoss/True1.0_OLb10_OLoss_lambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G \
-          --ckptOL_G1         ../../../PresGANs/OLoss/True1.0_OLb10_OLoss_lambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G1_Images \
-          --ckptOL_G2         ../../../PresGANs/OLoss/True1.0_OLb10_OLoss_lambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G2_Images \
-          --lambda_ 0 \
+          --ckptOL_E1         ../../../PresGANs/OLoss/True0.0001_OLb10_OLe200_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E1Type2 \
+          --save_OL_E1        ../../../PresGANs/OLoss/True0.0001_OLb10_OLe200_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E1Type2_Images \
+          --ckptOL_E2         ../../../PresGANs/OLoss/True0.0001_OLb10_OLe200_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E2Type2 \
+          --save_OL_E2        ../../../PresGANs/OLoss/True0.0001_OLb10_OLe200_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E2Type2_Images \
+          --ckptOL            ../../../PresGANs/OLoss/True0.0001_OLb10_OLe200_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001 \
+          --ckptOL_G          ../../../PresGANs/OLoss/True0.0001_OLb10_OLe200_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G \
+          --ckptOL_G1         ../../../PresGANs/OLoss/True0.0001_OLb10_OLe200_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G1_Images \
+          --ckptOL_G2         ../../../PresGANs/OLoss/True0.0001_OLb10_OLe200_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G2_Images \
+          --lambda_ 0.0001 \
           --W1 0.0 \
-          --W2 1.0 \
+          --W2 0.0001 \
           --lrOL 0.0001 \
           --beta  10 \
           --nz 100 \
-          --OLepochs 600 \
+          --OLepochs 200 \
           --epochs 50 \
           --batchSize 100\
           --OLbatchSize 10\
