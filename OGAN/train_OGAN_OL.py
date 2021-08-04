@@ -30,6 +30,7 @@ parser.add_argument('--ckptD1', type=str, default='', help='a given checkpoint f
 parser.add_argument('--lrD1', type=float, default=0.0002, help='learning rate for discriminator 1, default=0.0002')
 parser.add_argument('--ckptE1', type=str, default='', help='a given checkpoint file for VA encoder 1')
 parser.add_argument('--lrE1', type=float, default=0.0002, help='learning rate for encoder 1, default=0.0002')
+parser.add_argument('--seed_G1', type=int, default=2019, help='data loading seed for generator 1, default=2019')
 
 parser.add_argument('--ckptG2', type=str, default='', help='a given checkpoint file for generator 2')
 parser.add_argument('--logsigma_file_G2', type=str, default='', help='a given file for logsigma for generator 2')
@@ -38,6 +39,7 @@ parser.add_argument('--ckptD2', type=str, default='', help='a given checkpoint f
 parser.add_argument('--lrD2', type=float, default=0.0002, help='learning rate for discriminator 2, default=0.0002')
 parser.add_argument('--ckptE2', type=str, default='', help='a given checkpoint file for VA encoder 2')
 parser.add_argument('--lrE2', type=float, default=0.0002, help='learning rate for encoder 2, default=0.0002')
+parser.add_argument('--seed_G2', type=int, default=2020, help='data loading seed for generator 2, default=2020')
 
 parser.add_argument('--ckptOL_E1', type=str, default='', help='a given checkpoint file for Overlap Loss - E1')
 parser.add_argument('--save_OL_E1', type=str, default='../../outputs', help='where to save Overlap Loss results - E1')
@@ -163,8 +165,8 @@ def OL_folders(args):
 
 
 ##-- loading and spliting datasets
-def load_datasets(data,args,device):
- dat = data.load_data(args.dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
+def load_datasets(data,args,device,seed):
+ dat = data.load_data(args.dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest, seed=seed)
  trainset = dat['X_train']
  testset = dat['X_test']
  return trainset, testset
@@ -325,8 +327,12 @@ if __name__ == "__main__":
  ##-- preparing folders to save results of Likelihood
  OL_folders(args)
 
- ##-- loading and spliting datasets
- trainset, testset = load_datasets(data,args,device)
+ ##-- loading and spliting datasets for G1
+ trainsetG1, testsetG1 = load_datasets(data,args,device, args.seed_G1)
+
+ ##-- loading and spliting datasets for G2
+ trainsetG2, testsetG2 = load_datasets(data,args,device, args.seed_G2)
+
 
  ##-- loading PGAN generator model with sigma and setting generator training parameters - G1
  netG1 = nets.Generator(args).to(device)
@@ -372,7 +378,7 @@ if __name__ == "__main__":
  ##-- define a new encoder netES to find OL per sample (need to keep the orogonal netE))
  netES = nets.ConvVAEType2(args).to(device)
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
- testset= testset.to(device)
+ #testset= testset.to(device)
 
  ##-- Write to tesnorboard
  writer = SummaryWriter(args.ckptOL_G)
@@ -384,8 +390,8 @@ if __name__ == "__main__":
   Counter = 0
   OLossG1 = 0
   OLossG2 = 0
-  for j in range(0, len(trainset), args.batchSize):
-    stop = min(args.batchSize, len(trainset[j:]))
+  for j in range(0, len(trainsetG1), args.batchSize):
+    stop = min(args.batchSize, len(trainsetG1[j:]))
     Counter += 1
     Counter_epoch_batch += 1
 
@@ -429,14 +435,14 @@ if __name__ == "__main__":
        save_imgs = False
 
     ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-    netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
+    netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainsetG1[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
     PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResults)
     print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
-           % (epoch, args.epochs, Counter, int(len(trainset)/args.batchSize), PresGANResults[0], PresGANResults[1], PresGANResults[2], PresGANResults[3], PresGANResults[4]))
+           % (epoch, args.epochs, Counter, int(len(trainsetG1)/args.batchSize), PresGANResults[0], PresGANResults[1], PresGANResults[2], PresGANResults[3], PresGANResults[4]))
 
 
     ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-    netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainset[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
+    netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainsetG2[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
     PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
 
 
@@ -498,7 +504,7 @@ if __name__ == "__main__":
        writer.add_scalar("G2/G2-g_error_G2", g_error_G2, Counter_epoch_batch)
 
 
-    if ((Counter_epoch_batch % int(len(trainset)/args.batchSize) == 0)):
+    if ((Counter_epoch_batch % int(len(trainsetG1)/args.batchSize) == 0)):
        writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)]", OLossG1_No_W1, epoch)
        writer.add_scalar("Overlap Loss_epoch/OL[G1-->(E2,G2)]", OLossG2_No_W2, epoch)
        writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, epoch)

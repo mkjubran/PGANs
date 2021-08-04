@@ -12,14 +12,17 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from skimage.transform import rescale
 
-random.seed(2000)
-np.random.seed(2000)
+#random.seed(2000)
+#np.random.seed(2000)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}
 
 def load_data(name, dataroot, batch_size, device, imgsize=None,
-                Ntrain=None, Ntest=None, n_mixtures=10, radius=3, std=0.05):
+                Ntrain=None, Ntest=None, seed=2000, n_mixtures=10, radius=3, std=0.05):
+
+    random.seed(seed)
+    np.random.seed(seed)
 
     print('Loading dataset {} ...'.format(name.upper()))
     data_path = dataroot+'/{}'.format(name)
