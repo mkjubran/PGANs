@@ -8,6 +8,8 @@ import numpy as np
 from scipy.stats import mvn as scipy_mvn
 from scipy.stats import norm as scipy_norm
 
+import TruncatedNormal as TNorm
+
 ##-- loading get distribution
 def dist(args, device, mu, logvar, mean, scale, data, zr):
  imageSize = args.imageSize
@@ -145,8 +147,30 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   likelihood_sample_final = 0
   log_likelihood_sample_list = torch.tensor([]).to(device)
   ## sample and compute
-  S = 10
-  for iter in range(0,S):
+  S = 1000
+  sample = mvnz.sample((S,))
+  log_pz = mvns.log_prob(sample)
+  log_rzx = mvnz.log_prob(sample)
+
+  log_pxz_scipy = 0
+  Ta = torch.tensor([-1.]).to(device)
+  Tb = torch.tensor([1.]).to(device)
+  meanG = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
+  scale = torch.exp(logsigmaG).to(device)
+
+  pt = TNorm.TruncatedNormal(meanG, scale, Ta, Tb, validate_args=None)
+  x = data.view(args.imageSize**2).to(device)
+  log_pxz_scipy = (torch.sum(pt.log_prob(x), axis=1)/x.shape[0]).view(log_rzx.shape)
+
+  log_likelihood_sample = (log_pxz_scipy + log_pz - log_rzx)
+  likelihood_sample = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_sample,0)
+
+  #print(log_pxz_scipy, log_pz, log_rzx, log_likelihood_sample, likelihood_sample)
+
+  #pdb.set_trace()
+
+  '''
+  for iter in range(0,1):
    sample = mvnz.sample(sample_shape)
    log_pz = mvns.log_prob(sample)
    log_rzx = mvnz.log_prob(sample)
@@ -155,7 +179,6 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
    log_pxz_scipy = 0
    meanG = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
    scale = torch.exp(logsigmaG).to(device)
-   #x = data.view(-1,args.imageSize*args.imageSize)
 
    mean = meanG.view(args.imageSize**2).detach().to('cpu')
    scale = scale.view(args.imageSize**2).detach().to('cpu')
@@ -165,15 +188,14 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
      P = max(P,0.001)
      CDF_minus1=scipy_norm.cdf(-1,mean[cnt],scale[cnt])
      CDF_1=scipy_norm.cdf(1,mean[cnt],scale[cnt])
-     log_pxz_scipy = log_pxz_scipy + np.log(P/(CDF_1-CDF_minus1))
+     log_pxz_scipy = log_pxz_scipy + np.log(P/((CDF_1-CDF_minus1)))
 
+   print(log_pxz_scipy, log_pz, log_rzx)
    log_likelihood_sample = (log_pxz_scipy + log_pz - log_rzx)
-   #pdb.set_trace()
    log_likelihood_sample_list = torch.cat((log_likelihood_sample_list,log_likelihood_sample), axis=0)
 
-
   likelihood_sample = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_sample_list,0)
-
+  '''
   #img_grid_TB = torchvision.utils.make_grid(torch.cat((data.view(args.imageSize,args.imageSize), meanG.view(args.imageSize,args.imageSize)), 0).detach().cpu())
   #writer.add_image('mean of z', img_grid_TB, iter)
 
