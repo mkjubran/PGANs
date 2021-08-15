@@ -234,10 +234,9 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
  return likelihood_sample
 
-
 def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
- log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
- writer = SummaryWriter(log_dir)
+ #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+ #writer = SummaryWriter(log_dir)
 
  running_loss = 0.0
  counter = 0
@@ -252,7 +251,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
 
         #x_hat, mu, logvar, z, zr = netE(data, netG)
         mu, logvar, z, zr = netE(data, args)
-        x_hat = netDec(z, args)
+        x_hat = netDec(z,args)
 
         if counter == 1:
           logvar_first = logvar
@@ -262,11 +261,17 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
 
         ##-- definning overlap loss abd backpropagation 
         overlap_loss = -1*(log_pxz_mvn + log_pz_normal) ## results of option#1
+        #overlap_loss = (torch.exp(log_pxz_mvn)) ## results of option#2 are not ready because torch.exp(log_pxz_mvn) always zero
+        #pdb.set_trace()
         overlap_loss.backward()
         running_loss += overlap_loss.item()
         optimizerE.step()
         train_loss = running_loss / counter
        
+        ##-- print training loss
+        #if OLepoch % 5 ==0:
+        #   print(f"Train Loss at epoch {epoch}: {train_loss:.4f}")
+
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if overlap_loss >= 0:
             likelihood_sample_final = overlap_loss
@@ -275,10 +280,11 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
             #writer.add_scalar("Train Loss/log_pxz_mvn", log_pxz_mvn, OLepoch)
 
         ##-- write to tensorboard
-        if OLepoch % 10 == 0:
-            img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
-            writer.add_image('True (or sampled) image and recon_image', img_grid_TB, OLepoch)
+        #if OLepoch % 10 == 0:
+        #    img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 0).detach().cpu())
+        #    writer.add_image('True (or sampled) image and recon_image', img_grid_TB, OLepoch)
  Counter = 0
+ #for k in np.arange(0.001,0.1,0.0001):
  k = 0.1
  if True:
   Counter += 1
@@ -294,38 +300,27 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
   sample_shape = torch.Size([])
 
   likelihood_sample_final = 0
+  log_likelihood_sample_list = torch.tensor([]).to(device)
   ## sample and compute
-  S = 1
-  for iter in range(0,S):
-   sample = mvnz.sample(sample_shape)
-   log_pz = mvns.log_prob(sample).to('cpu')
-   log_rzx = mvnz.log_prob(sample).to('cpu')
+  S = args.S
+  sample = mvnz.sample((S,))
+  log_pz = mvns.log_prob(sample)
+  log_rzx = mvnz.log_prob(sample)
 
-   pz = torch.exp(log_pz).to('cpu')
-   rzx = torch.exp(log_rzx).to('cpu')
+  log_pxz_scipy = 0
+  Ta = torch.tensor([-1.]).to(device)
+  Tb = torch.tensor([1.]).to(device)
+  meanG = netDec(sample.view(-1,args.nzg,1,1),args).view(-1,args.imageSize*args.imageSize).to(device)
+  #scale = torch.exp(0.5*logsigmaG).to(device)  ## only for PresGAN
+  scale = 10*k*torch.ones(args.imageSize**2).to(device)  ## no logsigma for VAE
+  x = data.view(args.imageSize**2).to(device)
 
-   ##------- method #3
-   log_pxz_scipy = 0
-   meanG = netDec(sample.view(-1,args.nzg,1,1), args).view(-1,args.imageSize*args.imageSize).to(device)
-   #scale = torch.exp(logsigmaG).to(device)
-   scale = k*torch.ones(args.imageSize**2).to(device)
-   x = data.view(-1,args.imageSize*args.imageSize)
-
-   mean = meanG.view(args.imageSize**2).detach().to('cpu')
-   scale = scale.view(args.imageSize**2).detach().to('cpu')
-   x = x.view(args.imageSize**2).detach().to('cpu')
-   for cnt in range(0, args.imageSize**2):
-     P = scipy_norm.pdf(x[cnt],mean[cnt],scale[cnt])
-     P = max(P,0.001)
-     CDF_minus1=scipy_norm.cdf(-1,mean[cnt],scale[cnt])
-     CDF_1=scipy_norm.cdf(1,mean[cnt],scale[cnt])
-     log_pxz_scipy = log_pxz_scipy + np.log(P/(CDF_1-CDF_minus1))
-
-   log_likelihood_sample = (log_pxz_scipy + log_pz - log_rzx)
-   likelihood_sample = torch.exp(log_likelihood_sample)
-   #print('Likelihood (k= %.3f) = %.6f (%.6f) .. pxz = %.6f (%.6f) .. pz = %.6f (%.6f) .. rzx = %.6f (%.6f)' % (k, likelihood_sample, log_likelihood_sample, pxz_scipy, log_pxz_scipy, pz, log_pz, rzx, log_rzx))
-
-   likelihood_sample_final = likelihood_sample_final + likelihood_sample
+  ## Method #1): using Truncated Normal Class from Github https://github.com/toshas/torch_truncnorm
+  ## can be used with S > 1
+  pt = TNorm.TruncatedNormal(meanG, scale, Ta, Tb, validate_args=None)
+  log_pxz_scipy = (torch.sum(pt.log_prob(x), axis=1)).view(log_rzx.shape)
+  log_likelihood_sample = (log_pxz_scipy + log_pz - log_rzx)
+  likelihood_sample = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_sample,0)
 
   #img_grid_TB = torchvision.utils.make_grid(torch.cat((data.view(args.imageSize,args.imageSize), meanG.view(args.imageSize,args.imageSize)), 0).detach().cpu())
   #writer.add_image('mean of z', img_grid_TB, iter)
@@ -344,5 +339,4 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
  #writer.flush()
  #writer.close()
 
- return log_likelihood_sample # this is valid only for s=1
- #return likelihood_sample_final
+ return likelihood_sample

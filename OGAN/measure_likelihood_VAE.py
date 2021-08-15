@@ -27,6 +27,7 @@ import sys
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptDec', type=str, default='', help='a given checkpoint file for decoder')
 parser.add_argument('--ckptE', type=str, default='', help='a given checkpoint file for VA encoder')
+parser.add_argument('--seed_VAE', type=int, default=2019, help='data loading seed for VAE, default=2019')
 
 parser.add_argument('--sample_from', type=str, default='generator', help='Sample from generator | dataset')
 parser.add_argument('--save_likelihood_folder', type=str, default='../../outputs', help='where to save generated images')
@@ -34,6 +35,7 @@ parser.add_argument('--number_samples_likelihood', type=int, default=100, help='
 
 parser.add_argument('--lrOL', type=float, default=0.001, help='learning rate for overlap loss, default=0.001')
 parser.add_argument('--OLbatchSize', type=int, default=100, help='Overlap Loss batch size')
+parser.add_argument('--S', type=int, default=1000, help='Sample Size when computing Likelihood')
 
 parser.add_argument('--dataset', required=True, help=' ring | mnist | stackedmnist | cifar10 ')
 parser.add_argument('--batchSize', type=int, default=100, help='input batch size')
@@ -89,8 +91,8 @@ def likelihood_folders(args):
     os.makedirs(args.save_likelihood_folder)
 
 ##-- loading and spliting datasets
-def load_datasets(data,args,device):
- dat = data.load_data(args.dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
+def load_datasets(data,args,device,seed):
+ dat = data.load_data(args.dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest, seed=seed)
  trainset = dat['X_train']
  testset = dat['X_test']
  return trainset, testset
@@ -180,7 +182,7 @@ if __name__ == "__main__":
  likelihood_folders(args)
 
  ##-- loading and spliting datasets
- trainset, testset = load_datasets(data,args,device)
+ trainset, testset = load_datasets(data,args,device, args.seed_VAE)
 
  ##-- loading VAE Decoder and setting decoder training parameters
  netDec = nets.VAEGenerator(args).to(device)

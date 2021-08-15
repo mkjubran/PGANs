@@ -32,6 +32,7 @@ parser.add_argument('--ckptD1', type=str, default='', help='a given checkpoint f
 parser.add_argument('--lrD1', type=float, default=0.0002, help='learning rate for discriminator 1, default=0.0002')
 parser.add_argument('--ckptE1', type=str, default='', help='a given checkpoint file for VA encoder 1')
 parser.add_argument('--lrE1', type=float, default=0.0002, help='learning rate for encoder 1, default=0.0002')
+parser.add_argument('--seed_G1', type=int, default=2019, help='data loading seed for generator 1, default=2019')
 
 parser.add_argument('--ckptG2', type=str, default='', help='a given checkpoint file for generator 2')
 parser.add_argument('--logsigma_file_G2', type=str, default='', help='a given file for logsigma for generator 2')
@@ -40,6 +41,7 @@ parser.add_argument('--ckptD2', type=str, default='', help='a given checkpoint f
 parser.add_argument('--lrD2', type=float, default=0.0002, help='learning rate for discriminator 2, default=0.0002')
 parser.add_argument('--ckptE2', type=str, default='', help='a given checkpoint file for VA encoder 2')
 parser.add_argument('--lrE2', type=float, default=0.0002, help='learning rate for encoder 2, default=0.0002')
+parser.add_argument('--seed_G2', type=int, default=2020, help='data loading seed for generator 2, default=2020')
 
 parser.add_argument('--sample_from', type=str, default='generator', help='Sample from generator | dataset')
 parser.add_argument('--save_likelihood_folder', type=str, default='../../outputs', help='where to save generated images')
@@ -47,6 +49,7 @@ parser.add_argument('--number_samples_likelihood', type=int, default=100, help='
 
 parser.add_argument('--lrOL', type=float, default=0.001, help='learning rate for overlap loss, default=0.001')
 parser.add_argument('--OLbatchSize', type=int, default=100, help='Overlap Loss batch size')
+parser.add_argument('--S', type=int, default=1000, help='Sample Size when computing Likelihood')
 
 parser.add_argument('--dataset', required=True, help=' ring | mnist | stackedmnist | cifar10 ')
 parser.add_argument('--batchSize', type=int, default=100, help='input batch size')
@@ -102,8 +105,8 @@ def likelihood_folders(args):
     os.makedirs(args.save_likelihood_folder)
 
 ##-- loading and spliting datasets
-def load_datasets(data,args,device):
- dat = data.load_data(args.dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
+def load_datasets(data,args,device,seed):
+ dat = data.load_data(args.dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest, seed=seed)
  trainset = dat['X_train']
  testset = dat['X_test']
  return trainset, testset
@@ -208,8 +211,12 @@ if __name__ == "__main__":
  ##-- preparing folders to save results of Likelihood
  likelihood_folders(args)
 
- ##-- loading and spliting datasets
- trainset, testset = load_datasets(data,args,device)
+##-- loading and spliting datasets for G1
+ trainsetG1, testsetG1 = load_datasets(data,args,device, args.seed_G1)
+
+ ##-- loading and spliting datasets for G2
+ trainsetG2, testsetG2 = load_datasets(data,args,device, args.seed_G2)
+
 
  ##-- loading PGAN generator model with sigma and setting generator training parameters - G1
  netG1 = nets.Generator(args).to(device)
@@ -252,8 +259,11 @@ if __name__ == "__main__":
  netES = nets.ConvVAEType2(args).to(device)
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
 
- testset= testset.to(device)
- trainset= trainset.to(device)
+ testsetG1= testsetG1.to(device)
+ trainsetG1= trainsetG1.to(device)
+
+ testsetG2= testsetG2.to(device)
+ trainsetG2= trainsetG2.to(device)
 
  log_dir = args.save_likelihood_folder+"/LResults_"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
  writer = SummaryWriter(log_dir)
@@ -265,8 +275,13 @@ if __name__ == "__main__":
     samples_G1 = sample_from_generator(args, netG1, args.number_samples_likelihood)
     samples_G2 = sample_from_generator(args, netG2, args.number_samples_likelihood)
  elif args.sample_from == 'dataset':
-    samples_G1 = trainset[random.sample(range(0, len(trainset)), args.number_samples_likelihood)] 
-    samples_G2 = trainset[random.sample(range(0, len(trainset)), args.number_samples_likelihood)] 
+    samples_G1 = trainsetG1[random.sample(range(0, len(trainsetG1)), args.number_samples_likelihood)]
+    samples_G2 = trainsetG2[random.sample(range(0, len(trainsetG2)), args.number_samples_likelihood)]
+
+    likelihood_G1test_E2 = []
+    likelihood_G2test_E1 = []
+    samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), args.number_samples_likelihood)] 
+    samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), args.number_samples_likelihood)] 
  else:
     print('Can not sample from {}. Sample from should be either generator or dataset!!!'.format(args.sample_from))
     sys.exit(1)
@@ -294,6 +309,23 @@ if __name__ == "__main__":
     likelihood_G2_E1.append(likelihood_sample.item())
     print(f"G2-->(E1,G1): sample {Counter} of {args.number_samples_likelihood}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2_E1)}")
     writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(likelihood_G2_E1), Counter)
+
+    if args.sample_from == 'dataset':
+      ##-- compute OL where samples from G1(testset) are applied to (E2,G2)
+      sample_G1 = samples_G1test[j].view([1,1,args.imageSize,args.imageSize]).detach()
+      netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
+      likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
+      likelihood_G1test_E2.append(likelihood_sample.item())
+      print(f"G1(testset)-->(E2,G2): sample {Counter} of {args.number_samples_likelihood}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1test_E2)}")
+      writer.add_scalar("Moving Average/G1(testset)-->(E2,G2)", statistics.mean(likelihood_G1test_E2), Counter)
+
+      ##-- compute OL where samples from G2(testset) are applied to (E1,G1)
+      sample_G2 = samples_G2test[j].view([1,1,args.imageSize,args.imageSize]).detach()
+      netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
+      likelihood_sample = engine_OGAN.get_likelihood(args,device,netES,optimizerES,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
+      likelihood_G2test_E1.append(likelihood_sample.item())
+      print(f"G2(testset)-->(E1,G1): sample {Counter} of {args.number_samples_likelihood}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2test_E1)}")
+      writer.add_scalar("Moving Average/G2(testset)-->(E1,G1)", statistics.mean(likelihood_G2test_E1), Counter)
 
 
  writer.flush()
