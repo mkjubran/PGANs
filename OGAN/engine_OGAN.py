@@ -4,6 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 import datetime
 import pdb
 import numpy as np
+import math
 
 from scipy.stats import truncnorm
 from scipy.stats import mvn as scipy_mvn
@@ -19,8 +20,8 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
  log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
 
- #std = torch.exp(0.5*logvar)
- std = torch.exp(logvar)
+ std = torch.exp(0.5*logvar)
+ #std = torch.exp(logvar)
  std_b = torch.eye(std.size(1)).to(device)
  std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
  std_3d = std_c * std_b
@@ -140,7 +141,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
   #mean = z.view([-1,args.nzg]).to(device)
   mean = mu.view([-1,args.nzg]).to(device)
-  scale = k*torch.exp(logvar_first.view([args.nzg])).to(device)
+  scale = k*torch.exp(0.5*logvar_first.view([args.nzg])).to(device)
   #scale = k*torch.ones(args.nzg).to(device)
   mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
   sample_shape = torch.Size([])
@@ -157,7 +158,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   Ta = torch.tensor([-1.]).to(device)
   Tb = torch.tensor([1.]).to(device)
   meanG = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device)
-  scale = torch.exp(logsigmaG).to(device)
+  scale = torch.exp(0.5*logsigmaG).to(device)
   x = data.view(args.imageSize**2).to(device)
 
   ## Method #1): using Truncated Normal Class from Github https://github.com/toshas/torch_truncnorm
@@ -196,6 +197,22 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
    log_likelihood_sample = (log_pxz_scipy + log_pz - log_rzx)
    likelihood_sample = log_likelihood_sample
    print(likelihood_sample)
+  '''
+
+  '''
+  ## Method 4: using the truncnorm of scipy
+  log_likelihood_sample_list=[]
+  scale_sci = scale.view(args.imageSize**2).detach().to('cpu')
+  x_sci = data.view(args.imageSize**2).detach().to('cpu')
+  meanG_sci = meanG.detach().to('cpu')
+  for cnt in range(0,S):
+    mean_sci = meanG_sci[cnt].view(args.imageSize**2)
+    pxz_scipy = truncnorm.pdf(x_sci, a=-1, b=1, loc = mean_sci, scale = scale_sci)
+    log_likelihood_sample = np.log(pxz_scipy) + log_pz.detach().cpu().numpy() - log_rzx.detach().cpu().numpy()
+    log_likelihood_sample_list.append(np.sum(log_likelihood_sample))
+    print(log_likelihood_sample_list)
+  likelihood_sample = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_sample,0)
+  print(likelihood_sample)
   '''
 
   #img_grid_TB = torchvision.utils.make_grid(torch.cat((data.view(args.imageSize,args.imageSize), meanG.view(args.imageSize,args.imageSize)), 0).detach().cpu())
@@ -272,7 +289,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
   mean = mu.view([-1,args.nzg]).to(device)
-  scale = k*torch.exp(logvar_first.view([args.nzg])).to(device)
+  scale = k*torch.exp(0.5*logvar_first.view([args.nzg])).to(device)
   mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
   sample_shape = torch.Size([])
 

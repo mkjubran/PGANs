@@ -516,7 +516,7 @@ if __name__ == "__main__":
        writer.flush()
 
     ## save models
-    if Counter_epoch_batch % 100 ==0:
+    if Counter_epoch_batch % 20 ==0:
        torch.save(netG1.state_dict(), os.path.join(args.ckptOL_G, 'netG1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
        torch.save(logsigmaG1, os.path.join(args.ckptOL_G, 'log_sigma_G1_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
        torch.save(netD1.state_dict(), os.path.join(args.ckptOL_G, 'netD1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
