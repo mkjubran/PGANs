@@ -211,18 +211,31 @@ if __name__ == "__main__":
 
  Counter = 0
  likelihood_Dec = []
+ likelihood_Dectest = []
+
  samples_G1 = trainset[random.sample(range(0, len(trainset)), args.number_samples_likelihood)] 
+ samples_G1test = testset[random.sample(range(0, len(testset)), args.number_samples_likelihood)]
 
  for j in range(0, args.number_samples_likelihood):
     Counter += 1
 
-    ##-- compute OL where samples from dataset are applied to VAE Decoder
+    ##-- compute OL where samples from training dataset are applied to VAE Decoder
     sample_G1 = samples_G1[j].view([1,1,args.imageSize,args.imageSize]).detach()
     netES.load_state_dict(copy.deepcopy(netE.state_dict()))
     likelihood_sample = engine_OGAN.get_likelihood_VAE(args,device,netES,optimizerES,sample_G1,netDec,args.save_likelihood_folder)
     likelihood_Dec.append(likelihood_sample.item())
-    print(f"Dataset-->VAE Dec: sample {Counter} of {args.number_samples_likelihood}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dec)}")
-    writer.add_scalar("Moving Average/Dataset-->VAE Dec", statistics.mean(likelihood_Dec), Counter)
+    print(f"Dataset (train)-->VAE Dec: sample {Counter} of {args.number_samples_likelihood}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dec)}")
+    writer.add_scalar("Moving Average/Dataset(train)-->VAE Dec", statistics.mean(likelihood_Dec), Counter)
+
+
+    ##-- compute OL where samples from testing dataset are applied to VAE Decoder
+    sample_G1test = samples_G1test[j].view([1,1,args.imageSize,args.imageSize]).detach()
+    netES.load_state_dict(copy.deepcopy(netE.state_dict()))
+    likelihood_sample = engine_OGAN.get_likelihood_VAE(args,device,netES,optimizerES,sample_G1test,netDec,args.save_likelihood_folder)
+    likelihood_Dectest.append(likelihood_sample.item())
+    print(f"Dataset (test)-->VAE Dec: sample {Counter} of {args.number_samples_likelihood}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dectest)}")
+    writer.add_scalar("Moving Average/Dataset (test)-->VAE Dec", statistics.mean(likelihood_Dectest), Counter)
+
 
  writer.flush()
  writer.close()
