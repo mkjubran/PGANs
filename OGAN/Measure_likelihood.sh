@@ -1,6 +1,6 @@
-python3 measure_likelihood.py \
+python3 measure_likelihood_batch.py \
           --dataset mnist \
-          --sample_from dataset \
+          --sample_from generator \
           --ckptG1                    ../../../PresGANs/SaveS2019/presgan_lambda_0.0001_GS2019/netG_presgan_mnist_epoch_20.pth \
           --logsigma_file_G1          ../../../PresGANs/SaveS2019/presgan_lambda_0.0001_GS2019/log_sigma_mnist_20.pth \
           --ckptD1                    ../../../PresGANs/SaveS2019/presgan_lambda_0.0001_GS2019/netD_presgan_mnist_epoch_20.pth \
@@ -17,10 +17,10 @@ python3 measure_likelihood.py \
           --lrOL 0.0001 \
           --beta  10 \
           --nz 100 \
-          --OLepochs 2000 \
+          --OLepochs 5000 \
           --epochs 500 \
           --batchSize 100\
-          --OLbatchSize 4\
+          --OLbatchSize 100\
           --num_gen_images 100
 
 
