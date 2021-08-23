@@ -275,6 +275,12 @@ if __name__ == "__main__":
     samples_G1 = sample_from_generator(args, netG1, args.number_samples_likelihood)
     samples_G2 = sample_from_generator(args, netG2, args.number_samples_likelihood)
  elif args.sample_from == 'dataset':
+
+    MaxNTrain=torch.max(trainsetG1,args.number_samples_likelihood)
+    MaxNTest=torch.max(testsetG1,args.number_samples_likelihood)
+
+    pdb.set_trace()
+
     samples_G1 = trainsetG1[random.sample(range(0, len(trainsetG1)), args.number_samples_likelihood)]
     samples_G2 = trainsetG2[random.sample(range(0, len(trainsetG2)), args.number_samples_likelihood)]
 

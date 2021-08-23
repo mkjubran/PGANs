@@ -227,11 +227,11 @@ if __name__ == "__main__":
  netES = nets.ConvVAEType2(args).to(device)
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
 
- testsetG1= testsetG1.to(device)
- trainsetG1= trainsetG1.to(device)
+ testsetG1= testsetG1 #.to(device)
+ trainsetG1= trainsetG1 #.to(device)
 
- testsetG2= testsetG2.to(device)
- trainsetG2= trainsetG2.to(device)
+ testsetG2= testsetG2 #.to(device)
+ trainsetG2= trainsetG2 #.to(device)
 
  log_dir = args.save_likelihood_folder+"/LResults_"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
  writer = SummaryWriter(log_dir)
@@ -243,13 +243,17 @@ if __name__ == "__main__":
     samples_G1 = sample_from_generator(args, netG1, args.number_samples_likelihood)
     samples_G2 = sample_from_generator(args, netG2, args.number_samples_likelihood)
  elif args.sample_from == 'dataset':
-    samples_G1 = trainsetG1[random.sample(range(0, len(trainsetG1)), args.number_samples_likelihood)]
-    samples_G2 = trainsetG2[random.sample(range(0, len(trainsetG2)), args.number_samples_likelihood)]
+
+    MinNTrain = min(trainsetG1.shape[0],args.number_samples_likelihood)
+    MinNTest = min(testsetG1.shape[0],args.number_samples_likelihood)
+
+    samples_G1 = trainsetG1[random.sample(range(0, len(trainsetG1)), MinNTrain)]
+    samples_G2 = trainsetG2[random.sample(range(0, len(trainsetG2)), MinNTrain)]
 
     likelihood_G1test_E2 = []
     likelihood_G2test_E1 = []
-    samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), args.number_samples_likelihood)] 
-    samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), args.number_samples_likelihood)] 
+    samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), MinNTest)] 
+    samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), MinNTest)] 
  else:
     print('Can not sample from {}. Sample from should be either generator or dataset!!!'.format(args.sample_from))
     sys.exit(1)
@@ -258,7 +262,7 @@ if __name__ == "__main__":
     Counter += 1
 
     ##-- compute OL where samples from G1 are applied to (E2,G2)
-    sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach()
+    sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
     likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
     likelihood_G1_E2.append(likelihood_sample.item())
     print(f"G1-->(E2,G2): batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1_E2)}")
@@ -266,22 +270,22 @@ if __name__ == "__main__":
 
 
     ##-- compute OL where samples from G2 are applied to (E1,G1)
-    sample_G2 = samples_G2[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach()
+    sample_G2 = samples_G2[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
     likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
     likelihood_G2_E1.append(likelihood_sample.item())
     print(f"G2-->(E1,G1): batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2_E1)}")
     writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(likelihood_G2_E1), Counter)
 
-    if args.sample_from == 'dataset':
+    if args.sample_from == 'dataset' and (samples_G1test.shape[0] >= j+args.OLbatchSize):
       ##-- compute OL where samples from G1(testset) are applied to (E2,G2)
-      sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach()
+      sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
       likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
       likelihood_G1test_E2.append(likelihood_sample.item())
       print(f"G1(testset)-->(E2,G2): batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1test_E2)}")
       writer.add_scalar("Moving Average/G1(testset)-->(E2,G2)", statistics.mean(likelihood_G1test_E2), Counter)
 
       ##-- compute OL where samples from G2(testset) are applied to (E1,G1)
-      sample_G2 = samples_G2test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach()
+      sample_G2 = samples_G2test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
       likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
       likelihood_G2test_E1.append(likelihood_sample.item())
       print(f"G2(testset)-->(E1,G1): batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2test_E1)}")
