@@ -94,6 +94,8 @@ parser.add_argument('--num_gen_images', type=int, default=10, help='number of im
 parser.add_argument('--log', type=int, default=200, help='when to log')
 parser.add_argument('--save_imgs_every', type=int, default=1, help='when to save generated images')
 
+parser.add_argument('--GPU', type=int, default=0, help='GPU to use')
+
 args = parser.parse_args()
 
 ##-- preparing likelihood folders to save results
@@ -174,7 +176,7 @@ def sample_from_generator(args,netG ,NoSamples):
 
 if __name__ == "__main__":
  ##-- run on the available GPU otherwise CPUs
- device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+ device = torch.device('cuda:'+str(args.GPU) if torch.cuda.is_available() else 'cpu')
 
  ##-- preparing folders to save results of Likelihood
  likelihood_folders(args)

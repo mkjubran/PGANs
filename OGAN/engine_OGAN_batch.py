@@ -17,7 +17,7 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  imageSize = args.imageSize
 
  ##-- compute MVN full batch
- mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
+ mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize), validate_args=False)
  log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
 
  std = torch.exp(0.5*logvar)

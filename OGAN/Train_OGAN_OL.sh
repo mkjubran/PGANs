@@ -29,6 +29,7 @@ python3 train_OGAN_OL_batch.py \
           --epochs 50 \
           --batchSize 100\
           --OLbatchSize 100\
-          --num_gen_images 100
+          --num_gen_images 100\
+          --GPU 0
 
 
