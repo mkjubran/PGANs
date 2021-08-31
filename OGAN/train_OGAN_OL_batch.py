@@ -20,7 +20,7 @@ import copy
 import statistics
 import engine_PresGANs
 import numpy as np
-
+import math
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -400,7 +400,7 @@ if __name__ == "__main__":
     #if ((Counter == 1) or (Counter % 10000000 == 0)):
     if Counter_epoch_batch % 1 == 0:
 
-      if args.W2 != 0:     
+      if args.W2 != 0:
          ##-- compute OL where samples from G1 are applied to (E2,G2)
          overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2)
          OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
@@ -431,98 +431,103 @@ if __name__ == "__main__":
     #OLoss = 0
 
     ##-- writing to Tensorboard
-    if Counter_epoch_batch % 100 == 0:
+    if Counter_epoch_batch % 10 == 0:
        save_imgs = True
     else:
        save_imgs = False
 
-    ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-    netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainsetG1[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
-    PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResults)
-    print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+    if math.isnan(OLoss): ## to avoid training generator with nan loss
+      print('Epoch [%d/%d] .. Batch [%d/%d] .. OLoss is NAN'  % (epoch, args.epochs, Counter, int(len(trainsetG1)/args.batchSize)))
+      Counter -= 1
+      Counter_epoch_batch -= 1
+    else:
+      ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
+      netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainsetG1[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
+      PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResults)
+      print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
            % (epoch, args.epochs, Counter, int(len(trainsetG1)/args.batchSize), PresGANResults[0], PresGANResults[1], PresGANResults[2], PresGANResults[3], PresGANResults[4]))
 
 
-    ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-    netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainsetG2[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
-    PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
+      ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
+      netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainsetG2[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
+      PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
 
 
-    ##-- writing to Tensorboard
-    if Counter_epoch_batch % 1 == 0:
-       writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
-       writer.add_scalar("Overlap Loss_batch/OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
-       writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
-       writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
-       writer.add_scalar("Adversarial Loss_batch/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
-       writer.add_scalar("Adversarial Loss_batch/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
+      ##-- writing to Tensorboard
+      if Counter_epoch_batch % 1 == 0:
+         writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
+         writer.add_scalar("Overlap Loss_batch/OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
+         writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
+         writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
+         writer.add_scalar("Adversarial Loss_batch/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
+         writer.add_scalar("Adversarial Loss_batch/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
     
 
-    if Counter_epoch_batch % 1 == 0:
-       DL_G1 = PresGANResultsG1[0]/Counter_epoch_batch
-       GL_G1 = PresGANResultsG1[1]/Counter_epoch_batch
-       Dx_G1 = PresGANResultsG1[2]/Counter_epoch_batch
-       DL_G1_z1 = PresGANResultsG1[3]/Counter_epoch_batch
-       DL_G1_z2 = PresGANResultsG1[4]/Counter_epoch_batch
-       sigma_x_G1_min = PresGANResultsG1[5]/Counter_epoch_batch
-       sigma_x_G1_max = PresGANResultsG1[6]/Counter_epoch_batch
-       g_error_criterion_G1 = PresGANResultsG1[7]/Counter_epoch_batch
-       g_error_entropy_G1 = PresGANResultsG1[8]/Counter_epoch_batch
-       g_error_G1 = PresGANResultsG1[9]/Counter_epoch_batch
+      if Counter_epoch_batch % 1 == 0:
+         DL_G1 = PresGANResultsG1[0]/Counter_epoch_batch
+         GL_G1 = PresGANResultsG1[1]/Counter_epoch_batch
+         Dx_G1 = PresGANResultsG1[2]/Counter_epoch_batch
+         DL_G1_z1 = PresGANResultsG1[3]/Counter_epoch_batch
+         DL_G1_z2 = PresGANResultsG1[4]/Counter_epoch_batch
+         sigma_x_G1_min = PresGANResultsG1[5]/Counter_epoch_batch
+         sigma_x_G1_max = PresGANResultsG1[6]/Counter_epoch_batch
+         g_error_criterion_G1 = PresGANResultsG1[7]/Counter_epoch_batch
+         g_error_entropy_G1 = PresGANResultsG1[8]/Counter_epoch_batch
+         g_error_G1 = PresGANResultsG1[9]/Counter_epoch_batch
 
 
-       DL_G2 = PresGANResultsG2[0]/Counter_epoch_batch
-       GL_G2 = PresGANResultsG2[1]/Counter_epoch_batch
-       Dx_G2 = PresGANResultsG2[2]/Counter_epoch_batch
-       DL_G2_z1 = PresGANResultsG2[3]/Counter_epoch_batch
-       DL_G2_z2 = PresGANResultsG2[4]/Counter_epoch_batch
-       sigma_x_G2_min = PresGANResultsG2[5]/Counter_epoch_batch
-       sigma_x_G2_max = PresGANResultsG2[6]/Counter_epoch_batch
-       g_error_criterion_G2 = PresGANResultsG2[7]/Counter_epoch_batch
-       g_error_entropy_G2 = PresGANResultsG2[8]/Counter_epoch_batch
-       g_error_G2 = PresGANResultsG2[9]/Counter_epoch_batch
+         DL_G2 = PresGANResultsG2[0]/Counter_epoch_batch
+         GL_G2 = PresGANResultsG2[1]/Counter_epoch_batch
+         Dx_G2 = PresGANResultsG2[2]/Counter_epoch_batch
+         DL_G2_z1 = PresGANResultsG2[3]/Counter_epoch_batch
+         DL_G2_z2 = PresGANResultsG2[4]/Counter_epoch_batch
+         sigma_x_G2_min = PresGANResultsG2[5]/Counter_epoch_batch
+         sigma_x_G2_max = PresGANResultsG2[6]/Counter_epoch_batch
+         g_error_criterion_G2 = PresGANResultsG2[7]/Counter_epoch_batch
+         g_error_entropy_G2 = PresGANResultsG2[8]/Counter_epoch_batch
+         g_error_G2 = PresGANResultsG2[9]/Counter_epoch_batch
 
 
-       writer.add_scalar("G1/G1-Loss/Loss_D", DL_G1, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-Loss/Loss_G", GL_G1, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-D(x)", Dx_G1, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-DL_G/DL_G_z1", DL_G1_z1, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-DL_G/DL_G_z2", DL_G1_z2, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-sigma/sigma_min", sigma_x_G1_min, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-sigma/sigma_max", sigma_x_G1_max, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-g_error_criterion_G1", g_error_criterion_G1, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-g_error_entropy_G1", g_error_entropy_G1, Counter_epoch_batch)
-       writer.add_scalar("G1/G1-g_error_G1", g_error_G1, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-Loss/Loss_D", DL_G1, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-Loss/Loss_G", GL_G1, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-D(x)", Dx_G1, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-DL_G/DL_G_z1", DL_G1_z1, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-DL_G/DL_G_z2", DL_G1_z2, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-sigma/sigma_min", sigma_x_G1_min, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-sigma/sigma_max", sigma_x_G1_max, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-g_error_criterion_G1", g_error_criterion_G1, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-g_error_entropy_G1", g_error_entropy_G1, Counter_epoch_batch)
+         writer.add_scalar("G1/G1-g_error_G1", g_error_G1, Counter_epoch_batch)
 
-       writer.add_scalar("G2/G2-Loss/Loss_D", DL_G2, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-Loss/Loss_G", GL_G2, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-D(x)", Dx_G2, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-DL_G/DL_G_z1", DL_G2_z1, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-DL_G/DL_G_z2", DL_G2_z2, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-sigma/sigma_min", sigma_x_G2_min, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-sigma/sigma_max", sigma_x_G2_max, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-g_error_criterion_G2", g_error_criterion_G2, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-g_error_entropy_G2", g_error_entropy_G2, Counter_epoch_batch)
-       writer.add_scalar("G2/G2-g_error_G2", g_error_G2, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-Loss/Loss_D", DL_G2, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-Loss/Loss_G", GL_G2, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-D(x)", Dx_G2, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-DL_G/DL_G_z1", DL_G2_z1, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-DL_G/DL_G_z2", DL_G2_z2, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-sigma/sigma_min", sigma_x_G2_min, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-sigma/sigma_max", sigma_x_G2_max, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-g_error_criterion_G2", g_error_criterion_G2, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-g_error_entropy_G2", g_error_entropy_G2, Counter_epoch_batch)
+         writer.add_scalar("G2/G2-g_error_G2", g_error_G2, Counter_epoch_batch)
 
 
-    if ((Counter_epoch_batch % int(len(trainsetG1)/args.batchSize) == 0)):
-       writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)]", OLossG1_No_W1, epoch)
-       writer.add_scalar("Overlap Loss_epoch/OL[G1-->(E2,G2)]", OLossG2_No_W2, epoch)
-       writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, epoch)
-       writer.add_scalar("Overlap Loss_epoch/ Distance(G1,G2)", Distance_G1G2_No_W, epoch)
-       writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G1", AdvLossG1, epoch)
-       writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G2", AdvLossG2, epoch)
+      if ((Counter_epoch_batch % int(len(trainsetG1)/args.batchSize) == 0)):
+         writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)]", OLossG1_No_W1, epoch)
+         writer.add_scalar("Overlap Loss_epoch/OL[G1-->(E2,G2)]", OLossG2_No_W2, epoch)
+         writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, epoch)
+         writer.add_scalar("Overlap Loss_epoch/ Distance(G1,G2)", Distance_G1G2_No_W, epoch)
+         writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G1", AdvLossG1, epoch)
+         writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G2", AdvLossG2, epoch)
 
-       writer.flush()
+         writer.flush()
 
-    ## save models
-    if Counter_epoch_batch % 20 ==0:
-       torch.save(netG1.state_dict(), os.path.join(args.ckptOL_G, 'netG1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
-       torch.save(logsigmaG1, os.path.join(args.ckptOL_G, 'log_sigma_G1_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
-       torch.save(netD1.state_dict(), os.path.join(args.ckptOL_G, 'netD1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+      ## save models
+      if Counter_epoch_batch % 20 ==0:
+         torch.save(netG1.state_dict(), os.path.join(args.ckptOL_G, 'netG1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+         torch.save(logsigmaG1, os.path.join(args.ckptOL_G, 'log_sigma_G1_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+         torch.save(netD1.state_dict(), os.path.join(args.ckptOL_G, 'netD1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
 
-       torch.save(netG2.state_dict(), os.path.join(args.ckptOL_G, 'netG2_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
-       torch.save(logsigmaG2, os.path.join(args.ckptOL_G, 'log_sigma_G2_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
-       torch.save(netD2.state_dict(), os.path.join(args.ckptOL_G, 'netD2_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+         torch.save(netG2.state_dict(), os.path.join(args.ckptOL_G, 'netG2_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+         torch.save(logsigmaG2, os.path.join(args.ckptOL_G, 'log_sigma_G2_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
+         torch.save(netD2.state_dict(), os.path.join(args.ckptOL_G, 'netD2_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
 

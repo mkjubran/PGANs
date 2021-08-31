@@ -17,7 +17,7 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  imageSize = args.imageSize
 
  ##-- compute MVN full batch
- mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
+ mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize), validate_args = False)
  log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
 
  std = torch.exp(0.5*logvar)
@@ -25,7 +25,7 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  std_b = torch.eye(std.size(1)).to(device)
  std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
  std_3d = std_c * std_b
- mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
+ mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d, validate_args = False)
  log_pz_normal = mvnz.log_prob(zr)
 
  return log_pxz_mvn, log_pz_normal
@@ -136,14 +136,14 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   ##-- Create a standard MVN
   mean = torch.zeros(args.nzg).to(device)
   scale = torch.ones(args.nzg).to(device)
-  mvns = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
+  mvns = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg), validate_args = False)
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
   #mean = z.view([-1,args.nzg]).to(device)
   mean = mu.view([-1,args.nzg]).to(device)
   scale = k*torch.exp(0.5*logvar_first.view([args.nzg])).to(device)
   #scale = k*torch.ones(args.nzg).to(device)
-  mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
+  mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg), validate_args = False)
   sample_shape = torch.Size([])
 
   likelihood_sample_final = 0
@@ -293,12 +293,12 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
   ##-- Create a standard MVN
   mean = torch.zeros(args.nzg).to(device)
   scale = torch.ones(args.nzg).to(device)
-  mvns = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
+  mvns = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg), validate_args = False)
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
   mean = mu.view([-1,args.nzg]).to(device)
   scale = k*torch.exp(0.5*logvar_first.view([args.nzg])).to(device)
-  mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg))
+  mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, args.nzg, args.nzg), validate_args = False)
   sample_shape = torch.Size([])
 
   likelihood_sample_final = 0

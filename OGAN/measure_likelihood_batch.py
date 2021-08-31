@@ -150,7 +150,7 @@ def dist(args, device, mu, logvar, mean, scale, data):
  imageSize = args.imageSize
 
  ##-- compute MVN full batch
- mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize))
+ mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize), validate_args = False)
  log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
 
  ##-- computer sample from standard normal distribution
@@ -158,7 +158,7 @@ def dist(args, device, mu, logvar, mean, scale, data):
  std_b = torch.eye(std.size(1)).to(device)
  std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
  std_3d = std_c * std_b
- mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
+ mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d, validate_args = False)
  pz_normal = torch.exp(mvnz.log_prob(zr))
  return log_pxz_mvn, pz_normal
 
@@ -168,7 +168,7 @@ def sample_from_generator(args,netG ,NoSamples):
  nz=100
  mean = torch.zeros(NoSamples,nz).to(device)
  scale = torch.ones(nz).to(device)
- mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, nz, nz))
+ mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).view(1, nz, nz), validate_args = False)
  sample_z_shape = torch.Size([])
  sample_z = mvn.sample(sample_z_shape).view(-1,nz,1,1)
  recon_images = netG(sample_z)
