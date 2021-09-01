@@ -155,7 +155,8 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
  OLepoch = 0;
  scale = 0.1*torch.ones(args.imageSize**2).to(device)
  overlap_loss_sum = 1
- while (OLepoch <= args.OLepochs) and (overlap_loss_sum >= 0):
+ overlap_loss_min = args.overlap_loss_min
+ while (OLepoch <= args.OLepochs) and (overlap_loss_sum >= overlap_loss_min):
         OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
@@ -171,33 +172,34 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
 
-        ##-- definning overlap loss abd backpropagation 
+        ##-- definning overlap loss abd backpropagation
         overlap_loss = -1*(log_pxz_mvn + log_pz_normal) ## results of option#1
         overlap_loss_sum = overlap_loss.sum()
-        overlap_loss_sum.backward()
-        running_loss += overlap_loss_sum.item()
-        optimizerE.step()
+
+        if (overlap_loss_sum > overlap_loss_min):
+           overlap_loss_sum.backward()
+           running_loss += overlap_loss_sum.item()
+           optimizerE.step()
+
         train_loss = running_loss / counter
-       
+
         ##-- print training loss
         #if OLepoch % 5 ==0:
         #   print(f"Train Loss at epoch {epoch}: {train_loss:.4f}")
 
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
-        if overlap_loss_sum >= 0:
+        if overlap_loss_sum >= overlap_loss_min:
             likelihood_sample_final = overlap_loss_sum
             #writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
-            #writer.add_scalar("Train Loss/log_pz_normal", log_pz_normal, OLepoch)
-            #writer.add_scalar("Train Loss/log_pxz_mvn", log_pxz_mvn, OLepoch)
 
         #-- write to tensorboard
-        #if OLepoch % 10 == 0:
+        #if (OLepoch % 10 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
         #    img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
         #    writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
 
 
- #for k in np.arange(0.001,0.1,0.0001):
- likelihood_final=float("NaN")
+ likelihood_final = torch.tensor([1]).float()
+ likelihood_final[likelihood_final==1]=float("NaN")
  k = 0.1
  if (counter > 1):
   ##-- Create a standard MVN

@@ -58,7 +58,7 @@ parser.add_argument('--S', type=int, default=1000, help='Sample Size when comput
 parser.add_argument('--dataset', required=True, help=' ring | mnist | stackedmnist | cifar10 ')
 parser.add_argument('--batchSize', type=int, default=100, help='input batch size')
 parser.add_argument('--OLepochs', type=int, default=1000, help='number of epochs to train for Overlap Loss')
-parser.add_argument('--overlap_loss_min', type=int, default=-50000, help='min value for Overlap Loss in VAE to determine the proposal')
+parser.add_argument('--overlap_loss_min', type=int, default=0, help='min value for Overlap Loss in VAE to determine the proposal')
 parser.add_argument('--epochs', type=int, default=1000, help='number of epochs to train for')
 parser.add_argument('--lrE', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta', type=float, default=1, help='beta for KLD in ELBO')

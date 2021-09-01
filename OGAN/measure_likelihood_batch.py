@@ -23,6 +23,7 @@ import numpy as np
 import datetime
 import random
 import sys
+import math
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -51,10 +52,12 @@ parser.add_argument('--lrOL', type=float, default=0.001, help='learning rate for
 parser.add_argument('--OLbatchSize', type=int, default=100, help='Overlap Loss batch size')
 parser.add_argument('--S', type=int, default=1000, help='Sample Size when computing Likelihood')
 
+
 parser.add_argument('--dataset', required=True, help=' ring | mnist | stackedmnist | cifar10 ')
 parser.add_argument('--batchSize', type=int, default=100, help='input batch size')
 parser.add_argument('--OLepochs', type=int, default=1000, help='number of epochs to train for Overlap Loss')
 parser.add_argument('--epochs', type=int, default=1000, help='number of epochs to train for')
+parser.add_argument('--overlap_loss_min', type=int, default=-50000, help='min value for Overlap Loss in VAE to determine the proposal')
 parser.add_argument('--lrE', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta', type=float, default=1, help='beta for KLD in ELBO')
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
@@ -238,7 +241,10 @@ if __name__ == "__main__":
  log_dir = args.save_likelihood_folder+"/LResults_"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
  writer = SummaryWriter(log_dir)
 
- Counter = 0
+ Counter_G1_E2 = 0
+ Counter_G2_E1 = 0
+ Counter_G1test_E2 = 0
+ Counter_G2test_E1 = 0
  likelihood_G1_E2 = []
  likelihood_G2_E1 = []
  if args.sample_from == 'generator':
@@ -261,37 +267,57 @@ if __name__ == "__main__":
     sys.exit(1)
 
  for j in range(0, args.number_samples_likelihood, args.OLbatchSize):
-    Counter += 1
+    Counter_G1_E2 += 1
+    Counter_G2_E1 += 1
+    Counter_G1test_E2 += 1
+    Counter_G2test_E1 += 1
+
 
     ##-- compute OL where samples from G1 are applied to (E2,G2)
     sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
     likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
-    likelihood_G1_E2.append(likelihood_sample.item())
-    print(f"G1-->(E2,G2): batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1_E2)}")
-    writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(likelihood_G1_E2), Counter)
+    if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
+      print(f"G1-->(E2,G2): batch {Counter_G1_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
+      Counter_G1_E2 -= 1
+    else:
+      likelihood_G1_E2.append(likelihood_sample.item())
+      print(f"G1-->(E2,G2): batch {Counter_G1_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1_E2)}")
+      writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(likelihood_G1_E2), Counter_G1_E2)
 
 
     ##-- compute OL where samples from G2 are applied to (E1,G1)
     sample_G2 = samples_G2[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
     likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
-    likelihood_G2_E1.append(likelihood_sample.item())
-    print(f"G2-->(E1,G1): batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2_E1)}")
-    writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(likelihood_G2_E1), Counter)
+    if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
+      print(f"G2-->(E1,G1): batch {Counter_G2_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
+      Counter_G2_E1 -= 1
+    else:
+      likelihood_G2_E1.append(likelihood_sample.item())
+      print(f"G2-->(E1,G1): batch {Counter_G2_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2_E1)}")
+      writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(likelihood_G2_E1), Counter_G2_E1)
 
     if args.sample_from == 'dataset' and (samples_G1test.shape[0] >= j+args.OLbatchSize):
       ##-- compute OL where samples from G1(testset) are applied to (E2,G2)
       sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
       likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
-      likelihood_G1test_E2.append(likelihood_sample.item())
-      print(f"G1(testset)-->(E2,G2): batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1test_E2)}")
-      writer.add_scalar("Moving Average/G1(testset)-->(E2,G2)", statistics.mean(likelihood_G1test_E2), Counter)
+      if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
+        print(f"G1(testset)-->(E2,G2): batch {Counter_G1test_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
+        Counter_G1test_E2 -= 1
+      else:
+        likelihood_G1test_E2.append(likelihood_sample.item())
+        print(f"G1(testset)-->(E2,G2): batch {Counter_G1test_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1test_E2)}")
+        writer.add_scalar("Moving Average/G1(testset)-->(E2,G2)", statistics.mean(likelihood_G1test_E2), Counter_G1test_E2)
 
       ##-- compute OL where samples from G2(testset) are applied to (E1,G1)
       sample_G2 = samples_G2test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
       likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
-      likelihood_G2test_E1.append(likelihood_sample.item())
-      print(f"G2(testset)-->(E1,G1): batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2test_E1)}")
-      writer.add_scalar("Moving Average/G2(testset)-->(E1,G1)", statistics.mean(likelihood_G2test_E1), Counter)
+      if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
+        print(f"G2(testset)-->(E1,G1): batch {Counter_G2test_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
+        Counter_G2test_E1 -= 1
+      else:
+        likelihood_G2test_E1.append(likelihood_sample.item())
+        print(f"G2(testset)-->(E1,G1): batch {Counter_G2test_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2test_E1)}")
+        writer.add_scalar("Moving Average/G2(testset)-->(E1,G1)", statistics.mean(likelihood_G2test_E1), Counter_G2test_E1)
 
 
  writer.flush()
