@@ -41,7 +41,8 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
  OLepoch = 0;
  scale = 0.1*torch.ones(args.imageSize**2).to(device)
  overlap_loss_sum = 1
- while (OLepoch <= args.OLepochs) and (overlap_loss_sum > 0):
+ overlap_loss_min = args.overlap_loss_min
+ while (OLepoch <= args.OLepochs) and (overlap_loss_sum > overlap_loss_min):
         OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
@@ -62,7 +63,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         overlap_loss = -1*(log_pxz_mvn + log_pz_normal) ## results of option#1
         overlap_loss_sum = overlap_loss.sum()
 
-        if (overlap_loss_sum > 0):
+        if (overlap_loss_sum > overlap_loss_min):
            overlap_loss_sum.backward()
            running_loss += overlap_loss_sum.item()
            optimizerE.step()
@@ -70,7 +71,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         train_loss = running_loss / counter
       
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
-        if (overlap_loss_sum > 0):
+        if (overlap_loss_sum > overlap_loss_min):
             likelihood_sample_final = overlap_loss_sum
             #writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
 
@@ -78,6 +79,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         #if (OLepoch % 10 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
         #    img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
         #    writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
+
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")

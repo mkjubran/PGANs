@@ -8,20 +8,20 @@ python3 train_OGAN_OL_batch.py \
           --logsigma_file_G2  ../../../PresGANs/SaveS2020/presgan_lambda_0.0001_GS2020/log_sigma_mnist_20.pth \
           --ckptD2            ../../../PresGANs/SaveS2020/presgan_lambda_0.0001_GS2020/netD_presgan_mnist_epoch_20.pth \
           --ckptE2            ../../../PresGANs/SaveS2020/VAEncoderType2_lambda0.0001_GS2020epoch20/netE_presgan_MNIST_epoch_19.pth\
-          --ckptOL_E1         ../../../PresGANs/OLoss/True0.1_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E1Type2 \
-          --save_OL_E1        ../../../PresGANs/OLoss/True0.1_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E1Type2_Images \
-          --ckptOL_E2         ../../../PresGANs/OLoss/True0.1_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E2Type2 \
-          --save_OL_E2        ../../../PresGANs/OLoss/True0.1_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E2Type2_Images \
-          --ckptOL            ../../../PresGANs/OLoss/True0.1_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001 \
-          --ckptOL_G          ../../../PresGANs/OLoss/True0.1_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G \
-          --ckptOL_G1         ../../../PresGANs/OLoss/True0.1_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G1_Images \
-          --ckptOL_G2         ../../../PresGANs/OLoss/True0.1_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G2_Images \
+          --ckptOL_E1         ../../../PresGANs/OLoss/tTrue0.001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E1Type2 \
+          --save_OL_E1        ../../../PresGANs/OLoss/tTrue0.001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E1Type2_Images \
+          --ckptOL_E2         ../../../PresGANs/OLoss/tTrue0.001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E2Type2 \
+          --save_OL_E2        ../../../PresGANs/OLoss/tTrue0.001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_E2Type2_Images \
+          --ckptOL            ../../../PresGANs/OLoss/tTrue0.001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001 \
+          --ckptOL_G          ../../../PresGANs/OLoss/tTrue0.001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G \
+          --ckptOL_G1         ../../../PresGANs/OLoss/tTrue0.001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G1_Images \
+          --ckptOL_G2         ../../../PresGANs/OLoss/tTrue0.001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G2_Images \
           --S 2000 \
           --seed_G1 2019 \
           --seed_G2 2020 \
           --lambda_ 0.0001 \
           --W1 0.0 \
-          --W2 0.1 \
+          --W2 0.001 \
           --lrOL 0.0001 \
           --beta  10 \
           --nz 100 \
@@ -30,6 +30,7 @@ python3 train_OGAN_OL_batch.py \
           --batchSize 100\
           --OLbatchSize 100\
           --num_gen_images 100\
-          --GPU 0
+          --GPU 0 \
+          --overlap_loss_min -70000
 
 
