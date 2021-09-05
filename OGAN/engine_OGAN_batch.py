@@ -54,7 +54,9 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         x_hat = netG(z)
 
         if counter == 1:
-          logvar_first = logvar
+          #logvar_first = logvar
+          logvar_first = 0.1*torch.ones(logvar.shape).to(device)
+
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
@@ -84,7 +86,9 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
  k=1.3
- if (counter > 1):
+ #if (counter > 1):
+ if True:
+
   ##-- Create a standard MVN
   mean = torch.zeros(mu.shape[0],args.nzg).to(device)
   scale = torch.ones(mu.shape[0],args.nzg).to(device)
@@ -94,13 +98,14 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   std_3d = std_c * std_b
   mvns = torch.distributions.MultivariateNormal(mean, scale_tril=std_3d, validate_args = False)
 
-  ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
+  ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
   std = k*torch.exp(0.5*logvar_first)
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
   std_3d = std_c * std_b
   mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=std_3d, validate_args = False)
+
   sample_shape = torch.Size([])
 
   likelihood_sample_final = 0

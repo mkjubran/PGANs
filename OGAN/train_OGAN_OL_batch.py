@@ -245,6 +245,7 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2,
 
  overlap_loss_G1_E2 = []
  samples_G1 = sample_from_generator(args, netG1) # sample from G1
+
  #for i in range(args.OLbatchSize):
  if True:
   # copy weights of netE2 to netES
@@ -394,6 +395,7 @@ if __name__ == "__main__":
   Counter = 0
   OLossG1 = 0
   OLossG2 = 0
+
   for j in range(0, len(trainsetG1), args.batchSize):
     stop = min(args.batchSize, len(trainsetG1[j:]))
     Counter += 1
