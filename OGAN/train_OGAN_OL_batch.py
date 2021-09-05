@@ -78,6 +78,8 @@ parser.add_argument('--save_imgs_folder', type=str, default='../../outputs', hel
 parser.add_argument('--W1', type=float, default=1, help='wight of OL of G2-->(E1,G1)')
 parser.add_argument('--W2', type=float, default=1, help='wight of OL of G1-->(E2,G2)')
 
+parser.add_argument('--valbatches', type=int, default=100, help='Number of batches to use for validation')
+parser.add_argument('--valevery', type=int, default=10000, help='Validate likelihood after training for valevery batches')
 
 ###### PresGAN-specific arguments
 parser.add_argument('--sigma_lr', type=float, default=0.0002, help='generator variance')
@@ -238,63 +240,29 @@ def sample_from_generator(args,netG):
  return recon_images
 
 ##-- get overlap loss when sample from G1 and apply to E2,G2
-def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2):
- #start = torch.cuda.Event(enable_timing=True)
- #end = torch.cuda.Event(enable_timing=True)
- #start.record()
-
+def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig):
  overlap_loss_G1_E2 = []
  samples_G1 = sample_from_generator(args, netG1) # sample from G1
+ _, logvar_first, _, _ = netE2Orig(samples_G1, args)
 
- #for i in range(args.OLbatchSize):
  if True:
-  # copy weights of netE2 to netES
-  #netES.load_state_dict(copy.deepcopy(netE2.state_dict()))
-
-  likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,samples_G1,netG2,logsigmaG2,args.ckptOL_E2)
+  likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,samples_G1,netG2,logsigmaG2,args.ckptOL_E2, logvar_first)
   overlap_loss_sample = -1*likelihood_sample
-  #pdb.set_trace()
-
   overlap_loss_G1_E2.append(overlap_loss_sample.item())
-  #print(f"G1-->(E2,G2): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G1_E2)}")
   print(f"G1-->(E2,G2) OL = {overlap_loss_sample}")
-
-  # write moving average to TB
-  #writer.add_scalar("Moving Average/G1-->(E2,G2)", statistics.mean(overlap_loss_G1_E2), i)
-
- #end.record()
- #torch.cuda.synchronize()
- #print(start.elapsed_time(end))
- #print('Done G1 ---')
  return overlap_loss_G1_E2, netE2, optimizerE2
 
 ##-- get overlap loss when sample from G2 and apply to E1,G1
-def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1):
- #start = torch.cuda.Event(enable_timing=True)
- #end = torch.cuda.Event(enable_timing=True)
- #start.record()
-
+def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig):
  overlap_loss_G2_E1 = []
  samples_G2 = sample_from_generator(args, netG2) # sample from G2
- #for i in range(args.OLbatchSize):
+ _, logvar_first, _, _ = netE1Orig(samples_G2, args)
+
  if Ture:
-  #copy weights of netE1 to netES
-  #netES.load_state_dict(copy.deepcopy(netE1.state_dict()))
-
-  likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,samples_G2,netG1,logsigmaG1,args.ckptOL_E1)
+  likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,samples_G2,netG1,logsigmaG1,args.ckptOL_E1, logvar_first)
   overlap_loss_sample =  -1*likelihood_sample
-
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
-  #print(f"G2-->(E1,G1): sample {i} of {args.OLbatchSize}, OL = {overlap_loss_sample.item()}, moving mean = {statistics.mean(overlap_loss_G2_E1)}")
   print(f"G2-->(E1,G1) OL = {overlap_loss_sample}")
-
-  # write moving average to TB
-  #writer.add_scalar("Moving Average/G2-->(E1,G1)", statistics.mean(overlap_loss_G2_E1), i)
-
- #end.record()
- #torch.cuda.synchronize()
- #print(start.elapsed_time(end))
- #print('Done G2 ---')
  return overlap_loss_G2_E1, netE1, optimizerE1
 
 def distance_loss_G1_G2(netG1, netG2):
@@ -374,16 +342,18 @@ if __name__ == "__main__":
  ##-- setting scale and selecting a random test sample
  scale = 0.01*torch.ones(args.imageSize**2)
  scale = scale.to(device)
- #i = torch.randint(0, len(testset),(1,1)) ## selection of the index of test image
-
- # to estimate running time
- #start = torch.cuda.Event(enable_timing=True)
- #end = torch.cuda.Event(enable_timing=True)
 
  ##-- define a new encoder netES to find OL per sample (need to keep the orogonal netE))
  netES = nets.ConvVAEType2(args).to(device)
  optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
- #testset= testset.to(device)
+
+ # create a copy of E1
+ netE1Orig = nets.ConvVAEType2(args).to(device)
+ netE1Orig.load_state_dict(copy.deepcopy(netE1.state_dict()))
+
+ # create a copy of E2
+ netE2Orig = nets.ConvVAEType2(args).to(device)
+ netE2Orig.load_state_dict(copy.deepcopy(netE2.state_dict()))
 
  ##-- Write to tesnorboard
  writer = SummaryWriter(args.ckptOL_G)
@@ -406,7 +376,7 @@ if __name__ == "__main__":
 
       if args.W2 != 0:
          ##-- compute OL where samples from G1 are applied to (E2,G2)
-         overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2)
+         overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig)
          OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
          OLossG2_No_W2 = (-1*statistics.mean(overlap_loss_G1_E2))
       else:
@@ -415,7 +385,7 @@ if __name__ == "__main__":
 
       if args.W1 != 0:
          ##-- compute OL where samples from G2 are applied to (E1,G1)
-         overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1)
+         overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig)
          OLossG1 = args.W1*(-1*statistics.mean(overlap_loss_G2_E1))
          OLossG1_No_W1 = (-1*statistics.mean(overlap_loss_G2_E1))
       else:
@@ -456,6 +426,10 @@ if __name__ == "__main__":
       netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainsetG2[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
       PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
 
+      ##-- validation step
+      if Counter_epoch_batch % args.valevery == 0:
+         for Counter_val in range(args.valbatches):
+             print('Validation %d/%d' % (Counter_val, args.valbatches))
 
       ##-- writing to Tensorboard
       if Counter_epoch_batch % 1 == 0:
@@ -465,7 +439,7 @@ if __name__ == "__main__":
          writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
          writer.add_scalar("Adversarial Loss_batch/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
          writer.add_scalar("Adversarial Loss_batch/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
-    
+
 
       if Counter_epoch_batch % 1 == 0:
          DL_G1 = PresGANResultsG1[0]/Counter_epoch_batch

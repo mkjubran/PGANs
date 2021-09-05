@@ -16,7 +16,7 @@ python3 train_OGAN_OL_batch.py \
           --ckptOL_G          ../../../PresGANs/OLoss/ttTrue0.0001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G \
           --ckptOL_G1         ../../../PresGANs/OLoss/ttTrue0.0001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G1_Images \
           --ckptOL_G2         ../../../PresGANs/OLoss/ttTrue0.0001_OLb100_OLe5000_S2000_OLoss_OLlambda_0.0001_GS2019_GS2020/OLoss_lambda0.0001_G2_Images \
-          --S 2000 \
+          --S 200 \
           --seed_G1 2019 \
           --seed_G2 2020 \
           --lambda_ 0.0001 \
@@ -31,6 +31,8 @@ python3 train_OGAN_OL_batch.py \
           --OLbatchSize 100\
           --num_gen_images 100\
           --GPU 1 \
-          --overlap_loss_min 0
+          --overlap_loss_min 0 \
+          --valevery 2 \
+          --valbatches 5
 
 
