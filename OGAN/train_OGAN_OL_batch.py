@@ -247,7 +247,7 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2,
  _, logvar_first, _, _ = netE2Orig(samples_G1, args)
 
  if True:
-  likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,samples_G1,netG2,logsigmaG2,args.ckptOL_E2, logvar_first)
+  likelihood_sample = engine_OGAN.get_likelihood_approx(args,device,netE2,optimizerE2,samples_G1,netG2,logsigmaG2,args.ckptOL_E2, logvar_first)
   overlap_loss_sample = -1*likelihood_sample
   overlap_loss_G1_E2.append(overlap_loss_sample.item())
   print(f"G1-->(E2,G2) OL = {overlap_loss_sample}")
@@ -260,7 +260,7 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1,
  _, logvar_first, _, _ = netE1Orig(samples_G2, args)
 
  if True:
-  likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,samples_G2,netG1,logsigmaG1,args.ckptOL_E1, logvar_first)
+  likelihood_sample = engine_OGAN.get_likelihood_approx(args,device,netE1,optimizerE1,samples_G2,netG1,logsigmaG1,args.ckptOL_E1, logvar_first)
   overlap_loss_sample =  -1*likelihood_sample
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
   print(f"G2-->(E1,G1) OL = {overlap_loss_sample}")
