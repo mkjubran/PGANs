@@ -438,9 +438,9 @@ if __name__ == "__main__":
          samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), MinNTest)] 
          samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), MinNTest)]
 
+         likelihood_G1test_E2=[]
+         likelihood_G2test_E1=[]
          for cnt in range(0, args.valbatches*args.OLbatchSize, args.OLbatchSize):
-             likelihood_G1test_E2=[]
-             likelihood_G2test_E2=[]
 
              ## Validation by measuring Likelihood of G2
              Counter_G1test_E2 += 1
