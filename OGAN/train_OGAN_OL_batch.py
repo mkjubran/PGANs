@@ -351,10 +351,12 @@ if __name__ == "__main__":
  # create a copy of E1
  netE1Orig = nets.ConvVAEType2(args).to(device)
  netE1Orig.load_state_dict(copy.deepcopy(netE1.state_dict()))
+ netE1Orig.eval()
 
  # create a copy of E2
  netE2Orig = nets.ConvVAEType2(args).to(device)
  netE2Orig.load_state_dict(copy.deepcopy(netE2.state_dict()))
+ netE2Orig.eval()
 
  ##-- Write to tesnorboard
  writer = SummaryWriter(args.ckptOL_G)
@@ -437,9 +439,6 @@ if __name__ == "__main__":
          MinNTest = min(testsetG1.shape[0],args.valbatches*args.OLbatchSize)
          samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), MinNTest)] 
          samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), MinNTest)]
-
-         likelihood_G1test_E2=[]
-         likelihood_G2test_E1=[]
          for cnt in range(0, args.valbatches*args.OLbatchSize, args.OLbatchSize):
 
              ## Validation by measuring Likelihood of G2
