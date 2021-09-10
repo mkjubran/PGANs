@@ -32,6 +32,9 @@ def dcgan(args, device, dat, netG, netD):
     criterion_mse = nn.MSELoss()
 
     writer = SummaryWriter(args.results_folder)
+
+    netG.train()
+    netD.train()
     device = args.device
     X_training = dat['X_train'].to(device)
     fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
@@ -136,6 +139,8 @@ def dcgan(args, device, dat, netG, netD):
 def presgan(args, device, epoch, dat, netG, optimizerG, netD, optimizerD, log_sigma, sigma_optimizer, OLoss, ckptOLG, save_imgs,generator, Counter_epoch_batch):
 #def presgan(args, device, epoch, dat, netG, netD, log_sigma, OLoss, ckptOLG, save_imgs,generator, Counter_epoch_batch):
     writer = SummaryWriter(ckptOLG)
+    netG.train()
+    netD.train()
     #device = args.device
     X_training = dat.to(device)
     fixed_noise = torch.randn(args.num_gen_images, args.nzg, 1, 1, device=device)

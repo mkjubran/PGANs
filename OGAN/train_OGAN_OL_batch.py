@@ -259,7 +259,7 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1,
  samples_G2 = sample_from_generator(args, netG2) # sample from G2
  _, logvar_first, _, _ = netE1Orig(samples_G2, args)
 
- if Ture:
+ if True:
   likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,samples_G2,netG1,logsigmaG1,args.ckptOL_E1, logvar_first)
   overlap_loss_sample =  -1*likelihood_sample
   overlap_loss_G2_E1.append(overlap_loss_sample.item())
@@ -428,7 +428,7 @@ if __name__ == "__main__":
       PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
 
       ##-- validation step
-      if Counter_epoch_batch % args.valevery == 0:
+      if (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1):
          Counter_G1test_E2 = 0
          Counter_G2test_E1 = 0
          likelihood_G1test_E2 = []
@@ -464,7 +464,7 @@ if __name__ == "__main__":
 
 
       ##-- writing to Tensorboard
-      if Counter_epoch_batch % 1 == 0:
+      if Counter_epoch_batch % 10 == 0:
          writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
          writer.add_scalar("Overlap Loss_batch/OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
          writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
@@ -473,7 +473,7 @@ if __name__ == "__main__":
          writer.add_scalar("Adversarial Loss_batch/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
 
 
-      if Counter_epoch_batch % 1 == 0:
+      if Counter_epoch_batch % 10 == 0:
          DL_G1 = PresGANResultsG1[0]/Counter_epoch_batch
          GL_G1 = PresGANResultsG1[1]/Counter_epoch_batch
          Dx_G1 = PresGANResultsG1[2]/Counter_epoch_batch
@@ -532,7 +532,7 @@ if __name__ == "__main__":
          writer.flush()
 
       ## save models
-      if Counter_epoch_batch % 20 ==0:
+      if Counter_epoch_batch % 50 ==0:
          torch.save(netG1.state_dict(), os.path.join(args.ckptOL_G, 'netG1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
          torch.save(logsigmaG1, os.path.join(args.ckptOL_G, 'log_sigma_G1_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))
          torch.save(netD1.state_dict(), os.path.join(args.ckptOL_G, 'netD1_presgan_%s_step_%s.pth'%(args.dataset, Counter_epoch_batch)))

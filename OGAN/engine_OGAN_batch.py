@@ -31,9 +31,11 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  return log_pxz_mvn, log_pz_normal
 
 def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL, logvar_first):
- log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
- writer = SummaryWriter(log_dir)
+ #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+ #writer = SummaryWriter(log_dir)
 
+ netE.train()
+ netG.eval()
  running_loss = 0.0
  counter = 0
  train_loss = []
@@ -42,10 +44,13 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
  scale = 0.1*torch.ones(args.imageSize**2).to(device)
  overlap_loss_sum = 1
  overlap_loss_min = args.overlap_loss_min
+ #now = datetime.datetime.now()
+
  while (OLepoch <= args.OLepochs) and (overlap_loss_sum > overlap_loss_min):
         OLepoch +=1
         counter += 1
         optimizerE.zero_grad()
+
         data=data.detach()
 
         #x_hat, mu, logvar, z, zr = netE(data, netG)
@@ -76,14 +81,15 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if (overlap_loss_sum > overlap_loss_min):
             likelihood_sample_final = overlap_loss_sum
-            writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
+            #writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
 
         #-- write to tensorboard
-        if (OLepoch % 10 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
-            img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
-            writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
+        #if (OLepoch % 10 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
+        #    img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
+        #    writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
 
-
+ #print(datetime.datetime.now() - now)
+ #now = datetime.datetime.now()
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
  k=1.3
@@ -121,12 +127,14 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   log_pxz_scipy = 0
   Ta = torch.tensor([-1.]).to(device)
   Tb = torch.tensor([1.]).to(device)
-
+  #print(datetime.datetime.now()-now)
+  #now = datetime.datetime.now()
   for cnt in range(samples.shape[1]):
-    sample = samples[:,cnt,:].detach()
+    sample = samples[:,cnt,:] #.detach()
     meanG = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device).detach()
     scale = torch.exp(0.5*logsigmaG).to(device).detach()
     x = data[cnt].view(1, args.imageSize**2).to(device)
+
     ## Method #1): using Truncated Normal Class from Github https://github.com/toshas/torch_truncnorm
     ## can be used with S > 1
     pt = TNorm.TruncatedNormal(meanG, scale, Ta, Tb, validate_args=None)
@@ -135,7 +143,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
        log_pxz_scipy = torch.sum(pt.log_prob(x), axis=1).view(-1,1)
     else:
        log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x), axis=1).view(-1,1)),1)
-
+  #print(datetime.datetime.now()-now)
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
   likelihood_final = torch.mean(likelihood_samples)

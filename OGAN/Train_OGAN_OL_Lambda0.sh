@@ -32,5 +32,6 @@ python3 train_OGAN_OL_batch.py \
           --num_gen_images 100\
           --GPU 0 \
           --overlap_loss_min 0
-
+          --valevery 200 \
+          --valbatches 50
 
