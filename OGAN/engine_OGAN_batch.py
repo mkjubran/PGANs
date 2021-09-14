@@ -277,7 +277,6 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
        log_pxz_scipy = mvnx.log_prob(x).view(-1,1)
     else:
        log_pxz_scipy = torch.cat((log_pxz_scipy,mvnx.log_prob(x).view(-1,1)),1)
-
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
   likelihood_final = torch.mean(likelihood_samples)

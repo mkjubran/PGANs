@@ -249,20 +249,22 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2,
  if True:
   likelihood_sample = engine_OGAN.get_likelihood_approx(args,device,netE2,optimizerE2,samples_G1,netG2,logsigmaG2,args.ckptOL_E2, logvar_first)
   overlap_loss_sample = -1*likelihood_sample
-  overlap_loss_G1_E2.append(overlap_loss_sample.item())
+  #overlap_loss_G1_E2.append(overlap_loss_sample) #overlap_loss_sample.item()
+  overlap_loss_G1_E2 = overlap_loss_sample
   print(f"G1-->(E2,G2) OL = {overlap_loss_sample}")
  return overlap_loss_G1_E2, netE2, optimizerE2
 
 ##-- get overlap loss when sample from G2 and apply to E1,G1
 def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig):
  overlap_loss_G2_E1 = []
- samples_G2 = sample_from_generator(args, netG2) # sample from G2
+ samples_G2 = sample_from_generator(args, netG2).detach() # sample from G2
  _, logvar_first, _, _ = netE1Orig(samples_G2, args)
 
  if True:
   likelihood_sample = engine_OGAN.get_likelihood_approx(args,device,netE1,optimizerE1,samples_G2,netG1,logsigmaG1,args.ckptOL_E1, logvar_first)
   overlap_loss_sample =  -1*likelihood_sample
-  overlap_loss_G2_E1.append(overlap_loss_sample.item())
+  #overlap_loss_G2_E1.append(overlap_loss_sample) #overlap_loss_sample.item()
+  overlap_loss_G2_E1 = overlap_loss_sample
   print(f"G2-->(E1,G1) OL = {overlap_loss_sample}")
  return overlap_loss_G2_E1, netE1, optimizerE1
 
@@ -380,8 +382,11 @@ if __name__ == "__main__":
       if args.W2 != 0:
          ##-- compute OL where samples from G1 are applied to (E2,G2)
          overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig)
-         OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
-         OLossG2_No_W2 = (-1*statistics.mean(overlap_loss_G1_E2))
+         #OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
+         #OLossG2_No_W2 = (-1*statistics.mean(overlap_loss_G1_E2))
+
+         OLossG2 = args.W2*(-1*overlap_loss_G1_E2)
+         OLossG2_No_W2 = (-1*overlap_loss_G1_E2)
       else:
          overlap_loss_G1_E2=0
          OLossG2_No_W2 = 0
@@ -389,8 +394,11 @@ if __name__ == "__main__":
       if args.W1 != 0:
          ##-- compute OL where samples from G2 are applied to (E1,G1)
          overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig)
-         OLossG1 = args.W1*(-1*statistics.mean(overlap_loss_G2_E1))
-         OLossG1_No_W1 = (-1*statistics.mean(overlap_loss_G2_E1))
+         #OLossG1 = args.W1*(-1*statistics.mean(overlap_loss_G2_E1))
+         #OLossG1_No_W1 = (-1*statistics.mean(overlap_loss_G2_E1))
+
+         OLossG1 = args.W1*(-1*overlap_loss_G2_E1)
+         OLossG1_No_W1 = (-1*overlap_loss_G2_E1)
       else:
          overlap_loss_G2_E1 = 0
          OLossG1_No_W1 = 0
@@ -424,11 +432,11 @@ if __name__ == "__main__":
       print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
            % (epoch, args.epochs, Counter, int(len(trainsetG1)/args.batchSize), PresGANResults[0], PresGANResults[1], PresGANResults[2], PresGANResults[3], PresGANResults[4]))
 
-
       ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
-      netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainsetG2[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss, args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
+      netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainsetG2[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss.detach(), args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
       PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
 
+      
       ##-- validation step
       if (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1):
          Counter_G1test_E2 = 0
