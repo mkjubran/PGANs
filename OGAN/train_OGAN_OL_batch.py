@@ -81,6 +81,7 @@ parser.add_argument('--W2', type=float, default=1, help='wight of OL of G1-->(E2
 
 parser.add_argument('--valbatches', type=int, default=100, help='Number of batches to use for validation')
 parser.add_argument('--valevery', type=int, default=10000, help='Validate likelihood after training for valevery batches')
+parser.add_argument('--mode', type=str, default='train_validate', help='Mode of operation [train, validate, train_validate]')
 
 ###### PresGAN-specific arguments
 parser.add_argument('--sigma_lr', type=float, default=0.0002, help='generator variance')
@@ -249,7 +250,6 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2,
  if True:
   likelihood_sample = engine_OGAN.get_likelihood_approx(args,device,netE2,optimizerE2,samples_G1,netG2,logsigmaG2,args.ckptOL_E2, logvar_first)
   overlap_loss_sample = -1*likelihood_sample
-  #overlap_loss_G1_E2.append(overlap_loss_sample) #overlap_loss_sample.item()
   overlap_loss_G1_E2 = overlap_loss_sample
   print(f"G1-->(E2,G2) OL = {overlap_loss_sample}")
  return overlap_loss_G1_E2, netE2, optimizerE2
@@ -263,7 +263,6 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1,
  if True:
   likelihood_sample = engine_OGAN.get_likelihood_approx(args,device,netE1,optimizerE1,samples_G2,netG1,logsigmaG1,args.ckptOL_E1, logvar_first)
   overlap_loss_sample =  -1*likelihood_sample
-  #overlap_loss_G2_E1.append(overlap_loss_sample) #overlap_loss_sample.item()
   overlap_loss_G2_E1 = overlap_loss_sample
   print(f"G2-->(E1,G1) OL = {overlap_loss_sample}")
  return overlap_loss_G2_E1, netE1, optimizerE1
@@ -376,67 +375,88 @@ if __name__ == "__main__":
     Counter += 1
     Counter_epoch_batch += 1
 
-    #if ((Counter == 1) or (Counter % 10000000 == 0)):
-    if Counter_epoch_batch % 1 == 0:
-
-      if args.W2 != 0:
-         ##-- compute OL where samples from G1 are applied to (E2,G2)
-         overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig)
-         #OLossG2 = args.W2*(-1*statistics.mean(overlap_loss_G1_E2))
-         #OLossG2_No_W2 = (-1*statistics.mean(overlap_loss_G1_E2))
-
-         OLossG2 = args.W2*(-1*overlap_loss_G1_E2)
-         OLossG2_No_W2 = (-1*overlap_loss_G1_E2)
-      else:
-         overlap_loss_G1_E2=0
-         OLossG2_No_W2 = 0
-
-      if args.W1 != 0:
-         ##-- compute OL where samples from G2 are applied to (E1,G1)
-         overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig)
-         #OLossG1 = args.W1*(-1*statistics.mean(overlap_loss_G2_E1))
-         #OLossG1_No_W1 = (-1*statistics.mean(overlap_loss_G2_E1))
-
-         OLossG1 = args.W1*(-1*overlap_loss_G2_E1)
-         OLossG1_No_W1 = (-1*overlap_loss_G2_E1)
-      else:
-         overlap_loss_G2_E1 = 0
-         OLossG1_No_W1 = 0
-
-      TrueOLoss = OLossG1+OLossG2
-      TrueOLoss_No_W1W2 = OLossG1_No_W1+OLossG2_No_W2
-
-    ## compute the distance between G1 and G2 weights based on option#3
-    Distance_G1G2 = (-1)*0.00000001*distance_loss_G1_G2(netG1, netG2) #option#3
-    Distance_G1G2_No_W = distance_loss_G1_G2(netG1, netG2) #option#3
-
-    ##-- OLoss is the use used to train the generators G1 and G2
-    #OLoss = Distance_G1G2
-    OLoss = TrueOLoss
-    #OLoss = 0
-
     ##-- writing to Tensorboard
-    if Counter_epoch_batch % 10 == 0:
+    if (Counter_epoch_batch % 10 == 0) or (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1):
        save_imgs = True
     else:
        save_imgs = False
 
-    if math.isnan(OLoss): ## to avoid training generator with nan loss
-      print('Epoch [%d/%d] .. Batch [%d/%d] .. OLoss is NAN'  % (epoch, args.epochs, Counter, int(len(trainsetG1)/args.batchSize)))
-      Counter -= 1
-      Counter_epoch_batch -= 1
-    else:
+    ##--------- Train G1
+    if (args.mode == 'train') or (args.mode == 'train_validate'):
+      ##-- measuer Ovelap loss to train G1
+      if args.W1 != 0:
+         ##-- compute OL where samples from G2 are applied to (E1,G1)
+         overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig)
+         OLossG1 = args.W1*(-1*overlap_loss_G2_E1)
+         OLossG1_No_W1 = (-1*overlap_loss_G2_E1)
+      else:
+         OLossG1 = 0
+         overlap_loss_G2_E1 = 0
+         OLossG1_No_W1 = 0
+
+      if args.W2 != 0:
+         ##-- compute OL where samples from G1 are applied to (E2,G2)
+         overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig)
+         OLossG2 = args.W2*(-1*overlap_loss_G1_E2)
+         OLossG2_No_W2 = (-1*overlap_loss_G1_E2)
+      else:
+         OLossG2 = 0
+         overlap_loss_G1_E2=0
+         OLossG2_No_W2 = 0
+
+      ##-- compute the distance between G1 and G2 weights based on option#3
+      Distance_G1G2 = (-1)*0.00000001*distance_loss_G1_G2(netG1, netG2) #option#3
+      Distance_G1G2_No_W = distance_loss_G1_G2(netG1, netG2) #option#3
+
+      ##-- OLoss is the use used to train the generators G1
+      TrueOLoss = OLossG1+OLossG2
+      TrueOLoss_No_W1W2 = OLossG1_No_W1+OLossG2_No_W2
+      OLoss = TrueOLoss
+
       ##-- update Generator 1 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
       netD1, netG1, logsigmaG1, AdvLossG1, PresGANResults, optimizerG1, optimizerD1, sigma_optimizerG1 = engine_PresGANs.presgan(args, device, epoch, trainsetG1[j:j+stop], netG1, optimizerG1, netD1, optimizerD1, logsigmaG1, sigma_optimizerG1, OLoss, args.ckptOL_G1I, save_imgs, 'G1', Counter_epoch_batch)
       PresGANResultsG1 = PresGANResultsG1 + np.array(PresGANResults)
       print('G1: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
            % (epoch, args.epochs, Counter, int(len(trainsetG1)/args.batchSize), PresGANResults[0], PresGANResults[1], PresGANResults[2], PresGANResults[3], PresGANResults[4]))
 
+      ##--------- Train G2
+      ##-- measuer Ovelap loss to train G2
+      if args.W1 != 0:
+         ##-- compute OL where samples from G2 are applied to (E1,G1)
+         overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig)
+         OLossG1 = args.W1*(-1*overlap_loss_G2_E1)
+         OLossG1_No_W1 = (-1*overlap_loss_G2_E1)
+      else:
+         OLossG1 = torch.tensor(0)
+         overlap_loss_G2_E1 = 0
+         OLossG1_No_W1 = 0
+
+      if args.W2 != 0:
+         ##-- compute OL where samples from G1 are applied to (E2,G2)
+         overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig)
+         OLossG2 = args.W2*(-1*overlap_loss_G1_E2)
+         OLossG2_No_W2 = (-1*overlap_loss_G1_E2)
+      else:
+         OLossG2 = torch.tensor(0)
+         overlap_loss_G1_E2=0
+         OLossG2_No_W2 = 0
+
+      ##-- compute the distance between G1 and G2 weights based on option#3
+      Distance_G1G2 = (-1)*0.00000001*distance_loss_G1_G2(netG1, netG2) #option#3
+      Distance_G1G2_No_W = distance_loss_G1_G2(netG1, netG2) #option#3
+
+      ##-- OLoss is the use used to train the generators G2
+      TrueOLoss = OLossG1+OLossG2
+      TrueOLoss_No_W1W2 = OLossG1_No_W1+OLossG2_No_W2
+      OLoss = TrueOLoss
+
       ##-- update Generator 2 using Criterion = Dicriminator loss + W1*OverlapLoss(G2-->G1) + W2*OverlapLoss(G1-->G2)
       netD2, netG2, logsigmaG2, AdvLossG2, PresGANResults, optimizerG2, optimizerD2, sigma_optimizerG2 = engine_PresGANs.presgan(args, device, epoch, trainsetG2[j:j+stop], netG2, optimizerG2, netD2, optimizerD2, logsigmaG2, sigma_optimizerG2, OLoss.detach(), args.ckptOL_G2I, save_imgs, 'G2', Counter_epoch_batch)
       PresGANResultsG2 = PresGANResultsG2 + np.array(PresGANResults)
+      print('G2: Epoch [%d/%d] .. Batch [%d/%d] .. Loss_D: %.4f .. Loss_G: %.4f .. D(x): %.4f .. D(G(z)): %.4f / %.4f'
+           % (epoch, args.epochs, Counter, int(len(trainsetG2)/args.batchSize), PresGANResults[0], PresGANResults[1], PresGANResults[2], PresGANResults[3], PresGANResults[4]))
 
-      
+    if (args.mode == 'train_validate') or (args.mode == 'validate'):
       ##-- validation step
       if (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1):
          Counter_G1test_E2 = 0
@@ -470,8 +490,9 @@ if __name__ == "__main__":
          writer.add_scalar("Validation Likelihood/G2(testset)-->(E1,G1)", statistics.mean(likelihood_G2test_E1), Counter_epoch_batch )
 
 
-      ##-- writing to Tensorboard
-      if Counter_epoch_batch % 10 == 0:
+    ##-- writing to Tensorboard
+    if (args.mode == 'train') or (args.mode == 'train_validate'):
+      if (Counter_epoch_batch % 5 == 0) or (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1):
          writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
          writer.add_scalar("Overlap Loss_batch/OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
          writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
@@ -479,8 +500,6 @@ if __name__ == "__main__":
          writer.add_scalar("Adversarial Loss_batch/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
          writer.add_scalar("Adversarial Loss_batch/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
 
-
-      if Counter_epoch_batch % 10 == 0:
          DL_G1 = PresGANResultsG1[0]/Counter_epoch_batch
          GL_G1 = PresGANResultsG1[1]/Counter_epoch_batch
          Dx_G1 = PresGANResultsG1[2]/Counter_epoch_batch
