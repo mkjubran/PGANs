@@ -458,15 +458,18 @@ if __name__ == "__main__":
 
     if (args.mode == 'train_validate') or (args.mode == 'validate'):
       ##-- validation step
-      if (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1):
+      if (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1) or (args.mode == 'validate'):
          Counter_G1test_E2 = 0
          Counter_G2test_E1 = 0
-         likelihood_G1test_E2 = []
-         likelihood_G2test_E1 = []
+         #likelihood_G1test_E2 = []
+         #likelihood_G2test_E1 = []
 
          MinNTest = min(testsetG1.shape[0],args.valbatches*args.OLbatchSize)
          samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), MinNTest)] 
          samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), MinNTest)]
+         if args.valbatches*args.OLbatchSize > testsetG1.shape[0]:
+            args.valbatches = int(testsetG1.shape[0]/args.OLbatchSize)
+
          for cnt in range(0, args.valbatches*args.OLbatchSize, args.OLbatchSize):
 
              ## Validation by measuring Likelihood of G2
@@ -474,8 +477,15 @@ if __name__ == "__main__":
              sample_G1 = samples_G1test[cnt:cnt+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
              _, logvar_first, _, _ = netE2Orig(sample_G1, args)
              likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.ckptOL_E2,logvar_first)
-             likelihood_G1test_E2.append(likelihood_sample.item())
-             print(f"Validation: G1(testset)-->(E2,G2): batch {Counter_G1test_E2} of {int(args.valbatches)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1test_E2)}")
+             if cnt == 0:
+                likelihood_G1test_E2 = likelihood_sample.detach().view(1,1)
+                likelihood_G1test_E2_mean = likelihood_G1test_E2
+             else:
+                likelihood_G1test_E2 = torch.cat((likelihood_G1test_E2,likelihood_sample.detach().view(1,1)),1)
+                likelihood_G1test_E2_mean = torch.logsumexp(likelihood_G1test_E2,1)-torch.log(torch.tensor(likelihood_G1test_E2.shape[1]))
+
+             #likelihood_G1test_E2.append(likelihood_sample.item())
+             print(f"Validation: G1(testset)-->(E2,G2): batch {Counter_G1test_E2} of {int(args.valbatches)}, OL = {likelihood_sample.item()}, moving mean = {likelihood_G1test_E2_mean.item()}")
 
 
              ## Validation by measuring Likelihood of G1
@@ -483,11 +493,17 @@ if __name__ == "__main__":
              sample_G2 = samples_G2test[cnt:cnt+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
              _, logvar_first, _, _ = netE1Orig(sample_G2, args)
              likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.ckptOL_E1,logvar_first)
-             likelihood_G2test_E1.append(likelihood_sample.item())
-             print(f"Validation: G2(testset)-->(E1,G1): batch {Counter_G2test_E1} of {int(args.valbatches)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2test_E1)}")
+             if cnt == 0:
+                likelihood_G2test_E1 = likelihood_sample.detach().view(1,1)
+                likelihood_G2test_E1_mean = likelihood_G2test_E1
+             else:
+                likelihood_G2test_E1 = torch.cat((likelihood_G2test_E1,likelihood_sample.detach().view(1,1)),1)
+                likelihood_G2test_E1_mean = torch.logsumexp(likelihood_G2test_E1,1)-torch.log(torch.tensor(likelihood_G2test_E1.shape[1]))
 
-         writer.add_scalar("Validation Likelihood/G1(testset)-->(E2,G2)", statistics.mean(likelihood_G1test_E2), Counter_epoch_batch )
-         writer.add_scalar("Validation Likelihood/G2(testset)-->(E1,G1)", statistics.mean(likelihood_G2test_E1), Counter_epoch_batch )
+             print(f"Validation: G2(testset)-->(E1,G1): batch {Counter_G2test_E1} of {int(args.valbatches)}, OL = {likelihood_sample.item()}, moving mean = {likelihood_G2test_E1_mean.item()}")
+
+         writer.add_scalar("Validation Likelihood/G1(testset)-->(E2,G2)", likelihood_G1test_E2_mean.item(), Counter_epoch_batch )
+         writer.add_scalar("Validation Likelihood/G2(testset)-->(E1,G1)", likelihood_G2test_E1_mean.item(), Counter_epoch_batch )
 
 
     ##-- writing to Tensorboard

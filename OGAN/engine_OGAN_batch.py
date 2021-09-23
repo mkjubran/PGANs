@@ -57,7 +57,6 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         x_hat = netG(z)
 
         #if counter == 1:
-          #pdb.set_trace()
           #logvar_first = logvar
           #logvar_first = 0.1*torch.ones(logvar.shape).to(device)
 
@@ -138,10 +137,12 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
        log_pxz_scipy = torch.sum(pt.log_prob(x), axis=1).view(S,step)
     else:
        log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x), axis=1).view(S,step)),1)
-
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
-  likelihood_final = torch.mean(likelihood_samples)
+  #likelihood_final = torch.mean(likelihood_samples)
+  likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
+
+  #print(torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0])))
 
   ##---------------- very fast, however it Needs a lot of GPU memory, fail for large S.
   '''
@@ -158,7 +159,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   #print(datetime.datetime.now()-now)
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
-  likelihood_final = torch.mean(likelihood_samples)
+  likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
   '''
   ##----------------
 
@@ -279,7 +280,8 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
        log_pxz_scipy = torch.cat((log_pxz_scipy,mvnx.log_prob(x).view(-1,1)),1)
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
-  likelihood_final = torch.mean(likelihood_samples)
+  #likelihood_final = torch.mean(likelihood_samples)
+  likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
 
  #writer.flush()
  #writer.close()
