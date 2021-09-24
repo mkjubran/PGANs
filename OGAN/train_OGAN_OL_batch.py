@@ -11,7 +11,7 @@ from torchvision.utils import save_image
 import shutil
 import os
 import pdb
-import nets
+import nets32 as nets
 import utils
 import utilsG
 import data
@@ -268,21 +268,9 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1,
  return overlap_loss_G2_E1, netE1, optimizerE1
 
 def distance_loss_G1_G2(netG1, netG2):
+ G1_L0 = netG1.main[0].weight.view(netG1.main[0].weight.shape[0]*netG1.main[0].weight.shape[1]*netG1.main[0].weight.shape[2]*netG1.main[0].weight.shape[3])
 
- G1_L0 = netG1.main[0].weight.view(100*512*4*4)
- G1_L3 = netG1.main[3].weight.view(512*256*4*4)
- G1_L6 = netG1.main[6].weight.view(256*128*4*4)
- G1_L9 = netG1.main[9].weight.view(128*64*4*4)
- G1_L12= netG1.main[12].weight.view(64*4*4)
-
- G2_L0 = netG2.main[0].weight.view(100*512*4*4)
- G2_L3 = netG2.main[3].weight.view(512*256*4*4)
- G2_L6 = netG2.main[6].weight.view(256*128*4*4)
- G2_L9 = netG2.main[9].weight.view(128*64*4*4)
- G2_L12= netG2.main[12].weight.view(64*4*4)
-
- #G1_L = torch.cat([G1_L6, G1_L9, G1_L12], dim=0)
- #G2_L = torch.cat([G2_L6, G2_L9, G2_L12], dim=0)
+ G2_L0 = netG2.main[0].weight.view(netG2.main[0].weight.shape[0]*netG2.main[0].weight.shape[1]*netG2.main[0].weight.shape[2]*netG2.main[0].weight.shape[3])
 
  G1_L = G1_L0
  G2_L = G2_L0

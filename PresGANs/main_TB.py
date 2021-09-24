@@ -1,5 +1,4 @@
 from __future__ import print_function
-
 import argparse
 import os
 import random
@@ -12,11 +11,11 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torchvision.utils as vutils
-import torch.nn.functional as F 
+import torch.nn.functional as F
 
-import utils 
-import data 
-import nets
+import utils
+import data
+import nets32 as nets
 import train_TB
 import shutil
 import pdb

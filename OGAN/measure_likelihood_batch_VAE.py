@@ -11,7 +11,7 @@ from torchvision.utils import save_image
 import shutil
 import os
 import pdb
-import nets
+import nets32 as nets
 import utils
 import utilsG
 import data

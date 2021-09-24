@@ -19,6 +19,5 @@ python3 measure_likelihood_batch_VAE.py \
           --GPU 0 \
           --overlap_loss_min 0 \
           --valevery 100 \
-          --valbatches 100
-
-
+          --valbatches 100 \
+          --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32

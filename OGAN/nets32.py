@@ -24,11 +24,11 @@ class Generator(nn.Module):
             nn.BatchNorm2d(args.ngfg * 2),
             nn.ReLU(True),
             # state size. (ngf*2) x 16 x 16
-            nn.ConvTranspose2d(args.ngfg * 2,    args.ngfg, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(args.ngfg),
-            nn.ReLU(True),
+            nn.ConvTranspose2d(args.ngfg * 2,    args.ncg, 4, 2, 1, bias=False),
+            #nn.BatchNorm2d(args.ngfg),
+            #nn.ReLU(True),
             # state size. (ngf) x 32 x 32
-            nn.ConvTranspose2d(    args.ngfg,      args.ncg, 4, 2, 1, bias=False),
+            #nn.ConvTranspose2d(    args.ngfg,      args.ncg, 4, 2, 1, bias=False),
             nn.Tanh()
             # state size. (nc) x 64 x 64
         )
@@ -43,26 +43,26 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         
         self.main = nn.Sequential(
-            # input is (nc) x 64 x 64
+            # input is (nc) x 32 x 32
             nn.Conv2d(args.nc, args.ndfg, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 32 x 32
+            # state size. (ndf) x 16 x 16
             nn.Conv2d(args.ndfg, args.ndfg * 2, 4, 2, 1, bias=False),
             nn.BatchNorm2d(args.ndfg * 2),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 16 x 16
+            # state size. (ndf*2) x 8 x 8
             nn.Conv2d(args.ndfg * 2, args.ndfg * 4, 4, 2, 1, bias=False),
             nn.BatchNorm2d(args.ndfg * 4),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 8 x 8
-            nn.Conv2d(args.ndfg * 4, args.ndfg * 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(args.ndfg * 8),
-            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*4) x 4 x 4
+            nn.Conv2d(args.ndfg * 4, 1, 4, 2, 0, bias=False),
+            #nn.BatchNorm2d(args.ndfg * 8),
+            #nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(args.ndfg * 8, 1, 4, 1, 0, bias=False),
+            #nn.Conv2d(args.ndfg * 8, 1, 4, 1, 0, bias=False),
             nn.Sigmoid()
         )
-        
+
     def forward(self, input):
         output = self.main(input)
         return output.view(-1, 1).squeeze(1)
