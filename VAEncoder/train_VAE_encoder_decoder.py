@@ -14,7 +14,7 @@ import datetime
 import shutil
 import os
 import pdb
-import nets
+import nets32 as nets
 import utilsG
 import data
 

@@ -87,7 +87,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k=1.3
+ k=1.2
  #if (counter > 1):
  if True:
 
@@ -123,7 +123,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   Tb = torch.tensor([1.]).to(device)
 
   ##---------------- step is the number of images to be considered in parallel
-  step=20
+  step=5
   scale = torch.exp(0.5*logsigmaG).to(device).detach()
   for cnt in range(0,samples.shape[1],step):
     sample = samples[:,cnt:cnt+step,:].reshape(S*step,args.nzg)
@@ -172,7 +172,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
  #writer.flush()
  #writer.close()
 
- return likelihood_final
+ return -1*likelihood_final
 
 def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL, logvar_first):
  #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -232,7 +232,7 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k=1.3
+ k=1.2
  #if (counter > 1):
  if True:
 
@@ -286,7 +286,7 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
  #writer.flush()
  #writer.close()
 
- return likelihood_final
+ return -1*likelihood_final
 
 
 def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
@@ -344,7 +344,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k = 1.3
+ k = 1.2
  if True:
   ##-- Create a standard MVN
   mean = torch.zeros(mu.shape[0],args.nzg).to(device)
@@ -395,4 +395,4 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
   likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
 
- return likelihood_final
+ return -1*likelihood_final

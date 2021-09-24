@@ -249,7 +249,7 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2,
 
  if True:
   likelihood_sample = engine_OGAN.get_likelihood_approx(args,device,netE2,optimizerE2,samples_G1,netG2,logsigmaG2,args.ckptOL_E2, logvar_first)
-  overlap_loss_sample = -1*likelihood_sample
+  overlap_loss_sample = likelihood_sample
   overlap_loss_G1_E2 = overlap_loss_sample
   print(f"G1-->(E2,G2) OL = {overlap_loss_sample}")
  return overlap_loss_G1_E2, netE2, optimizerE2
@@ -262,7 +262,7 @@ def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1,
 
  if True:
   likelihood_sample = engine_OGAN.get_likelihood_approx(args,device,netE1,optimizerE1,samples_G2,netG1,logsigmaG1,args.ckptOL_E1, logvar_first)
-  overlap_loss_sample =  -1*likelihood_sample
+  overlap_loss_sample =  likelihood_sample
   overlap_loss_G2_E1 = overlap_loss_sample
   print(f"G2-->(E1,G1) OL = {overlap_loss_sample}")
  return overlap_loss_G2_E1, netE1, optimizerE1
@@ -375,8 +375,8 @@ if __name__ == "__main__":
       if args.W1 != 0:
          ##-- compute OL where samples from G2 are applied to (E1,G1)
          overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig)
-         OLossG1 = args.W1*(-1*overlap_loss_G2_E1)
-         OLossG1_No_W1 = (-1*overlap_loss_G2_E1)
+         OLossG1 = args.W1*(overlap_loss_G2_E1)
+         OLossG1_No_W1 = (overlap_loss_G2_E1)
       else:
          OLossG1 = 0
          overlap_loss_G2_E1 = 0
@@ -385,8 +385,8 @@ if __name__ == "__main__":
       if args.W2 != 0:
          ##-- compute OL where samples from G1 are applied to (E2,G2)
          overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig)
-         OLossG2 = args.W2*(-1*overlap_loss_G1_E2)
-         OLossG2_No_W2 = (-1*overlap_loss_G1_E2)
+         OLossG2 = args.W2*(overlap_loss_G1_E2)
+         OLossG2_No_W2 = (overlap_loss_G1_E2)
       else:
          OLossG2 = 0
          overlap_loss_G1_E2=0
@@ -412,8 +412,8 @@ if __name__ == "__main__":
       if args.W1 != 0:
          ##-- compute OL where samples from G2 are applied to (E1,G1)
          overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig)
-         OLossG1 = args.W1*(-1*overlap_loss_G2_E1)
-         OLossG1_No_W1 = (-1*overlap_loss_G2_E1)
+         OLossG1 = args.W1*(overlap_loss_G2_E1)
+         OLossG1_No_W1 = (overlap_loss_G2_E1)
       else:
          OLossG1 = torch.tensor(0)
          overlap_loss_G2_E1 = 0
@@ -422,8 +422,8 @@ if __name__ == "__main__":
       if args.W2 != 0:
          ##-- compute OL where samples from G1 are applied to (E2,G2)
          overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig)
-         OLossG2 = args.W2*(-1*overlap_loss_G1_E2)
-         OLossG2_No_W2 = (-1*overlap_loss_G1_E2)
+         OLossG2 = args.W2*(overlap_loss_G1_E2)
+         OLossG2_No_W2 = (overlap_loss_G1_E2)
       else:
          OLossG2 = torch.tensor(0)
          overlap_loss_G1_E2=0
@@ -501,8 +501,8 @@ if __name__ == "__main__":
          writer.add_scalar("Overlap Loss_batch/OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
          writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
          writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
-         writer.add_scalar("Adversarial Loss_batch/ AdvLoss G1", AdvLossG1, Counter_epoch_batch)
-         writer.add_scalar("Adversarial Loss_batch/ AdvLoss G2", AdvLossG2, Counter_epoch_batch)
+         writer.add_scalar("All Loss_batch/ Loss G1", AdvLossG1, Counter_epoch_batch)
+         writer.add_scalar("All Loss_batch/ Loss G2", AdvLossG2, Counter_epoch_batch)
 
          DL_G1 = PresGANResultsG1[0]/Counter_epoch_batch
          GL_G1 = PresGANResultsG1[1]/Counter_epoch_batch
@@ -556,8 +556,8 @@ if __name__ == "__main__":
          writer.add_scalar("Overlap Loss_epoch/OL[G1-->(E2,G2)]", OLossG2_No_W2, epoch)
          writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, epoch)
          writer.add_scalar("Overlap Loss_epoch/ Distance(G1,G2)", Distance_G1G2_No_W, epoch)
-         writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G1", AdvLossG1, epoch)
-         writer.add_scalar("Adversarial Loss_epoch/ AdvLoss G2", AdvLossG2, epoch)
+         writer.add_scalar("All Loss_epoch/ Loss G1", AdvLossG1, epoch)
+         writer.add_scalar("All Loss_epoch/ Loss G2", AdvLossG2, epoch)
 
          writer.flush()
 
