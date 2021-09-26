@@ -102,7 +102,8 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
-  std = k*torch.exp(0.5*logvar_first)
+  #std = k*torch.exp(0.5*logvar_first)
+  std = k*torch.ones(scale.shape).to(device) 
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
   std_3d = std_c * std_b
@@ -139,11 +140,9 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
        log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x), axis=1).view(S,step)),1)
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
-  #likelihood_final = torch.mean(likelihood_samples)
+  #likelihood_final = torch.mean(likelihood_samples,0)
   likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
-
   #print(torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0])))
-
   ##---------------- very fast, however it Needs a lot of GPU memory, fail for large S.
   '''
   sample = samples.view(S*samples.shape[1],args.nzg)
@@ -172,7 +171,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
  #writer.flush()
  #writer.close()
 
- return -1*likelihood_final
+ return likelihood_final
 
 def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL, logvar_first):
  #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -247,7 +246,8 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
-  std = k*torch.exp(0.5*logvar_first)
+  #std = k*torch.exp(0.5*logvar_first)
+  std = k*torch.ones(scale.shape).to(device)  
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
   std_3d = std_c * std_b
@@ -286,7 +286,7 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
  #writer.flush()
  #writer.close()
 
- return -1*likelihood_final
+ return likelihood_final
 
 
 def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
@@ -344,7 +344,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k = 1.2
+ k = 1.3
  if True:
   ##-- Create a standard MVN
   mean = torch.zeros(mu.shape[0],args.nzg).to(device)
@@ -393,6 +393,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
        log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x), axis=1).view(S,step)),1)
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
+  #likelihood_final = torch.mean(likelihood_samples,0)
   likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
 
- return -1*likelihood_final
+ return likelihood_final
