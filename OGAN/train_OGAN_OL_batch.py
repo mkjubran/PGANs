@@ -493,7 +493,7 @@ if __name__ == "__main__":
              if x_hat.shape[1] != 3:
                 x_hat = x_hat.repeat([1,3,1,1])
              IS = iscore.inception_score(x_hat, cuda=True, batch_size=32, resize=True, splits=1)
-             ISsumG2=(ISsumG2+IS[0]);ISmean_G2=ISsumG2/(cnt+1);
+             ISsumG2=(ISsumG2+IS[0]);ISmean_G2=ISsumG2/Counter_G1test_E2;
              print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, NLL (batch) = {-1*likelihood_sample.item()}, NLL (moving average) = {NLL_G1test_E2_mean.item()}, IS = {IS[0]}, ISmean = {ISmean_G2}")
              writer.add_scalar("Validation IS Sample/G1(testset)-->(E2,G2)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
@@ -518,7 +518,7 @@ if __name__ == "__main__":
              if x_hat.shape[1] != 3:
                 x_hat = x_hat.repeat([1,3,1,1])
              IS = iscore.inception_score(x_hat, cuda=True, batch_size=32, resize=True, splits=1)
-             ISsumG1=(ISsumG1+IS[0]);ISmean_G1=ISsumG1/(cnt+1)
+             ISsumG1=(ISsumG1+IS[0]);ISmean_G1=ISsumG1/Counter_G2test_E1
              print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, NLL (batch) = {-1*likelihood_sample.item()}, NLL (moving average) = {NLL_G2test_E1_mean.item()} IS = {IS[0]}, ISmean = {ISmean_G1}")
              writer.add_scalar("Validation IS Sample/G2(testset)-->(E1,G1)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
   
