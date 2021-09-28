@@ -23,6 +23,8 @@ import numpy as np
 import math
 import random
 
+import inception_score as iscore
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
 parser.add_argument('--logsigma_file_G1', type=str, default='', help='a given file for logsigma for generator 1')
@@ -416,8 +418,8 @@ if __name__ == "__main__":
       if args.W1 != 0:
          ##-- compute OL where samples from G2 are applied to (E1,G1)
          overlap_loss_G2_E1, netE1, optimizerE1 = OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig)
-         OLossG1 = args.W1*(overlap_loss_G2_E1)
-         OLossG1_No_W1 = (overlap_loss_G2_E1)
+         OLossG1 = -1*args.W1*(overlap_loss_G2_E1)
+         OLossG1_No_W1 = -1*(overlap_loss_G2_E1)
       else:
          OLossG1 = torch.tensor(0)
          overlap_loss_G2_E1 = 0
@@ -426,8 +428,8 @@ if __name__ == "__main__":
       if args.W2 != 0:
          ##-- compute OL where samples from G1 are applied to (E2,G2)
          overlap_loss_G1_E2, netE2, optimizerE2 = OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig)
-         OLossG2 = args.W2*(overlap_loss_G1_E2)
-         OLossG2_No_W2 = (overlap_loss_G1_E2)
+         OLossG2 = -1*args.W2*(overlap_loss_G1_E2)
+         OLossG2_No_W2 = -1*(overlap_loss_G1_E2)
       else:
          OLossG2 = torch.tensor(0)
          overlap_loss_G1_E2=0
@@ -453,6 +455,7 @@ if __name__ == "__main__":
       if (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1) or (args.mode == 'validate'):
          Counter_G1test_E2 = 0
          Counter_G2test_E1 = 0
+         ISsumG1=0; ISsumG2=0
          Counter_vald_epoch_batch += 1
 
          MinNTest = min(testsetG1.shape[0],args.valbatches*args.OLbatchSize)
@@ -472,7 +475,7 @@ if __name__ == "__main__":
              ## Validation by measuring Likelihood of G2
              Counter_G1test_E2 += 1
              sample_G1 = samples_G1test[cnt:cnt+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-             _, logvar_first, _, _ = netE2Orig(sample_G1, args)
+             _, logvar_first, z, _ = netE2Orig(sample_G1, args)
              likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.ckptOL_E2,logvar_first)
              if (cnt == 0) and (Counter_G1test_E2 == 1):
                 likelihood_G1test_E2 = likelihood_sample.detach().view(1,1)
@@ -482,13 +485,22 @@ if __name__ == "__main__":
                 likelihood_G1test_E2_mean = torch.logsumexp(likelihood_G1test_E2,1)-torch.log(torch.tensor(likelihood_G1test_E2.shape[1]))
                 #likelihood_G1test_E2_mean = torch.mean(likelihood_G1test_E2,1)
              NLL_G1test_E2_mean=-1*likelihood_G1test_E2_mean
-             print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, NLL (batch) = {-1*likelihood_sample.item()}, NLL (moving average) = {NLL_G1test_E2_mean.item()}")
+             #print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, NLL (batch) = {-1*likelihood_sample.item()}, NLL (moving average) = {NLL_G1test_E2_mean.item()}")
              writer.add_scalar("Validation NLL Sample/G1(testset)-->(E2,G2)", -1*likelihood_sample.item(),  Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+
+             ## Measuring Inception Score
+             x_hat = netG2(z)
+             if x_hat.shape[1] != 3:
+                x_hat = x_hat.repeat([1,3,1,1])
+             IS = iscore.inception_score(x_hat, cuda=True, batch_size=32, resize=True, splits=1)
+             ISsumG2=(ISsumG2+IS[0]);ISmean_G2=ISsumG2/(cnt+1);
+             print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, NLL (batch) = {-1*likelihood_sample.item()}, NLL (moving average) = {NLL_G1test_E2_mean.item()}, IS = {IS[0]}, ISmean = {ISmean_G2}")
+             writer.add_scalar("Validation IS Sample/G1(testset)-->(E2,G2)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
              ## Validation by measuring Likelihood of G1
              Counter_G2test_E1 += 1
              sample_G2 = samples_G2test[cnt:cnt+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-             _, logvar_first, _, _ = netE1Orig(sample_G2, args)
+             _, logvar_first, z, _ = netE1Orig(sample_G2, args)
              likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.ckptOL_E1,logvar_first)
              if (cnt == 0) and (Counter_G2test_E1 == 1):
                 likelihood_G2test_E1 = likelihood_sample.detach().view(1,1)
@@ -498,15 +510,29 @@ if __name__ == "__main__":
                 likelihood_G2test_E1_mean = torch.logsumexp(likelihood_G2test_E1,1)-torch.log(torch.tensor(likelihood_G2test_E1.shape[1]))
                 #likelihood_G2test_E1_mean = torch.mean(likelihood_G2test_E1,1)
              NLL_G2test_E1_mean=-1*likelihood_G2test_E1_mean
-             print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, NLL (batch) = {-1*likelihood_sample.item()}, NLL (moving average) = {NLL_G2test_E1_mean.item()}")
+             #print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, NLL (batch) = {-1*likelihood_sample.item()}, NLL (moving average) = {NLL_G2test_E1_mean.item()}")
              writer.add_scalar("Validation NLL Sample/G2(testset)-->(E1,G1)", -1*likelihood_sample.item(),  Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
+             ## Measuring Inception Score
+             x_hat = netG1(z)
+             if x_hat.shape[1] != 3:
+                x_hat = x_hat.repeat([1,3,1,1])
+             IS = iscore.inception_score(x_hat, cuda=True, batch_size=32, resize=True, splits=1)
+             ISsumG1=(ISsumG1+IS[0]);ISmean_G1=ISsumG1/(cnt+1)
+             print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, NLL (batch) = {-1*likelihood_sample.item()}, NLL (moving average) = {NLL_G2test_E1_mean.item()} IS = {IS[0]}, ISmean = {ISmean_G1}")
+             writer.add_scalar("Validation IS Sample/G2(testset)-->(E1,G1)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+  
              writer.add_scalar("Validation NLL Moving Average/G1(testset)-->(E2,G2)", NLL_G1test_E2_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
              writer.add_scalar("Validation NLL Moving Average/G2(testset)-->(E1,G1)", NLL_G2test_E1_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
-         writer.add_scalar("Validation NLL epoch/G1(testset)-->(E2,G2)", NLL_G1test_E2_mean.item(), Counter_vald_epoch_batch )
-         writer.add_scalar("Validation NLL epoch/G2(testset)-->(E1,G1)", NLL_G2test_E1_mean.item(), Counter_vald_epoch_batch )
+             writer.add_scalar("IS Moving Average/G1(testset)-->(E2,G2)", ISmean_G2.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("IS Moving Average/G2(testset)-->(E1,G1)", ISmean_G1.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
+         writer.add_scalar("Validation NLL epoch/G2(testset)-->(E1,G1)", NLL_G2test_E1_mean.item(), Counter_vald_epoch_batch )
+         writer.add_scalar("Validation NLL epoch/G1(testset)-->(E2,G2)", NLL_G1test_E2_mean.item(), Counter_vald_epoch_batch )
+
+         writer.add_scalar("IS epoch/G2(testset)-->(E1,G1)", ISmean_G2, Counter_vald_epoch_batch )
+         writer.add_scalar("IS epoch/G1(testset)-->(E2,G2)", ISmean_G1, Counter_vald_epoch_batch )
 
     ##-- writing to Tensorboard
     if (args.mode == 'train') or (args.mode == 'train_validate'):
