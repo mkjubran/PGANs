@@ -36,7 +36,7 @@ def measure_elbo(args, mu, logvar, x, x_hat, z, zr,device, logsigmaG):
     mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
 
     pz_normal = torch.exp(mvnz.log_prob(zr))
-    pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
+    pz_log_pxz_mvn = torch.dot(log_pxz_mvn[0::3],pz_normal)+torch.dot(log_pxz_mvn[1::3],pz_normal)+torch.dot(log_pxz_mvn[2::3],pz_normal)
     reconloss = pz_log_pxz_mvn
 
     beta = args.beta
@@ -51,7 +51,6 @@ def train_encoder(netE, args, X_training, device, optimizer, netG, logsigmaG):
     for i in tqdm(range(0, len(X_training), args.batchSize)):
         stop = min(args.batchSize, len(X_training[i:]))
         data = X_training[i:i+stop].to(device)
-
         counter += 1
         optimizer.zero_grad()
 

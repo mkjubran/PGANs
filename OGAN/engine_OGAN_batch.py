@@ -5,6 +5,7 @@ import datetime
 import pdb
 import numpy as np
 import math
+import torchvision.utils as vutils
 
 from scipy.stats import truncnorm
 from scipy.stats import mvn as scipy_mvn
@@ -19,6 +20,7 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  ##-- compute MVN full batch
  mvn = torch.distributions.MultivariateNormal(mean, scale_tril=torch.diag(scale).reshape(1, imageSize*imageSize, imageSize*imageSize), validate_args=False)
  log_pxz_mvn = mvn.log_prob(data.view(-1,imageSize*imageSize))
+ log_pxz_mvn = torch.sum(log_pxz_mvn.view(args.batchSize,args.nc),1)
 
  std = torch.exp(0.5*logvar)
  #std = torch.exp(logvar)
@@ -27,7 +29,6 @@ def dist(args, device, mu, logvar, mean, scale, data, zr):
  std_3d = std_c * std_b
  mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d, validate_args = False)
  log_pz_normal = mvnz.log_prob(zr)
-
  return log_pxz_mvn, log_pz_normal
 
 def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL, logvar_first):
@@ -85,6 +86,9 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
         #    img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
         #    writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
 
+        #if (OLepoch % 100 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
+        #    vutils.save_image(torch.cat((data, x_hat), 3).detach().cpu(), '%s/elbo_OLepoch_%03d.png' % (log_dir, OLepoch), normalize=True, nrow=10) 
+
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
  k=1.2
@@ -135,13 +139,13 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
     ## can be used with S > 1
     pt = TNorm.TruncatedNormal(meanG, scale, Ta, Tb, validate_args=None)
     if cnt == 0:
-       log_pxz_scipy = torch.sum(pt.log_prob(x), axis=1).view(S,step)
+       log_pxz_scipy = torch.sum(pt.log_prob(x).view(S*step,-1), axis=1).view(S,step)
     else:
-       log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x), axis=1).view(S,step)),1)
+       log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x).view(S*step,-1), axis=1).view(S,step)),1)
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
-  #likelihood_final = torch.mean(likelihood_samples,0)
-  likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
+  likelihood_final = torch.mean(likelihood_samples,0)
+  #likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
   #print(torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0])))
   ##---------------- very fast, however it Needs a lot of GPU memory, fail for large S.
   '''
@@ -222,12 +226,16 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if (overlap_loss_sum > overlap_loss_min):
             likelihood_sample_final = overlap_loss_sum
-            #writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
+        #    writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
 
         #-- write to tensorboard
         #if (OLepoch % 10 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
         #    img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
         #    writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
+
+        #if (OLepoch % 100 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
+        #    vutils.save_image(torch.cat((data, x_hat), 3).detach().cpu(), '%s/elbo_OLepoch_%03d.png' % (log_dir, OLepoch), normalize=True, nrow=10) 
+
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
@@ -271,17 +279,17 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
   for cnt in range(samples.shape[1]):
     sample = samples[:,cnt,:] #.detach()
     meanG = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device).detach()
-    x = data[cnt].view(1, args.imageSize**2).to(device)
+    x = data[cnt].view(args.nc, args.imageSize**2).to(device)
+    x = x.repeat(S,1)
     mvnx = torch.distributions.MultivariateNormal(meanG, scale_tril=std, validate_args=False)
-
     if cnt == 0:
-       log_pxz_scipy = mvnx.log_prob(x).view(-1,1)
+       log_pxz_scipy = torch.sum(mvnx.log_prob(x).view(S,args.nc),1).view(-1,1)
     else:
-       log_pxz_scipy = torch.cat((log_pxz_scipy,mvnx.log_prob(x).view(-1,1)),1)
+       log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(mvnx.log_prob(x).view(S,args.nc),1).view(-1,1)),1)
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
-  #likelihood_final = torch.mean(likelihood_samples)
-  likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
+  likelihood_final = torch.mean(likelihood_samples)
+  #likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
 
  #writer.flush()
  #writer.close()
@@ -393,7 +401,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
        log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x), axis=1).view(S,step)),1)
   log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
   likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
-  #likelihood_final = torch.mean(likelihood_samples,0)
-  likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
+  likelihood_final = torch.mean(likelihood_samples,0)
+  #likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
 
  return likelihood_final
