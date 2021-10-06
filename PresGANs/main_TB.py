@@ -79,7 +79,7 @@ parser.add_argument('--restrict_sigma', type=int, default=0, help='whether to re
 args = parser.parse_args()
 
 if args.model == 'presgan':
-    args.results_folder = '../../'+args.model+'_lambda_'+str(args.lambda_)
+    args.results_folder = '../../'+args.model+'_lambda_'+str(args.lambda_)+'_GS'+str(args.seed)
     #args.results_folder_TB = '../../'+args.model+'_TB_lambda_'+str(args.lambda_)
 else:
     args.results_folder = '../../'+args.model

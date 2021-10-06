@@ -32,7 +32,7 @@ parser.add_argument('--ndf', type=int, default=64, help='model parameters for en
 parser.add_argument('--nc', type=int, default = 1, help='number of channels for encoder')
 parser.add_argument('--nzg', type=int, default=100, help='size of the latent z vector for generator')
 parser.add_argument('--ngfg', type=int, default=64, help='model parameters for generator')
-parser.add_argument('--ndfg', type=int, default=8, help='model parameters for generator')
+parser.add_argument('--ndfg', type=int, default=64, help='model parameters for generator')
 parser.add_argument('--ncg', type=int, default = 1, help='number of channels for generator')
 parser.add_argument('--Ntrain', type=int, default=60000, help='training set size for stackedmnist')
 parser.add_argument('--Ntest', type=int, default=10000, help='test set size for stackedmnist')
