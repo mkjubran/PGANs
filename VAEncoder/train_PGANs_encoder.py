@@ -12,7 +12,7 @@ from torchvision.utils import save_image
 import shutil
 import os
 import pdb
-import nets32 as nets
+import nets64 as nets
 import utilsG
 import data
 
@@ -55,7 +55,7 @@ def VAE_folders(args):
 
 ##-- loading and spliting datasets
 def load_datasets(data,args,device):
- dat = data.load_data(args.dataset, '../../input' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
+ dat = data.load_data(args.dataset, '../../data' , args.batchSize, device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
  trainset = dat['X_train']
  testset = dat['X_test']
  return trainset, testset

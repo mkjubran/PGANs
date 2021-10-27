@@ -15,7 +15,7 @@ import torch.nn.functional as F
 
 import utils
 import data
-import nets32 as nets
+import nets64 as nets
 import train_TB
 import shutil
 import pdb
@@ -79,7 +79,7 @@ parser.add_argument('--restrict_sigma', type=int, default=0, help='whether to re
 args = parser.parse_args()
 
 if args.model == 'presgan':
-    args.results_folder = '../../'+args.model+'_lambda_'+str(args.lambda_)+'_GS'+str(args.seed)
+    args.results_folder = '../../'+args.model+'_lambda_'+str(args.lambda_)+'_lr'+str(args.lrG)+'_imageSize'+str(args.imageSize)+'_GS'+str(args.seed)
     #args.results_folder_TB = '../../'+args.model+'_TB_lambda_'+str(args.lambda_)
 else:
     args.results_folder = '../../'+args.model

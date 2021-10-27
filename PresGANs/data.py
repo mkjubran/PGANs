@@ -5,6 +5,7 @@ import os
 import torchvision
 import random
 import scipy
+import pdb
 
 from scipy.spatial.distance import pdist, squareform
 
@@ -30,8 +31,7 @@ def load_data(name, dataroot, batch_size, device, imgsize=None,
             os.makedirs(data_path)
         dat = create_data(
             name, data_path, batch_size, device, imgsize, Ntrain, Ntest, n_mixtures, radius, std)
-        if name != 'celeba':
-            with open(pkl_file, 'wb') as f:
+        with open(pkl_file, 'wb') as f:
                 pickle.dump(dat, f)
     else:
         with open(pkl_file, 'rb') as f:
@@ -116,6 +116,34 @@ def create_data(name, data_path, batch_size, device, imgsize, Ntrain, Ntest, n_m
 
         cifar = torchvision.datasets.CIFAR10(root=data_path, download=True, transform=transform, train=False)
         test_loader = DataLoader(cifar, batch_size=1, shuffle=False, num_workers=0)
+        X_test = torch.zeros(len(test_loader), nc, imgsize, imgsize)
+        for i, x in enumerate(test_loader):
+            X_test[i, :, :, :] = x[0]
+            if i % 1000 == 0:
+                print('i: {}/{}'.format(i, len(test_loader)))
+
+        dat = {'X_train': X_training, 'X_test': X_test, 'nc': nc}
+
+
+    elif name == 'celeba':
+        nc = 3
+        transform = transforms.Compose([
+                transforms.Resize(imgsize),
+                transforms.CenterCrop(imgsize),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+       
+        celeba = torchvision.datasets.CelebA(root=data_path, download=True, transform=transform, split='train')
+        train_loader = DataLoader(celeba, batch_size=1, shuffle=True, num_workers=0)
+        X_training = torch.zeros(len(train_loader), nc, imgsize, imgsize)
+
+        for i, x in enumerate(train_loader):
+            X_training[i, :, :, :] = x[0]
+            if i % 10000 == 0:
+                print('i: {}/{}'.format(i, len(train_loader)))
+
+        celeba = torchvision.datasets.CelebA(root=data_path, download=True, transform=transform, split='test')
+        test_loader = DataLoader(celeba, batch_size=1, shuffle=False, num_workers=0)
         X_test = torch.zeros(len(test_loader), nc, imgsize, imgsize)
         for i, x in enumerate(test_loader):
             X_test[i, :, :, :] = x[0]

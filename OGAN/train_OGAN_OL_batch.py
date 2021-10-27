@@ -24,7 +24,10 @@ import numpy as np
 import math
 import random
 
+#from torchvision.models.inception import inception_v3
+import InceptionV3
 import inception_score as iscore
+import fid_score as fidscore
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -350,6 +353,11 @@ if __name__ == "__main__":
  netE2Orig.load_state_dict(copy.deepcopy(netE2.state_dict()))
  netE2Orig.eval()
 
+ ##-- Load InceptionV3 model to compute FID
+ block_idx = InceptionV3.InceptionV3.BLOCK_INDEX_BY_DIM[2048]
+ inception_model = InceptionV3.InceptionV3([block_idx])
+ inception_model=inception_model.to(device)
+
  ##-- Write to tesnorboard
  writer = SummaryWriter(args.ckptOL_G)
 
@@ -457,8 +465,9 @@ if __name__ == "__main__":
          Counter_G1test_E2 = 0
          Counter_G2test_E1 = 0
          ISsumG1=0; ISsumG2=0
+         FIDsumG1=0; FIDsumG2=0
          Counter_vald_epoch_batch += 1
-
+         
          MinNTest = min(testsetG1.shape[0],args.valbatches*args.OLbatchSize)
          samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), MinNTest)] 
          samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), MinNTest)]
@@ -497,9 +506,15 @@ if __name__ == "__main__":
                 x_hat = x_hat.repeat([1,3,1,1])
              IS = iscore.inception_score(x_hat, cuda=True, batch_size=32, resize=True, splits=1)
              ISsumG2=(ISsumG2+IS[0]);ISmean_G2=ISsumG2/Counter_G1test_E2;
-             print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G1test_E2_mean.item()}, IS = {IS[0]}, ISmean = {ISmean_G2}")
-             writer.add_scalar("Validation IS Sample/G1(testset)-->(E2,G2)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
+             ## Measuring FID score for sample_G1 (real) and x_hat=netG2(z) (fake)
+             FID_G2 = fidscore.calculate_fretchet(sample_G1,x_hat,inception_model)
+             FIDsumG2 = FIDsumG2 + FID_G2; FIDmean_G2=FIDsumG2/Counter_G1test_E2
+
+             print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G1test_E2_mean.item()}, IS = {IS[0]}, ISmean = {ISmean_G2}, FID = {FID_G2}, FIDmean = {FIDmean_G2}")
+             writer.add_scalar("Validation IS Sample/G1(testset)-->(E2,G2)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation FID Sample/G1(testset)-->(E2,G2)", FID_G2,Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+            
              ## Validation by measuring Likelihood of G1
              Counter_G2test_E1 += 1
              sample_G2 = samples_G2test[cnt:cnt+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
@@ -522,20 +537,32 @@ if __name__ == "__main__":
                 x_hat = x_hat.repeat([1,3,1,1])
              IS = iscore.inception_score(x_hat, cuda=True, batch_size=32, resize=True, splits=1)
              ISsumG1=(ISsumG1+IS[0]);ISmean_G1=ISsumG1/Counter_G2test_E1
-             print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G2test_E1_mean.item()} IS = {IS[0]}, ISmean = {ISmean_G1}")
+
+             ## Measuring FID score for sample_G2 (real) and x_hat=netG1(z) (fake)
+             FID_G1 = fidscore.calculate_fretchet(sample_G2,x_hat,inception_model)
+             FIDsumG1 = FIDsumG1 + FID_G1; FIDmean_G1=FIDsumG1/Counter_G2test_E1
+
+             print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G2test_E1_mean.item()} IS = {IS[0]}, ISmean = {ISmean_G1} , FID = {FID_G1}, FIDmean = {FIDmean_G1}")
              writer.add_scalar("Validation IS Sample/G2(testset)-->(E1,G1)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
-  
+             writer.add_scalar("Validation FID Sample/G2(testset)-->(E1,G1)", FID_G1,Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )  
+
              writer.add_scalar("Validation LL Moving Average/G1(testset)-->(E2,G2)", LL_G1test_E2_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
              writer.add_scalar("Validation LL Moving Average/G2(testset)-->(E1,G1)", LL_G2test_E1_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
              writer.add_scalar("IS Moving Average/G1(testset)-->(E2,G2)", ISmean_G2.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
              writer.add_scalar("IS Moving Average/G2(testset)-->(E1,G1)", ISmean_G1.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
+             writer.add_scalar("FID Moving Average/G1(testset)-->(E2,G2)", FIDmean_G2.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("FID Moving Average/G2(testset)-->(E1,G1)", FIDmean_G1.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+
          writer.add_scalar("Validation LL epoch/G2(testset)-->(E1,G1)", LL_G2test_E1_mean.item(), Counter_vald_epoch_batch )
          writer.add_scalar("Validation LL epoch/G1(testset)-->(E2,G2)", LL_G1test_E2_mean.item(), Counter_vald_epoch_batch )
 
          writer.add_scalar("IS epoch/G2(testset)-->(E1,G1)", ISmean_G2, Counter_vald_epoch_batch )
          writer.add_scalar("IS epoch/G1(testset)-->(E2,G2)", ISmean_G1, Counter_vald_epoch_batch )
+
+         writer.add_scalar("FID epoch/G2(testset)-->(E1,G1)", FIDmean_G2, Counter_vald_epoch_batch )
+         writer.add_scalar("FID epoch/G1(testset)-->(E2,G2)", FIDmean_G1, Counter_vald_epoch_batch )
 
     ##-- writing to Tensorboard
     if (args.mode == 'train') or (args.mode == 'train_validate'):
