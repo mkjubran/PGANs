@@ -1,15 +1,18 @@
 import numpy as np
 from scipy import linalg
+import pdb
 
-def calculate_activation_statistics(images,model,batch_size=128, dims=2048,
-                    cuda=False):
+def calculate_activation_statistics(images,model,device,batch_size=128, dims=2048):
     model.eval()
     act=np.empty((len(images), dims))
-    
+    batch=images.to(device)
+    '''
     if cuda:
+        batch=images.cuda()
         batch=images.cuda()
     else:
         batch=images
+    '''
     pred = model(batch)[0]
 
         # If model output is not scalar, apply global spatial average pooling.
@@ -67,9 +70,9 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
 
 
-def calculate_fretchet(images_real,images_fake,model):
-     mu_1,std_1=calculate_activation_statistics(images_real,model,cuda=True)
-     mu_2,std_2=calculate_activation_statistics(images_fake,model,cuda=True)
+def calculate_fretchet(images_real,images_fake,model,device):
+     mu_1,std_1=calculate_activation_statistics(images_real,model,device)
+     mu_2,std_2=calculate_activation_statistics(images_fake,model,device)
     
      """get fretched distance"""
      fid_value = calculate_frechet_distance(mu_1, std_1, mu_2, std_2)
