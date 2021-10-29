@@ -34,5 +34,5 @@ python3 train_OGAN_OL_batch.py \
           --overlap_loss_min -10000000000 \
           --valevery 200 \
           --valbatches 100 \
-          --mode train_validate\
+          --mode validate\
           --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32 --ncg 1 --nc 1 --lrE1 0.0002 --lrE2 0.0002
