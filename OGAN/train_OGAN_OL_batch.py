@@ -501,6 +501,7 @@ if __name__ == "__main__":
              LL_G1test_E2_mean=likelihood_G1test_E2_mean
              writer.add_scalar("Validation LL/Sample: G1(testset)-->(E2,G2)", likelihood_sample.item(),  Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
              writer.add_scalar("Validation LL/Moving Average: G1(testset)-->(E2,G2)", LL_G1test_E2_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation LL/Moving Average: G1(testset)-->(E2,G2) (bits/dim)", LL_G1test_E2_mean.item()/(math.log(2)*(args.imageSize**2)*args.nc), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
              ## Validation by measuring Inception Score of G2
              x_hat = netG2(z)
@@ -528,6 +529,7 @@ if __name__ == "__main__":
              LL_G2test_E1_mean=likelihood_G2test_E1_mean
              writer.add_scalar("Validation LL/Sample: G2(testset)-->(E1,G1)", likelihood_sample.item(),  Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
              writer.add_scalar("Validation LL/Moving Average: G2(testset)-->(E1,G1)", LL_G2test_E1_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation LL/Moving Average: G2(testset)-->(E1,G1) (bits/dim)", LL_G2test_E1_mean.item()/(math.log(2)*(args.imageSize**2)*args.nc), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
              ## Validation by measuring Inception Score of G1
              x_hat = netG1(z)
@@ -567,6 +569,9 @@ if __name__ == "__main__":
 
          writer.add_scalar("Validation LL/epoch: G2(testset)-->(E1,G1)", LL_G2test_E1_mean.item(), Counter_vald_epoch_batch )
          writer.add_scalar("Validation LL/epoch: G1(testset)-->(E2,G2)", LL_G1test_E2_mean.item(), Counter_vald_epoch_batch )
+
+         writer.add_scalar("Validation LL/epoch: G2(testset)-->(E1,G1) (bits/dim)", LL_G2test_E1_mean.item()/(math.log(2)*(args.imageSize**2)*args.nc), Counter_vald_epoch_batch )
+         writer.add_scalar("Validation LL/epoch: G1(testset)-->(E2,G2) (bits/dim)", LL_G1test_E2_mean.item()/(math.log(2)*(args.imageSize**2)*args.nc), Counter_vald_epoch_batch )
 
          writer.add_scalar("Validation IS/epoch: G2(testset)-->(E1,G1)", ISmean_G2, Counter_vald_epoch_batch )
          writer.add_scalar("Validation IS/epoch: G1(testset)-->(E2,G2)", ISmean_G1, Counter_vald_epoch_batch )
