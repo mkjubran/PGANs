@@ -8,14 +8,14 @@ python3 train_OGAN_OL_batch.py \
           --logsigma_file_G2  ../../../PresGANs/mnistimageSize32/SaveS2020/presgan_lambda_0.0_GS2020/log_sigma_mnist_20.pth \
           --ckptD2            ../../../PresGANs/mnistimageSize32/SaveS2020/presgan_lambda_0.0_GS2020/netD_presgan_mnist_epoch_20.pth \
           --ckptE2            ../../../PresGANs/mnistimageSize32/SaveS2020/VAEncoderType2_lambda0.0_GS2020epoch20/netE_presgan_MNIST_epoch_19.pth\
-          --ckptOL_E1         ../../../PresGANs/tmnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/E1Type2 \
-          --save_OL_E1        ../../../PresGANs/tmnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/E1Type2_Images \
-          --ckptOL_E2         ../../../PresGANs/tmnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/E2Type2 \
-          --save_OL_E2        ../../../PresGANs/tmnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/E2Type2_Images \
-          --ckptOL            ../../../PresGANs/tmnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/OLoss \
-          --ckptOL_G          ../../../PresGANs/tmnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/G \
-          --ckptOL_G1         ../../../PresGANs/tmnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/G1_Images \
-          --ckptOL_G2         ../../../PresGANs/tmnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/G2_Images \
+          --ckptOL_E1         ../../../PresGANs/mnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/E1Type2 \
+          --save_OL_E1        ../../../PresGANs/mnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/E1Type2_Images \
+          --ckptOL_E2         ../../../PresGANs/mnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/E2Type2 \
+          --save_OL_E2        ../../../PresGANs/mnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/E2Type2_Images \
+          --ckptOL            ../../../PresGANs/mnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/OLoss \
+          --ckptOL_G          ../../../PresGANs/mnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/G \
+          --ckptOL_G1         ../../../PresGANs/mnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/G1_Images \
+          --ckptOL_G2         ../../../PresGANs/mnist32OLoss/tvGAN_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020/G2_Images \
           --S 2000 \
           --seed_G1 2019 \
           --seed_G2 2020 \
@@ -31,9 +31,8 @@ python3 train_OGAN_OL_batch.py \
           --OLbatchSize 100\
           --num_gen_images 100\
           --GPU 0 \
-          --overlap_loss_min 0 \
+          --overlap_loss_min -10000000000 \
           --valevery 200 \
           --valbatches 100 \
           --mode train_validate\
-          --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32
-
+          --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32 --ncg 1 --nc 1 --lrE1 0.0002 --lrE2 0.0002

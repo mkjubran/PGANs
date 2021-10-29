@@ -30,9 +30,9 @@ python3 train_OGAN_OL_batch.py \
           --batchSize 100\
           --OLbatchSize 100\
           --num_gen_images 100\
-          --GPU 1 \
+          --GPU 0 \
           --overlap_loss_min -10000000000 \
-          --valevery 200 \
-          --valbatches 100 \
-          --mode validate\
+          --valevery 20 \
+          --valbatches 20 \
+          --mode train_validate\
           --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32 --ncg 3 --nc 3 --lrE1 0.0002 --lrE2 0.0002

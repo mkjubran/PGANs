@@ -356,7 +356,7 @@ if __name__ == "__main__":
  ##-- Load InceptionV3 model to compute FID
  block_idx = InceptionV3.InceptionV3.BLOCK_INDEX_BY_DIM[2048]
  inception_model = InceptionV3.InceptionV3([block_idx])
- inception_model=inception_model.to(device)
+ inception_model=inception_model.to('cpu')
 
  ##-- Write to tesnorboard
  writer = SummaryWriter(args.ckptOL_G)
@@ -467,6 +467,8 @@ if __name__ == "__main__":
          ISsumG1=0; ISsumG2=0
          FIDsumG1=0; FIDsumG2=0
          Counter_vald_epoch_batch += 1
+         FID_Counter_G1test_E2 = 0
+         FID_Counter_G2test_E1 = 0
          
          MinNTest = min(testsetG1.shape[0],args.valbatches*args.OLbatchSize)
          samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), MinNTest)] 
@@ -497,24 +499,20 @@ if __name__ == "__main__":
                 #likelihood_G1test_E2_mean = torch.logsumexp(likelihood_G1test_E2,1)-torch.log(torch.tensor(likelihood_G1test_E2.shape[1]))
                 likelihood_G1test_E2_mean = torch.mean(likelihood_G1test_E2,1)
              LL_G1test_E2_mean=likelihood_G1test_E2_mean
-             #print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G1test_E2_mean.item()}")
-             writer.add_scalar("Validation LL Sample/G1(testset)-->(E2,G2)", likelihood_sample.item(),  Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation LL/Sample: G1(testset)-->(E2,G2)", likelihood_sample.item(),  Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation LL/Moving Average: G1(testset)-->(E2,G2)", LL_G1test_E2_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
-             ## Measuring Inception Score
+             ## Validation by measuring Inception Score of G2
              x_hat = netG2(z)
              if x_hat.shape[1] != 3:
                 x_hat = x_hat.repeat([1,3,1,1])
              IS = iscore.inception_score(x_hat, device, batch_size=32, resize=True, splits=1)
              ISsumG2=(ISsumG2+IS[0]);ISmean_G2=ISsumG2/Counter_G1test_E2;
+             writer.add_scalar("Validation IS/Sample: G1(testset)-->(E2,G2)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation IS/Moving Average: G1(testset)-->(E2,G2)", ISmean_G2.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
-             ## Measuring FID score for sample_G1 (real) and x_hat=netG2(z) (fake)
-             FID_G2 = fidscore.calculate_fretchet(sample_G1,x_hat,inception_model,device)
-             FIDsumG2 = FIDsumG2 + FID_G2; FIDmean_G2=FIDsumG2/Counter_G1test_E2
-
-             print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G1test_E2_mean.item()}, IS = {IS[0]}, ISmean = {ISmean_G2}, FID = {FID_G2}, FIDmean = {FIDmean_G2}")
-             writer.add_scalar("Validation IS Sample/G1(testset)-->(E2,G2)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
-             writer.add_scalar("Validation FID Sample/G1(testset)-->(E2,G2)", FID_G2,Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
-            
+             print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G1test_E2} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G1test_E2_mean.item()}, IS = {IS[0]}, ISmean = {ISmean_G2}")
+        
              ## Validation by measuring Likelihood of G1
              Counter_G2test_E1 += 1
              sample_G2 = samples_G2test[cnt:cnt+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
@@ -528,51 +526,63 @@ if __name__ == "__main__":
                 #likelihood_G2test_E1_mean = torch.logsumexp(likelihood_G2test_E1,1)-torch.log(torch.tensor(likelihood_G2test_E1.shape[1]))
                 likelihood_G2test_E1_mean = torch.mean(likelihood_G2test_E1,1)
              LL_G2test_E1_mean=likelihood_G2test_E1_mean
-             #print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G2test_E1_mean.item()}")
-             writer.add_scalar("Validation LL Sample/G2(testset)-->(E1,G1)", likelihood_sample.item(),  Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation LL/Sample: G2(testset)-->(E1,G1)", likelihood_sample.item(),  Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation LL/Moving Average: G2(testset)-->(E1,G1)", LL_G2test_E1_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
-             ## Measuring Inception Score
+             ## Validation by measuring Inception Score of G1
              x_hat = netG1(z)
              if x_hat.shape[1] != 3:
                 x_hat = x_hat.repeat([1,3,1,1])
              IS = iscore.inception_score(x_hat, device, batch_size=32, resize=True, splits=1)
              ISsumG1=(ISsumG1+IS[0]);ISmean_G1=ISsumG1/Counter_G2test_E1
+             writer.add_scalar("Validation IS/Sample: G2(testset)-->(E1,G1)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+             writer.add_scalar("Validation IS/Moving Average: G2(testset)-->(E1,G1)", ISmean_G1.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
-             ## Measuring FID score for sample_G2 (real) and x_hat=netG1(z) (fake)
-             FID_G1 = fidscore.calculate_fretchet(sample_G2,x_hat,inception_model, device)
-             FIDsumG1 = FIDsumG1 + FID_G1; FIDmean_G1=FIDsumG1/Counter_G2test_E1
+             print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G2test_E1_mean.item()} IS = {IS[0]}, ISmean = {ISmean_G1}")
 
-             print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, LL (batch) = {likelihood_sample.item()}, LL (moving average) = {LL_G2test_E1_mean.item()} IS = {IS[0]}, ISmean = {ISmean_G1} , FID = {FID_G1}, FIDmean = {FIDmean_G1}")
-             writer.add_scalar("Validation IS Sample/G2(testset)-->(E1,G1)", IS[0],Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
-             writer.add_scalar("Validation FID Sample/G2(testset)-->(E1,G1)", FID_G1,Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )  
+         ## Validation by measuring FID score for G2: sample_G1 (real) and x_hat=netG2(z) (fake)
+         FID_sample_G1 = samples_G1test[0:args.valbatches*args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
+         _, logvar_first, z, _ = netE2Orig(FID_sample_G1, args)
+         x_hat = netG2(z)
+         if FID_sample_G1.shape[1] != 3:
+            FID_sample_G1 = FID_sample_G1.repeat([1,3,1,1])
+         if x_hat.shape[1] != 3:
+            x_hat = x_hat.repeat([1,3,1,1])
+         FID_G2 = fidscore.calculate_fretchet(FID_sample_G1,x_hat,inception_model,'cpu')
+         FIDmean_G2 = FID_G2
+         print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, FID = {FID_G2}")
 
-             writer.add_scalar("Validation LL Moving Average/G1(testset)-->(E2,G2)", LL_G1test_E2_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
-             writer.add_scalar("Validation LL Moving Average/G2(testset)-->(E1,G1)", LL_G2test_E1_mean.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
 
-             writer.add_scalar("IS Moving Average/G1(testset)-->(E2,G2)", ISmean_G2.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
-             writer.add_scalar("IS Moving Average/G2(testset)-->(E1,G1)", ISmean_G1.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+         ## Validation by measuring FID score for G1: sample_G2 (real) and x_hat=netG1(z) (fake)
+         FID_sample_G2 = samples_G2test[0:args.valbatches*args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
+         _, logvar_first, z, _ = netE1Orig(FID_sample_G2, args)
+         x_hat = netG1(z)
+         if FID_sample_G2.shape[1] != 3:
+            FID_sample_G2 = FID_sample_G2.repeat([1,3,1,1])
+         if x_hat.shape[1] != 3:
+            x_hat = x_hat.repeat([1,3,1,1])
+         FID_G1 = fidscore.calculate_fretchet(FID_sample_G2,x_hat,inception_model,'cpu')
+         FIDmean_G1 = FID_G1
+         print(f"Validation: G2(testset)-->(E1,G1)({Counter_epoch_batch}): batch {Counter_G2test_E1} of {int(args.valbatches)}, FID = {FID_G1}")
 
-             writer.add_scalar("FID Moving Average/G1(testset)-->(E2,G2)", FIDmean_G2.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
-             writer.add_scalar("FID Moving Average/G2(testset)-->(E1,G1)", FIDmean_G1.item(), Counter_vald_epoch_batch*args.valbatches*args.OLbatchSize+cnt )
+         writer.add_scalar("Validation LL/epoch: G2(testset)-->(E1,G1)", LL_G2test_E1_mean.item(), Counter_vald_epoch_batch )
+         writer.add_scalar("Validation LL/epoch: G1(testset)-->(E2,G2)", LL_G1test_E2_mean.item(), Counter_vald_epoch_batch )
 
-         writer.add_scalar("Validation LL epoch/G2(testset)-->(E1,G1)", LL_G2test_E1_mean.item(), Counter_vald_epoch_batch )
-         writer.add_scalar("Validation LL epoch/G1(testset)-->(E2,G2)", LL_G1test_E2_mean.item(), Counter_vald_epoch_batch )
+         writer.add_scalar("Validation IS/epoch: G2(testset)-->(E1,G1)", ISmean_G2, Counter_vald_epoch_batch )
+         writer.add_scalar("Validation IS/epoch: G1(testset)-->(E2,G2)", ISmean_G1, Counter_vald_epoch_batch )
 
-         writer.add_scalar("IS epoch/G2(testset)-->(E1,G1)", ISmean_G2, Counter_vald_epoch_batch )
-         writer.add_scalar("IS epoch/G1(testset)-->(E2,G2)", ISmean_G1, Counter_vald_epoch_batch )
-
-         writer.add_scalar("FID epoch/G2(testset)-->(E1,G1)", FIDmean_G2, Counter_vald_epoch_batch )
-         writer.add_scalar("FID epoch/G1(testset)-->(E2,G2)", FIDmean_G1, Counter_vald_epoch_batch )
+         writer.add_scalar("Validation FID/epoch: G2(testset)-->(E1,G1)", FIDmean_G2, Counter_vald_epoch_batch )
+         writer.add_scalar("Validation FID/epoch: G1(testset)-->(E2,G2)", FIDmean_G1, Counter_vald_epoch_batch )
 
     ##-- writing to Tensorboard
     if (args.mode == 'train') or (args.mode == 'train_validate'):
       if (Counter_epoch_batch % 5 == 0) or (Counter_epoch_batch % args.valevery == 0) or (Counter_epoch_batch == 1):
-         writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
-         writer.add_scalar("Overlap Loss_batch/OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
-         writer.add_scalar("Overlap Loss_batch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
-         writer.add_scalar("Overlap Loss_batch/ Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
-         writer.add_scalar("All Loss_batch/ Loss G1", AdvLossG1, Counter_epoch_batch)
-         writer.add_scalar("All Loss_batch/ Loss G2", AdvLossG2, Counter_epoch_batch)
+         writer.add_scalar("Training OL/Overlap Loss_batch: OL[G2-->(E1,G1)]", OLossG1_No_W1, Counter_epoch_batch)
+         writer.add_scalar("Training OL/Overlap Loss_batch: OL[G1-->(E2,G2)]", OLossG2_No_W2, Counter_epoch_batch)
+         writer.add_scalar("Training OL/Overlap Loss_batch: OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, Counter_epoch_batch)
+         writer.add_scalar("Training OL/Overlap Loss_batch: Distance(G1,G2)", Distance_G1G2_No_W, Counter_epoch_batch)
+         writer.add_scalar("Training G1/All Loss_batch: Loss G1", AdvLossG1, Counter_epoch_batch)
+         writer.add_scalar("Training G2/All Loss_batch: Loss G2", AdvLossG2, Counter_epoch_batch)
 
          DL_G1 = PresGANResultsG1[0]/Counter_epoch_batch
          GL_G1 = PresGANResultsG1[1]/Counter_epoch_batch
@@ -597,37 +607,36 @@ if __name__ == "__main__":
          g_error_entropy_G2 = PresGANResultsG2[8]/Counter_epoch_batch
          g_error_G2 = PresGANResultsG2[9]/Counter_epoch_batch
 
+         writer.add_scalar("Training G1/G1-Loss/Loss_D", DL_G1, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-Loss/Loss_G", GL_G1, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-D(x)", Dx_G1, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-DL_G/DL_G_z1", DL_G1_z1, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-DL_G/DL_G_z2", DL_G1_z2, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-sigma/sigma_min", sigma_x_G1_min, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-sigma/sigma_max", sigma_x_G1_max, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-g_error_criterion_G1", g_error_criterion_G1, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-g_error_entropy_G1", g_error_entropy_G1, Counter_epoch_batch)
+         writer.add_scalar("Training G1/G1-g_error_G1", g_error_G1, Counter_epoch_batch)
 
-         writer.add_scalar("G1/G1-Loss/Loss_D", DL_G1, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-Loss/Loss_G", GL_G1, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-D(x)", Dx_G1, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-DL_G/DL_G_z1", DL_G1_z1, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-DL_G/DL_G_z2", DL_G1_z2, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-sigma/sigma_min", sigma_x_G1_min, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-sigma/sigma_max", sigma_x_G1_max, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-g_error_criterion_G1", g_error_criterion_G1, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-g_error_entropy_G1", g_error_entropy_G1, Counter_epoch_batch)
-         writer.add_scalar("G1/G1-g_error_G1", g_error_G1, Counter_epoch_batch)
-
-         writer.add_scalar("G2/G2-Loss/Loss_D", DL_G2, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-Loss/Loss_G", GL_G2, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-D(x)", Dx_G2, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-DL_G/DL_G_z1", DL_G2_z1, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-DL_G/DL_G_z2", DL_G2_z2, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-sigma/sigma_min", sigma_x_G2_min, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-sigma/sigma_max", sigma_x_G2_max, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-g_error_criterion_G2", g_error_criterion_G2, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-g_error_entropy_G2", g_error_entropy_G2, Counter_epoch_batch)
-         writer.add_scalar("G2/G2-g_error_G2", g_error_G2, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-Loss/Loss_D", DL_G2, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-Loss/Loss_G", GL_G2, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-D(x)", Dx_G2, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-DL_G/DL_G_z1", DL_G2_z1, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-DL_G/DL_G_z2", DL_G2_z2, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-sigma/sigma_min", sigma_x_G2_min, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-sigma/sigma_max", sigma_x_G2_max, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-g_error_criterion_G2", g_error_criterion_G2, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-g_error_entropy_G2", g_error_entropy_G2, Counter_epoch_batch)
+         writer.add_scalar("Training G2/G2-g_error_G2", g_error_G2, Counter_epoch_batch)
 
 
       if ((Counter_epoch_batch % int(len(trainsetG1)/args.batchSize) == 0)):
-         writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)]", OLossG1_No_W1, epoch)
-         writer.add_scalar("Overlap Loss_epoch/OL[G1-->(E2,G2)]", OLossG2_No_W2, epoch)
-         writer.add_scalar("Overlap Loss_epoch/OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, epoch)
-         writer.add_scalar("Overlap Loss_epoch/ Distance(G1,G2)", Distance_G1G2_No_W, epoch)
-         writer.add_scalar("All Loss_epoch/ Loss G1", AdvLossG1, epoch)
-         writer.add_scalar("All Loss_epoch/ Loss G2", AdvLossG2, epoch)
+         writer.add_scalar("Training OL/Overlap Loss_epoch: OL[G2-->(E1,G1)]", OLossG1_No_W1, epoch)
+         writer.add_scalar("Training OL/Overlap Loss_epoch: OL[G1-->(E2,G2)]", OLossG2_No_W2, epoch)
+         writer.add_scalar("Training OL/Overlap Loss_epoch: OL[G2-->(E1,G1)] + OL[G1-->(E2,G2)]", TrueOLoss_No_W1W2, epoch)
+         writer.add_scalar("Training OL/Overlap Loss_epoch: Distance(G1,G2)", Distance_G1G2_No_W, epoch)
+         writer.add_scalar("Training G1/All Loss_epoch: Loss G1", AdvLossG1, epoch)
+         writer.add_scalar("Training G2/All Loss_epoch: Loss G2", AdvLossG2, epoch)
 
          writer.flush()
 
