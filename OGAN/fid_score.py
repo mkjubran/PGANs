@@ -5,7 +5,7 @@ import pdb
 def calculate_activation_statistics(images,model,device,batch_size=128, dims=2048):
     model.eval()
     act=np.empty((len(images), dims))
-    batch=images.to(device)
+    batch=images.detach().to(device)
     '''
     if cuda:
         batch=images.cuda()

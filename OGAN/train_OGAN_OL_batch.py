@@ -12,7 +12,7 @@ from torchvision.utils import save_image
 import shutil
 import os
 import pdb
-import nets32 as nets
+import nets64 as nets
 import utils
 import utilsG
 import data
@@ -250,7 +250,7 @@ def sample_from_generator(args,netG):
 ##-- get overlap loss when sample from G1 and apply to E2,G2
 def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2, scale, logsigmaG2, netE2Orig):
  overlap_loss_G1_E2 = []
- samples_G1 = sample_from_generator(args, netG1) # sample from G1
+ samples_G1 = sample_from_generator(args, netG1) #.detach() # sample from G1
  _, logvar_first, _, _ = netE2Orig(samples_G1, args)
 
  if True:
@@ -263,7 +263,7 @@ def OL_sampleG1_applyE2G2(args, device, netG1, netG2, netE2, netES, optimizerE2,
 ##-- get overlap loss when sample from G2 and apply to E1,G1
 def OL_sampleG2_applyE1G1(args, device, netG2, netG1, netE1, netES, optimizerE1, scale, logsigmaG1, netE1Orig):
  overlap_loss_G2_E1 = []
- samples_G2 = sample_from_generator(args, netG2).detach() # sample from G2
+ samples_G2 = sample_from_generator(args, netG2) #.detach() # sample from G2
  _, logvar_first, _, _ = netE1Orig(samples_G2, args)
 
  if True:
@@ -383,7 +383,6 @@ if __name__ == "__main__":
        save_imgs = True
     else:
        save_imgs = False
-
     ##--------- Train G1
     if (args.mode == 'train') or (args.mode == 'train_validate'):
       ##-- measuer Ovelap loss to train G1
@@ -550,7 +549,6 @@ if __name__ == "__main__":
                FID_sample_G1 = FID_sample_G1.repeat([1,3,1,1])
             if x_hat.shape[1] != 3:
                x_hat = x_hat.repeat([1,3,1,1])
-            pdb.set_trace()
             FID_G2 = fidscore.calculate_fretchet(FID_sample_G1,x_hat,inception_model,'cpu')
             FIDsumG2=FIDsumG2+FID_G2;FIDmean_G2 = FIDsumG2/FID_Counter_G2;
             print(f"Validation: G1(testset)-->(E2,G2)({Counter_epoch_batch}): batch {FID_Counter_G2} of {int(args.valbatches/FIDstack)}, FID = {FID_G2}")
