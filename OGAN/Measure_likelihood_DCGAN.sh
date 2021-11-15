@@ -9,7 +9,7 @@ python3 measure_likelihood_batch.py \
           --logsigma_file_G2  ../../../PresGANs/mnistimageSize32/SaveS2020/presgan_lambda_0.0_GS2020/log_sigma_mnist_20.pth \
           --ckptD2            ../../../PresGANs/mnistimageSize32/SaveS2020/presgan_lambda_0.0_GS2020/netD_presgan_mnist_epoch_20.pth \
           --ckptE2            ../../../PresGANs/mnistimageSize32/SaveS2020/VAEncoderType2_lambda0.0_GS2020epoch20/netE_presgan_MNIST_epoch_19.pth\
-          --save_likelihood_folder    ../../../PresGANs/MeasureLL_mnistimSize32_DCGANepoch20_W10.0_W20.0_GS2019_GS2020 \
+          --save_likelihood_folder    ../../../PresGANs/MeasureLL_mnistimSize32_DCGANepoch20_GS2019_GS2020 \
           --number_samples_likelihood 10000\
           --S 2000 \
           --seed_G1 2019 \
