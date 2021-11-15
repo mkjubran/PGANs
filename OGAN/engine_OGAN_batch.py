@@ -298,8 +298,8 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
 
 
 def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
- log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
- writer = SummaryWriter(log_dir)
+ #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+ #writer = SummaryWriter(log_dir)
 
  netE.train()
  running_loss = 0.0
@@ -342,17 +342,17 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if overlap_loss_sum > overlap_loss_min:
             likelihood_sample_final = overlap_loss_sum
-            writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
+        #    writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
 
         #-- write to tensorboard
-        if (OLepoch % 50 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
-            img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
-            writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
+        #if (OLepoch % 50 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
+        #    img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
+        #    writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
 
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k = 1.3
+ k = 1.2
  if True:
   ##-- Create a standard MVN
   mean = torch.zeros(mu.shape[0],args.nzg).to(device)

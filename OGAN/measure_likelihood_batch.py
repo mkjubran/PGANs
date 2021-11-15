@@ -184,7 +184,7 @@ if __name__ == "__main__":
  ##-- preparing folders to save results of Likelihood
  likelihood_folders(args)
 
-##-- loading and spliting datasets for G1
+ ##-- loading and spliting datasets for G1
  trainsetG1, testsetG1 = load_datasets(data,args,device, args.seed_G1)
 
  ##-- loading and spliting datasets for G2
@@ -222,6 +222,20 @@ if __name__ == "__main__":
  netE2 = nets.ConvVAEType2(args).to(device)
  netE2 = load_encoder(netE2,args.ckptE2)
  optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
+
+ ##-- define a new encoder netES to find OL per sample (need to keep the orogonal netE))
+ netES = nets.ConvVAEType2(args).to(device)
+ optimizerES = optim.Adam(netES.parameters(), lr=args.lrOL)
+
+ # create a copy of E1
+ netE1Orig = nets.ConvVAEType2(args).to(device)
+ netE1Orig.load_state_dict(copy.deepcopy(netE1.state_dict()))
+ netE1Orig.eval()
+
+ # create a copy of E2
+ netE2Orig = nets.ConvVAEType2(args).to(device)
+ netE2Orig.load_state_dict(copy.deepcopy(netE2.state_dict()))
+ netE2Orig.eval()
 
  ##-- setting scale and selecting a random test sample
  scale = 0.01*torch.ones(args.imageSize**2)
@@ -275,7 +289,8 @@ if __name__ == "__main__":
 
     ##-- compute OL where samples from G1 are applied to (E2,G2)
     sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-    likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
+    _, logvar_first, _, _ = netE2Orig(sample_G1, args)
+    likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder,logvar_first)
     if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
       print(f"G1-->(E2,G2): batch {Counter_G1_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
       Counter_G1_E2 -= 1
@@ -287,7 +302,8 @@ if __name__ == "__main__":
 
     ##-- compute OL where samples from G2 are applied to (E1,G1)
     sample_G2 = samples_G2[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-    likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
+    _, logvar_first, _, _ = netE1Orig(sample_G2, args)
+    likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder,logvar_first)
     if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
       print(f"G2-->(E1,G1): batch {Counter_G2_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
       Counter_G2_E1 -= 1
@@ -299,7 +315,8 @@ if __name__ == "__main__":
     if args.sample_from == 'dataset' and (samples_G1test.shape[0] >= j+args.OLbatchSize):
       ##-- compute OL where samples from G1(testset) are applied to (E2,G2)
       sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-      likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder)
+      _, logvar_first, _, _ = netE2Orig(sample_G1, args)
+      likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder,logvar_first)
       if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
         print(f"G1(testset)-->(E2,G2): batch {Counter_G1test_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
         Counter_G1test_E2 -= 1
@@ -310,7 +327,8 @@ if __name__ == "__main__":
 
       ##-- compute OL where samples from G2(testset) are applied to (E1,G1)
       sample_G2 = samples_G2test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-      likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder)
+      _, logvar_first, _, _ = netE1Orig(sample_G2, args)
+      likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder,logvar_first)
       if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
         print(f"G2(testset)-->(E1,G1): batch {Counter_G2test_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
         Counter_G2test_E1 -= 1

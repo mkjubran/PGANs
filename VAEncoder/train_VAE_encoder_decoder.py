@@ -77,6 +77,7 @@ if __name__ == "__main__":
 
  ##-- setup the VAE Decoder and decoder training parameters
  netDec = nets.VAEGenerator(args).to(device)
+ pdb.set_trace()
  #netDec = nets.LinearVADecoder(args).to(device)
  optimizerDec = optim.Adam(netDec.parameters(), lr=args.lrE)
 
