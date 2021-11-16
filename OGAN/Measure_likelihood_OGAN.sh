@@ -1,8 +1,8 @@
 Path1='mnistimageSize32'
 Path2='tvGAN_mnistimSize32_lambda0.0_lr0.0002_W10.0_W20.0_valbatches100_S2000_GS2019_GS2020'
-Step='50'
+Step='4000'
 
-Path='../../'$Path1'/'$Path2'/G'
+Path='../../../PresGANs/'$Path1'/'$Path2'/G'
 python3 measure_likelihood_batch.py \
           --dataset mnist \
           --sample_from dataset \
