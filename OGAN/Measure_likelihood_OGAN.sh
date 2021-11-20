@@ -18,9 +18,9 @@ python3 measure_likelihood_batch.py \
           --logsigma_file_G2  $Path'/log_sigma_G2_'$fname'_step_'$Step'.pth' \
           --ckptD2            $Path'/netD2_presgan_'$fname'_step_'$Step'.pth' \
           --ckptE2            '../../../PresGANs/'$fname'imageSize32/SaveS2020/VAEncoderType2_lambda0.0_GS2020'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
-          --save_likelihood_folder    '../../../PresGANs/MeasureLL_'$Path2'/Step'$Step'repeat1'\
+          --save_likelihood_folder    '../../../PresGANs/MeasureLL_'$Path2'/Step'$Step'repeat2'\
           --number_samples_likelihood 10000\
-          --S 20000 \
+          --S 4000 \
           --seed_G1 2019 \
           --seed_G2 2020 \
           --lambda_ 0.0 \
@@ -31,8 +31,8 @@ python3 measure_likelihood_batch.py \
           --nz 100 \
           --OLepochs 50000 \
           --epochs 50 \
-          --batchSize 1\
-          --OLbatchSize 1\
+          --batchSize 100\
+          --OLbatchSize 100\
           --num_gen_images 20\
           --GPU 0 \
           --overlap_loss_min -10000000000 \

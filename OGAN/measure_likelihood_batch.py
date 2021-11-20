@@ -24,6 +24,7 @@ import datetime
 import random
 import sys
 import math
+import pickle
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptG1', type=str, default='', help='a given checkpoint file for generator 1')
@@ -288,17 +289,18 @@ if __name__ == "__main__":
     Counter_G2test_E1 += 1
 
     ##-- compute OL where samples from G1 are applied to (E2,G2)
-    netE2.load_state_dict(copy.deepcopy(netE2Orig.state_dict()))
-    optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
-    netE2.train()
+    #netE2.load_state_dict(copy.deepcopy(netE2Orig.state_dict()))
+    #optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
+    #netE2.train()
     sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
     _, logvar_first, _, _ = netE2Orig(sample_G1, args)
-    likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder,logvar_first)
+    likelihood_samples = engine_OGAN.get_likelihood_MLL(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder,logvar_first)
+    likelihood_sample = torch.mean(likelihood_samples,0)
     if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
       print(f"G1-->(E2,G2): batch {Counter_G1_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
       Counter_G1_E2 -= 1
     else:
-      likelihood_G1_E2.append(likelihood_sample.item())
+      likelihood_G1_E2.extend(likelihood_samples.tolist())
       if Counter_G1_E2 % 50 == 0:
          print(f"G1-->(E2,G2): batch {Counter_G1_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1_E2)}")
       writer.add_scalar("Measure LL/Batch: G1-->(E2,G2)", likelihood_sample.item(), Counter_G1_E2)
@@ -306,18 +308,19 @@ if __name__ == "__main__":
 
 
     ##-- compute OL where samples from G2 are applied to (E1,G1)
-    netE1.load_state_dict(copy.deepcopy(netE1Orig.state_dict()))
-    optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
-    netE1.train()
+    #netE1.load_state_dict(copy.deepcopy(netE1Orig.state_dict()))
+    #optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
+    #netE1.train()
     sample_G2 = samples_G2[j:j+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
     _, logvar_first, _, _ = netE1Orig(sample_G2, args)
-    likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder,logvar_first)
+    likelihood_samples = engine_OGAN.get_likelihood_MLL(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder,logvar_first)
+    likelihood_sample = torch.mean(likelihood_samples,0)
     if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
       print(f"G2-->(E1,G1): batch {Counter_G2_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
       Counter_G2_E1 -= 1
     else:
-      likelihood_G2_E1.append(likelihood_sample.item())
-      if Counter_G2_E1 % 50 == 0:
+      likelihood_G2_E1.extend(likelihood_samples.tolist())
+      if Counter_G2_E1 % 10 == 0:
          print(f"G2-->(E1,G1): batch {Counter_G2_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2_E1)}")
       writer.add_scalar("Measure LL/Bacth: G2-->(E1,G1)", likelihood_sample.item(), Counter_G2_E1)
       writer.add_scalar("Measure LL/Moving Average: G2-->(E1,G1)", statistics.mean(likelihood_G2_E1), Counter_G2_E1)
@@ -325,41 +328,43 @@ if __name__ == "__main__":
       ##-- compute Average L for test samples
       likelihood_G1_G2=torch.cat((torch.FloatTensor(likelihood_G2_E1).view(-1,1),torch.FloatTensor(likelihood_G1_E2).view(-1,1)),1)
       AvgLL=torch.mean(torch.add(torch.logsumexp(likelihood_G1_G2,1),-1*math.log(2)))
-      if Counter_G2_E1 % 50 == 0:
+      if Counter_G2_E1 % 10 == 0:
            print(f"Moving Average: batch {Counter_G2_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, log(0.5L(G1(random))+0.5L(G2(random))) = {AvgLL.item()}")
       writer.add_scalar("Measure LL/ Moving Average: log(0.5L(G1(random))+0.5L(G2(random)))", AvgLL.item(), Counter_G2test_E1)
 
     if args.sample_from == 'dataset' and (samples_G1test.shape[0] >= j+args.OLbatchSize):
       ##-- compute OL where samples from G1(testset) are applied to (E2,G2)
-      netE2.load_state_dict(copy.deepcopy(netE2Orig.state_dict()))
-      optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
-      netE2.train()
+      #netE2.load_state_dict(copy.deepcopy(netE2Orig.state_dict()))
+      #optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
+      #netE2.train()
       sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
       _, logvar_first, _, _ = netE2Orig(sample_G1, args)
-      likelihood_sample = engine_OGAN.get_likelihood(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder,logvar_first)
+      likelihood_samples = engine_OGAN.get_likelihood_MLL(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder,logvar_first)
+      likelihood_sample = torch.mean(likelihood_samples,0)
       if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
         print(f"G1(testset)-->(E2,G2): batch {Counter_G1test_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
         Counter_G1test_E2 -= 1
       else:
-        likelihood_G1test_E2.append(likelihood_sample.item())
-        if Counter_G1test_E2 % 50 == 0:
+        likelihood_G1test_E2.extend(likelihood_samples.tolist())
+        if Counter_G1test_E2 % 10 == 0:
            print(f"G1(testset)-->(E2,G2): batch {Counter_G1test_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1test_E2)}")
         writer.add_scalar("Measure LL/Batch: Testset-->(E2,G2)", likelihood_sample.item(), Counter_G1test_E2)
         writer.add_scalar("Measure LL/Moving Average: G1(testset)-->(E2,G2)", statistics.mean(likelihood_G1test_E2), Counter_G1test_E2)
 
       ##-- compute OL where samples from G2(testset) are applied to (E1,G1)
-      netE1.load_state_dict(copy.deepcopy(netE1Orig.state_dict()))
-      optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
-      netE1.train()
+      #netE1.load_state_dict(copy.deepcopy(netE1Orig.state_dict()))
+      #optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
+      #netE1.train()
       sample_G2 = samples_G2test[j:j+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
       _, logvar_first, _, _ = netE1Orig(sample_G2, args)
-      likelihood_sample = engine_OGAN.get_likelihood(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder,logvar_first)
+      likelihood_samples = engine_OGAN.get_likelihood_MLL(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder,logvar_first)
+      likelihood_sample = torch.mean(likelihood_samples,0)
       if math.isnan(likelihood_sample): ## to avoid training generator with nan loss
         print(f"G2(testset)-->(E1,G1): batch {Counter_G2test_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, Likelihood = {likelihood_sample.item()}")
         Counter_G2test_E1 -= 1
       else:
-        likelihood_G2test_E1.append(likelihood_sample.item())
-        if Counter_G2test_E1 % 50 == 0:
+        likelihood_G2test_E1.extend(likelihood_samples.tolist())
+        if Counter_G2test_E1 % 10 == 0:
            print(f"G2(testset)-->(E1,G1): batch {Counter_G2test_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2test_E1)}")
         writer.add_scalar("Measure LL/Batch: Testset-->(E1,G1)", likelihood_sample.item(), Counter_G2test_E1)
         writer.add_scalar("Measure LL/Moving Average: G2(testset)-->(E1,G1)", statistics.mean(likelihood_G2test_E1), Counter_G2test_E1)
@@ -371,6 +376,20 @@ if __name__ == "__main__":
         if Counter_G2test_E1 % 50 == 0:
            print(f"Moving Average: batch {Counter_G2test_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, log(0.5L(G1(test))+0.5L(G2(test))) = {AvgLL.item()}")
         writer.add_scalar("Measure LL/ Moving Average: log(0.5L(G1(test))+0.5L(G2(test)))", AvgLL.item(), Counter_G2test_E1)
+
+        if ( j % 10 ==0 ) or (j + args.OLbatchSize > args.number_samples_likelihood):
+           with open(args.save_likelihood_folder+'/likelihood_G2_E1.pkl', 'wb') as f:
+              pickle.dump(likelihood_G2test_E1, f)
+
+           with open(args.save_likelihood_folder+'/likelihood_G1_E2.pkl', 'wb') as f:
+              pickle.dump(likelihood_G2test_E1, f)
+
+           with open(args.save_likelihood_folder+'/likelihood_G2test_E1.pkl', 'wb') as f:
+              pickle.dump(likelihood_G2test_E1, f)
+
+           with open(args.save_likelihood_folder+'/likelihood_G1test_E2.pkl', 'wb') as f:
+              pickle.dump(likelihood_G2test_E1, f)
+
 
  writer.flush()
  writer.close()
