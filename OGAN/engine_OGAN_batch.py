@@ -129,7 +129,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
   ##---------------- step is the number of images to be considered in parallel
   if samples.shape[1] > 5:
-     step=5
+     step=20
   else:
      step=samples.shape[1]
   scale = torch.exp(0.5*logsigmaG).to(device).detach()

@@ -1,22 +1,26 @@
 Path1='mnistimageSize32'
-Path2='tvGAN_mnistimSize32_lambda0.0_lr0.0002_W10.0_W20.0_valbatches100_S2000_GS2019_GS2020'
-Step='4000'
+Path2='tvGAN_mnistimSize32_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020'
+fname='mnist'
+FNAME='MNIST'
+VAE_epoch='epoch_20' #mnist 20, cifar 180
+VAEepoch='epoch20' #mnist 20, cifar 180
+Step='6000'
 
 Path='../../../PresGANs/'$Path1'/'$Path2'/G'
 python3 measure_likelihood_batch.py \
           --dataset mnist \
           --sample_from dataset \
-          --ckptG1            $Path'/netG1_presgan_mnist_step_'$Step'.pth' \
-          --logsigma_file_G1  $Path'/log_sigma_G1_mnist_step_'$Step'.pth' \
-          --ckptD1            $Path'/netD1_presgan_mnist_step_'$Step'.pth' \
-          --ckptE1            ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderType2_lambda0.0_GS2019epoch20/netE_presgan_MNIST_epoch_19.pth\
-          --ckptG2            $Path'/netG2_presgan_mnist_step_'$Step'.pth' \
-          --logsigma_file_G2  $Path'/log_sigma_G2_mnist_step_'$Step'.pth' \
-          --ckptD2            $Path'/netD2_presgan_mnist_step_'$Step'.pth' \
-          --ckptE2            ../../../PresGANs/mnistimageSize32/SaveS2020/VAEncoderType2_lambda0.0_GS2020epoch20/netE_presgan_MNIST_epoch_19.pth\
-          --save_likelihood_folder    '../../../PresGANs/MeasureLL_'$Path2'_OGAN/Step'$Step\
+          --ckptG1            $Path'/netG1_presgan_'$fname'_step_'$Step'.pth' \
+          --logsigma_file_G1  $Path'/log_sigma_G1_'$fname'_step_'$Step'.pth' \
+          --ckptD1            $Path'/netD1_presgan_'$fname'_step_'$Step'.pth' \
+          --ckptE1            '../../../PresGANs/'$fname'imageSize32/SaveS2019/VAEncoderType2_lambda0.0_GS2019'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
+          --ckptG2            $Path'/netG2_presgan_'$fname'_step_'$Step'.pth' \
+          --logsigma_file_G2  $Path'/log_sigma_G2_'$fname'_step_'$Step'.pth' \
+          --ckptD2            $Path'/netD2_presgan_'$fname'_step_'$Step'.pth' \
+          --ckptE2            '../../../PresGANs/'$fname'imageSize32/SaveS2020/VAEncoderType2_lambda0.0_GS2020'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
+          --save_likelihood_folder    '../../../PresGANs/MeasureLL_'$Path2'/Step'$Step'repeat1'\
           --number_samples_likelihood 10000\
-          --S 2000 \
+          --S 20000 \
           --seed_G1 2019 \
           --seed_G2 2020 \
           --lambda_ 0.0 \
