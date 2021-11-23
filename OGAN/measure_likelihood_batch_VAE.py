@@ -23,6 +23,7 @@ import numpy as np
 import datetime
 import random
 import sys
+import pickle
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckptDec', type=str, default='', help='a given checkpoint file for decoder')
@@ -152,6 +153,7 @@ if __name__ == "__main__":
  writer = SummaryWriter(log_dir)
 
  Counter = 0
+ Counter_G1test_E2 = 0
  likelihood_Dec_train = []
  likelihood_Dec_test = []
 
@@ -160,7 +162,10 @@ if __name__ == "__main__":
  args.number_samples_likelihood = MinNTrain
 
  #samples_G1 = trainset[random.sample(range(0, len(trainsetG1)), MinNTrain)]
+ #samples_G1test = testset[random.sample(range(0, len(testset)), MinNTest)]
  samples_G1 = trainset[0:MinNTrain]
+ samples_G1test = testset[0:MinNTest]
+
 
  for j in range(0, args.number_samples_likelihood, args.OLbatchSize):
     Counter += 1
@@ -175,28 +180,25 @@ if __name__ == "__main__":
     writer.add_scalar("Validation LL/Dataset(train)-->VAE Dec", statistics.mean(likelihood_Dec_train), Counter)
 
     ##-- validation step
-    if (Counter % args.valevery == 0) or (Counter == 1):
+    if (j+args.OLbatchSize <= samples_G1test.shape[0]):
          netDec.eval()
-         Counter_G1test_E2 = 0
 
-         MinNTest = min(testset.shape[0],args.valbatches*args.OLbatchSize)
-         #samples_G1test = testset[random.sample(range(0, len(testset)), MinNTest)]
-         samples_G1test = testset[0:MinNTest]
+         ## Validation by measuring Likelihood of VAE
+         Counter_G1test_E2 += 1
+         sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
+         likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder)
+         likelihood_sample = torch.mean(likelihood_samples,0)
+         likelihood_Dec_test.extend(likelihood_samples.tolist())
+         print(f"Validation: G1(testset)--> VAE Dec: batch {Counter_G1test_E2} of {int(args.valbatches)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dec_test)}")
+         writer.add_scalar("Validation LL/Moving Average: Dataset(test)-->VAE", statistics.mean(likelihood_Dec_test), Counter)
 
-         if args.valbatches*args.OLbatchSize > samples_G1test.shape[0]:
-            args.valbatches = int(testset.shape[0]/args.OLbatchSize)
+         if (j % 10 == 0) or (j+2*args.OLbatchSize > samples_G1test.shape[0]) :
+           with open(args.save_likelihood_folder+'/likelihood_Dec_test.pkl', 'wb') as f:
+              pickle.dump(likelihood_Dec_test, f)
 
-         for cnt in range(0, args.valbatches*args.OLbatchSize, args.OLbatchSize):
-
-             ## Validation by measuring Likelihood of VAE
-             Counter_G1test_E2 += 1
-             sample_G1 = samples_G1test[cnt:cnt+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-             likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder)
-             likelihood_sample = torch.mean(likelihood_samples,0)
-             likelihood_Dec_test.extend(likelihood_samples.tolist())
-             print(f"Validation: G1(testset)--> VAE Dec: batch {Counter_G1test_E2} of {int(args.valbatches)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dec_test)}")
-             writer.add_scalar("Validation LL/Moving Average: Dataset(test)-->VAE", statistics.mean(likelihood_Dec_test), Counter )
-         writer.add_scalar("Validation LL/Dataset(test)-->VAE", statistics.mean(likelihood_Dec_test), Counter )
+    if ( j % 10 ==0 ) or (j + args.OLbatchSize > args.number_samples_likelihood):
+        with open(args.save_likelihood_folder+'/likelihood_Dec_train.pkl', 'wb') as f:
+           pickle.dump(likelihood_Dec_train, f)
 
  writer.flush()
  writer.close()

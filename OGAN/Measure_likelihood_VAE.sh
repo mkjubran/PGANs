@@ -4,7 +4,7 @@ python3 measure_likelihood_batch_VAE.py \
           --ckptDec                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoder2019/netVADec_MNIST_epoch_49.pth \
           --ckptE                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoder2019/netVAEnc_MNIST_epoch_49.pth \
           --save_likelihood_folder    ../../../PresGANs/VAE_lr0.0002_valbatches100_S2000_VADCGANDec2019/Likelihood_EType2 \
-          --number_samples_likelihood 100000\
+          --number_samples_likelihood 1000\
           --lambda_ 0 \
           --lrOL 0.0002 \
           --beta  10 \
