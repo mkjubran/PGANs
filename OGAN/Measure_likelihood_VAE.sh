@@ -4,20 +4,20 @@ python3 measure_likelihood_batch_VAE.py \
           --ckptDec                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoder2019/netVADec_MNIST_epoch_49.pth \
           --ckptE                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoder2019/netVAEnc_MNIST_epoch_49.pth \
           --save_likelihood_folder    ../../../PresGANs/VAE_lr0.0002_valbatches100_S2000_VADCGANDec2019/Likelihood_EType2 \
-          --number_samples_likelihood 1000\
+          --number_samples_likelihood 100000\
           --lambda_ 0 \
           --lrOL 0.0002 \
           --beta  10 \
           --nz 100 \
           --OLepochs 50000 \
           --epochs 500 \
-          --batchSize 20\
-          --OLbatchSize 20\
+          --batchSize 100\
+          --OLbatchSize 100\
           --num_gen_images 100\
           --seed_VAE 2019 \
-          --S 2000 \
+          --S 10000 \
           --GPU 0 \
           --overlap_loss_min -10000000000 \
-          --valevery 500 \
-          --valbatches 500 \
+          --valevery 600 \
+          --valbatches 600 \
           --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32

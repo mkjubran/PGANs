@@ -366,49 +366,68 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
   std_3d = std_c * std_b
   mvns = torch.distributions.MultivariateNormal(mean, scale_tril=std_3d, validate_args = False)
 
-  ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = 0.01
+  ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
   #std = k*torch.exp(0.5*logvar_first)
-  std = k*torch.ones(scale.shape).to(device)  ## no logsigma for VAE
+  std = k*torch.ones(scale.shape).to(device) 
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
   std_3d = std_c * std_b
   mvnz = torch.distributions.MultivariateNormal(mean, scale_tril=std_3d, validate_args = False)
+
   sample_shape = torch.Size([])
 
   likelihood_sample_final = 0
   log_likelihood_sample_list = torch.tensor([]).to(device)
   ## sample and compute
-  S = args.S
-  samples = mvnz.sample((S,))
-  log_pz = mvns.log_prob(samples)
-  log_rzx = mvnz.log_prob(samples)
+  #S = args.S
+  for cntS in range(0,args.S,1000):
+    S=500
+    samples = mvnz.sample((S,))
+    log_pz = mvns.log_prob(samples)
+    log_rzx = mvnz.log_prob(samples)
 
-  log_pxz_scipy = 0
-  Ta = torch.tensor([-1.]).to(device)
-  Tb = torch.tensor([1.]).to(device)
+    log_pxz_scipy = 0
+    Ta = torch.tensor([-1.]).to(device)
+    Tb = torch.tensor([1.]).to(device)
 
- ##---------------- step is the number of images to be considered in parallel
-  step=5
-  #scale = torch.exp(0.5*logsigmaG).to(device).detach()
-  scale = k*torch.ones(args.imageSize**2).to(device).detach()  ## no logsigma for VAE
-  for cnt in range(0,samples.shape[1],step):
-    sample = samples[:,cnt:cnt+step,:].reshape(S*step,args.nzg)
-    meanG = netDec(sample.view(-1,args.nzg,1,1), args).view(-1,args.imageSize*args.imageSize).to(device).detach()
-    x = data[cnt:cnt+step].view(-1, args.imageSize**2).repeat(S,1).to(device)
-
-    pt = TNorm.TruncatedNormal(meanG, scale, Ta, Tb, validate_args=None)
-    if cnt == 0:
-       log_pxz_scipy = torch.sum(pt.log_prob(x), axis=1).view(S,step)
+    ##---------------- step is the number of images to be considered in parallel
+    if samples.shape[1] > 5:
+       step=5
     else:
-       log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x), axis=1).view(S,step)),1)
-  log_likelihood_samples = (log_pxz_scipy + log_pz - log_rzx)
-  likelihood_samples = torch.log(torch.tensor(1/S))+torch.logsumexp(log_likelihood_samples,0)
+       step=samples.shape[1]
+    #scale = torch.exp(0.5*logsigmaG).to(device).detach()
+    scale = k*torch.ones(args.imageSize**2).to(device).detach()  ## no logsigma for VAE
+    for cnt in range(0,samples.shape[1],step):
+      sample = samples[:,cnt:cnt+step,:].reshape(S*step,args.nzg)
+      meanG = netDec(sample.view(-1,args.nzg,1,1),args).view(-1,args.imageSize*args.imageSize).to(device).detach()
+      x = data[cnt:cnt+step].view(-1, args.imageSize**2).repeat(S,1).to(device)
+
+      ## Method #1): using Truncated Normal Class from Github https://github.com/toshas/torch_truncnorm
+      ## can be used with S > 1
+      pt = TNorm.TruncatedNormal(meanG, scale, Ta, Tb, validate_args=None)
+      if cnt == 0:
+         log_pxz_scipy = torch.sum(pt.log_prob(x).view(S*step,-1), axis=1).view(S,step)
+      else:
+         log_pxz_scipy = torch.cat((log_pxz_scipy,torch.sum(pt.log_prob(x).view(S*step,-1), axis=1).view(S,step)),1)
+
+    if cntS == 0:
+       log_pz_argsS = log_pz
+       log_rzx_argsS = log_rzx
+       log_pxz_scipy_argsS = log_pxz_scipy
+    else:
+       log_pz_argsS = torch.cat((log_pz_argsS,log_pz),0)
+       log_rzx_argsS = torch.cat((log_rzx_argsS,log_rzx),0)
+       log_pxz_scipy_argsS = torch.cat((log_pxz_scipy_argsS,log_pxz_scipy),0)
+
+  log_likelihood_samples = (log_pxz_scipy_argsS + log_pz_argsS - log_rzx_argsS)
+  likelihood_samples = torch.log(torch.tensor(1/args.S))+torch.logsumexp(log_likelihood_samples,0)
   likelihood_final = torch.mean(likelihood_samples,0)
-  #likelihood_final = torch.logsumexp(likelihood_samples,0)-torch.log(torch.tensor(likelihood_samples.shape[0]))
 
- return likelihood_final
+ #writer.flush()
+ #writer.close()
 
+ return likelihood_samples
 
 def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL, logvar_first):
  #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -499,7 +518,7 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
   ## sample and compute
   #S = args.S
   for cntS in range(0,args.S,1000):
-    S=1000
+    S=500
     samples = mvnz.sample((S,))
     log_pz = mvns.log_prob(samples)
     log_rzx = mvnz.log_prob(samples)

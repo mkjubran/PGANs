@@ -1,5 +1,5 @@
 Path1='mnistimageSize32'
-Path2='tvGAN_mnistimSize32_lambda0.0_lr0.0002_W10.005_W20.005_valbatches100_S2000_GS2019_GS2020'
+Path2='tvGAN_mnistimSize32_lambda0.0_lr0.0002_W10.0_W20.0_valbatches100_S2000_GS2019_GS2020'
 fname='mnist'
 FNAME='MNIST'
 VAE_epoch='epoch_20' #mnist 20, cifar 180
@@ -18,9 +18,9 @@ python3 measure_likelihood_batch.py \
           --logsigma_file_G2  $Path'/log_sigma_G2_'$fname'_step_'$Step'.pth' \
           --ckptD2            $Path'/netD2_presgan_'$fname'_step_'$Step'.pth' \
           --ckptE2            '../../../PresGANs/'$fname'imageSize32/SaveS2020/VAEncoderType2_lambda0.0_GS2020'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
-          --save_likelihood_folder    '../../../PresGANs/MeasureLL_'$Path2'/Step'$Step'repeat2'\
+          --save_likelihood_folder    '../../../PresGANs/MeasureLL_'$Path2'/Step'$Step'S5000repeat1'\
           --number_samples_likelihood 10000\
-          --S 4000 \
+          --S 5000 \
           --seed_G1 2019 \
           --seed_G2 2020 \
           --lambda_ 0.0 \

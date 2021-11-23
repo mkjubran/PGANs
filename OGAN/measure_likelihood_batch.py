@@ -191,6 +191,10 @@ if __name__ == "__main__":
  ##-- loading and spliting datasets for G2
  trainsetG2, testsetG2 = load_datasets(data,args,device, args.seed_G2)
 
+ ## -- setting seeds for all the rest of the code
+ torch.manual_seed(0)
+ random.seed(0)
+ np.random.seed(0)
 
  ##-- loading PGAN generator model with sigma and setting generator training parameters - G1
  netG1 = nets.Generator(args).to(device)
@@ -271,13 +275,19 @@ if __name__ == "__main__":
     MinNTrain = min(trainsetG1.shape[0],args.number_samples_likelihood)
     MinNTest = min(testsetG1.shape[0],args.number_samples_likelihood)
 
-    samples_G1 = trainsetG1[random.sample(range(0, len(trainsetG1)), MinNTrain)]
-    samples_G2 = trainsetG2[random.sample(range(0, len(trainsetG2)), MinNTrain)]
+    #samples_G1 = trainsetG1[random.sample(range(0, len(trainsetG1)), MinNTrain)]
+    #samples_G2 = trainsetG2[random.sample(range(0, len(trainsetG2)), MinNTrain)]
 
     likelihood_G1test_E2 = []
     likelihood_G2test_E1 = []
-    samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), MinNTest)] 
-    samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), MinNTest)] 
+    #samples_G1test = testsetG1[random.sample(range(0, len(testsetG1)), MinNTest)] 
+    #samples_G2test = testsetG2[random.sample(range(0, len(testsetG2)), MinNTest)] 
+
+    samples_G1 = trainsetG1[0:MinNTrain]
+    samples_G2 = trainsetG2[0:MinNTrain]
+    samples_G1test = testsetG1[0:MinNTest]
+    samples_G2test = testsetG2[0:MinNTest]
+
  else:
     print('Can not sample from {}. Sample from should be either generator or dataset!!!'.format(args.sample_from))
     sys.exit(1)
@@ -373,7 +383,7 @@ if __name__ == "__main__":
         #pdb.set_trace()
         likelihood_G1_G2=torch.cat((torch.FloatTensor(likelihood_G2test_E1).view(-1,1),torch.FloatTensor(likelihood_G1test_E2).view(-1,1)),1)
         AvgLL=torch.mean(torch.add(torch.logsumexp(likelihood_G1_G2,1),-1*math.log(2)))
-        if Counter_G2test_E1 % 50 == 0:
+        if Counter_G2test_E1 % 10 == 0:
            print(f"Moving Average: batch {Counter_G2test_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, log(0.5L(G1(test))+0.5L(G2(test))) = {AvgLL.item()}")
         writer.add_scalar("Measure LL/ Moving Average: log(0.5L(G1(test))+0.5L(G2(test)))", AvgLL.item(), Counter_G2test_E1)
 
