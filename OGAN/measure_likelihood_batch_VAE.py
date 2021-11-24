@@ -149,7 +149,8 @@ if __name__ == "__main__":
  scale = 0.01*torch.ones(args.imageSize**2)
  scale = scale.to(device)
 
- log_dir = args.save_likelihood_folder+"/LResults_"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+ log_dir = args.save_likelihood_folder
+ #log_dir = args.save_likelihood_folder+"/LResults_"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
  writer = SummaryWriter(log_dir)
 
  Counter = 0
@@ -170,14 +171,15 @@ if __name__ == "__main__":
  for j in range(0, args.number_samples_likelihood, args.OLbatchSize):
     Counter += 1
 
-    netDec.train()
+    netDec.eval()
     ##-- compute OL where samples from G1 are applied to (E2,G2)
     sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
     likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder)
     likelihood_sample = torch.mean(likelihood_samples,0)
     likelihood_Dec_train.extend(likelihood_samples.tolist())
     print(f"Dataset (train)-->VAE Dec: batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dec_train)}")
-    writer.add_scalar("Validation LL/Dataset(train)-->VAE Dec", statistics.mean(likelihood_Dec_train), Counter)
+    writer.add_scalar("Validation LL/Sample: Dataset(train)-->VAE Dec", likelihood_sample.item(), Counter)
+    writer.add_scalar("Validation LL/Moving Average: Dataset(train)-->VAE Dec", statistics.mean(likelihood_Dec_train), Counter)
 
     ##-- validation step
     if (j+args.OLbatchSize <= samples_G1test.shape[0]):
@@ -190,13 +192,14 @@ if __name__ == "__main__":
          likelihood_sample = torch.mean(likelihood_samples,0)
          likelihood_Dec_test.extend(likelihood_samples.tolist())
          print(f"Validation: G1(testset)--> VAE Dec: batch {Counter_G1test_E2} of {int(args.valbatches)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dec_test)}")
-         writer.add_scalar("Validation LL/Moving Average: Dataset(test)-->VAE", statistics.mean(likelihood_Dec_test), Counter)
+         writer.add_scalar("Validation LL/Sample: Dataset(test)-->VAE Dec", likelihood_sample.item(), Counter)
+         writer.add_scalar("Validation LL/Moving Average: Dataset(test)-->VAE Dec", statistics.mean(likelihood_Dec_test), Counter)
 
          if (j % 10 == 0) or (j+2*args.OLbatchSize > samples_G1test.shape[0]) :
            with open(args.save_likelihood_folder+'/likelihood_Dec_test.pkl', 'wb') as f:
               pickle.dump(likelihood_Dec_test, f)
 
-    if ( j % 10 ==0 ) or (j + args.OLbatchSize > args.number_samples_likelihood):
+    if ( j % 10 ==0 ) or (j + 2*args.OLbatchSize > args.number_samples_likelihood):
         with open(args.save_likelihood_folder+'/likelihood_Dec_train.pkl', 'wb') as f:
            pickle.dump(likelihood_Dec_train, f)
 
