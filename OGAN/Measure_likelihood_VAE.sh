@@ -1,9 +1,9 @@
 python3 measure_likelihood_batch_VAE.py \
           --dataset mnist \
           --sample_from dataset \
-          --ckptDec                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoder2019/netVADec_MNIST_epoch_20.pth \
-          --ckptE                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoder2019/netVAEnc_MNIST_epoch_20.pth \
-          --save_likelihood_folder    ../../../PresGANs/VAE_lr0.0002_S10000_VADCGANDec2019/Likelihood_EType2_epoch_20 \
+          --ckptDec                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderMSE2019/netVADec_MNIST_epoch_30.pth \
+          --ckptE                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderMSE2019/netVAEnc_MNIST_epoch_30.pth \
+          --save_likelihood_folder    ../../../PresGANs/MeasureLL_VAE_lr0.0002_S10000_VAEDCGANDecMSE2019/Likelihood_EType2_epoch_30 \
           --number_samples_likelihood 100000\
           --lambda_ 0 \
           --lrOL 0.0002 \

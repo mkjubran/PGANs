@@ -13,12 +13,12 @@ python3 measure_likelihood_batch.py \
           --ckptG1            $Path'/netG1_presgan_'$fname'_step_'$Step'.pth' \
           --logsigma_file_G1  $Path'/log_sigma_G1_'$fname'_step_'$Step'.pth' \
           --ckptD1            $Path'/netD1_presgan_'$fname'_step_'$Step'.pth' \
-          --ckptE1            '../../../PresGANs/'$fname'imageSize32/SaveS2019/VAEncoderType2_lambda0.0_GS2019'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
+          --ckptE1            '../../../PresGANs/'$fname'imageSize32/SaveS2019/EncoderType2_lambda0.0_GS2019'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
           --ckptG2            $Path'/netG2_presgan_'$fname'_step_'$Step'.pth' \
           --logsigma_file_G2  $Path'/log_sigma_G2_'$fname'_step_'$Step'.pth' \
           --ckptD2            $Path'/netD2_presgan_'$fname'_step_'$Step'.pth' \
-          --ckptE2            '../../../PresGANs/'$fname'imageSize32/SaveS2020/VAEncoderType2_lambda0.0_GS2020'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
-          --save_likelihood_folder    '../../../PresGANs/MeasureLL_'$Path2'/Step'$Step'S5000repeat1'\
+          --ckptE2            '../../../PresGANs/'$fname'imageSize32/SaveS2020/EncoderType2_lambda0.0_GS2020'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
+          --save_likelihood_folder    '../../../PresGANs/testMeasureLL_'$Path2'/Step'$Step'S5000repeat1'\
           --number_samples_likelihood 10000\
           --S 5000 \
           --seed_G1 2019 \

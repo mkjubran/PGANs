@@ -311,7 +311,7 @@ if __name__ == "__main__":
       Counter_G1_E2 -= 1
     else:
       likelihood_G1_E2.extend(likelihood_samples.tolist())
-      if Counter_G1_E2 % 50 == 0:
+      if Counter_G1_E2 % 1 == 0:
          print(f"G1-->(E2,G2): batch {Counter_G1_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1_E2)}")
       writer.add_scalar("Measure LL/Batch: G1-->(E2,G2)", likelihood_sample.item(), Counter_G1_E2)
       writer.add_scalar("Measure LL/Moving Average: G1-->(E2,G2)", statistics.mean(likelihood_G1_E2), Counter_G1_E2)
@@ -330,7 +330,7 @@ if __name__ == "__main__":
       Counter_G2_E1 -= 1
     else:
       likelihood_G2_E1.extend(likelihood_samples.tolist())
-      if Counter_G2_E1 % 10 == 0:
+      if Counter_G2_E1 % 1 == 0:
          print(f"G2-->(E1,G1): batch {Counter_G2_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2_E1)}")
       writer.add_scalar("Measure LL/Bacth: G2-->(E1,G1)", likelihood_sample.item(), Counter_G2_E1)
       writer.add_scalar("Measure LL/Moving Average: G2-->(E1,G1)", statistics.mean(likelihood_G2_E1), Counter_G2_E1)
@@ -356,7 +356,7 @@ if __name__ == "__main__":
         Counter_G1test_E2 -= 1
       else:
         likelihood_G1test_E2.extend(likelihood_samples.tolist())
-        if Counter_G1test_E2 % 10 == 0:
+        if Counter_G1test_E2 % 1 == 0:
            print(f"G1(testset)-->(E2,G2): batch {Counter_G1test_E2} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G1test_E2)}")
         writer.add_scalar("Measure LL/Batch: Testset-->(E2,G2)", likelihood_sample.item(), Counter_G1test_E2)
         writer.add_scalar("Measure LL/Moving Average: G1(testset)-->(E2,G2)", statistics.mean(likelihood_G1test_E2), Counter_G1test_E2)
@@ -374,7 +374,7 @@ if __name__ == "__main__":
         Counter_G2test_E1 -= 1
       else:
         likelihood_G2test_E1.extend(likelihood_samples.tolist())
-        if Counter_G2test_E1 % 10 == 0:
+        if Counter_G2test_E1 % 1 == 0:
            print(f"G2(testset)-->(E1,G1): batch {Counter_G2test_E1} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_G2test_E1)}")
         writer.add_scalar("Measure LL/Batch: Testset-->(E1,G1)", likelihood_sample.item(), Counter_G2test_E1)
         writer.add_scalar("Measure LL/Moving Average: G2(testset)-->(E1,G1)", statistics.mean(likelihood_G2test_E1), Counter_G2test_E1)

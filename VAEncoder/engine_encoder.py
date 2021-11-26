@@ -36,7 +36,12 @@ def measure_elbo(args, mu, logvar, x, x_hat, z, zr,device, logsigmaG):
     mvnz = torch.distributions.MultivariateNormal(mu, scale_tril=std_3d)
 
     pz_normal = torch.exp(mvnz.log_prob(zr))
-    pz_log_pxz_mvn = torch.dot(log_pxz_mvn[0::3],pz_normal)+torch.dot(log_pxz_mvn[1::3],pz_normal)+torch.dot(log_pxz_mvn[2::3],pz_normal)
+    if args.nc == 1:
+       pz_log_pxz_mvn = torch.dot(log_pxz_mvn,pz_normal)
+    elif args.nc == 3:
+       pz_log_pxz_mvn = torch.dot(log_pxz_mvn[0::3],pz_normal)+torch.dot(log_pxz_mvn[1::3],pz_normal)+torch.dot(log_pxz_mvn[2::3],pz_normal)
+    else:
+       print('Number of channels in the source are not supported')
     reconloss = pz_log_pxz_mvn
 
     beta = args.beta
@@ -108,7 +113,8 @@ def train_encoder_decoder(netE, args, X_training, device, optimizer, criterion, 
         mu, logvar, z, zr = netE(data, args)
         reconstruction = netDec(z, args)
 
-        #logscale = 1*torch.ones(args.imageSize**2).to(device)
+        #k=10
+        #logscale = k*torch.ones(args.imageSize**2).to(device)
         #elbo, KLDcf, reconloss= measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logscale)
         #loss = elbo
 
@@ -139,7 +145,8 @@ def validate_encoder_decoder(netE, args, X_testing, device, criterion, netDec, o
             #reconstruction, mu, logvar, z, zr = netE(data, args)
             mu, logvar, z, zr = netE(data, args)
             reconstruction = netDec(z, args)
-
+   
+            #k=10
             #logscale = 1*torch.ones(args.imageSize**2).to(device)
             #elbo, KLDcf, reconloss  = measure_elbo(args, mu, logvar, data, reconstruction, z, zr, device, logscale)
             #loss = elbo

@@ -132,6 +132,7 @@ def presgan(dat, netG, netD, log_sigma, args):
     writer = SummaryWriter(args.results_folder)
     device = args.device
     X_training = dat['X_train'].to(device)
+
     fixed_noise = torch.randn(args.num_gen_images, args.nz, 1, 1, device=device)
     optimizerD = optim.Adam(netD.parameters(), lr=args.lrD, betas=(args.beta1, 0.999))
     optimizerG = optim.Adam(netG.parameters(), lr=args.lrG, betas=(args.beta1, 0.999)) 
@@ -140,7 +141,7 @@ def presgan(dat, netG, netD, log_sigma, args):
         logsigma_min = math.log(math.exp(args.sigma_min) - 1.0)
         logsigma_max = math.log(math.exp(args.sigma_max) - 1.0)
     stepsize = args.stepsize_num / args.nz
-    
+
     bsz = args.batchSize
     for epoch in range(1, args.epochs+1):
         DL=0

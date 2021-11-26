@@ -15,7 +15,7 @@ import torch.nn.functional as F
 
 import utils
 import data
-import nets64 as nets
+import nets32 as nets
 import train_TB
 import shutil
 import pdb
@@ -113,7 +113,6 @@ cudnn.benchmark = True
 
 dat = data.load_data(args.dataset, args.dataroot, args.batchSize, 
                         device=device, imgsize=args.imageSize, Ntrain=args.Ntrain, Ntest=args.Ntest)
-
 #### defining generator
 netG = nets.Generator(args.imageSize, args.nz, args.ngf, dat['nc']).to(device)
 if args.model == 'presgan':

@@ -353,8 +353,8 @@ class VAEGenerator(nn.Module):
             #nn.ReLU(True),
             # state size. (ngf) x 32 x 32
             #nn.ConvTranspose2d(    args.ngfg,      args.ncg, 4, 2, 1, bias=False),
-            #nn.Tanh()
-            nn.Sigmoid() # replace the Tanh() of DCGAN, this is required by nn.bce_loss to make sure the output i between 0 and 1
+            nn.Tanh()
+            #nn.Sigmoid() # replace the Tanh() of DCGAN, this is required by nn.bce_loss to make sure the output i between 0 and 1
             # state size. (nc) x 64 x 64
         )
 

@@ -145,6 +145,11 @@ if __name__ == "__main__":
  netE = load_encoder(netE,args.ckptE)
  optimizerE = optim.Adam(netE.parameters(), lr=args.lrE)
 
+ # create a copy of E
+ netEOrig = nets.ConvVAEType2(args).to(device)
+ netEOrig.load_state_dict(copy.deepcopy(netE.state_dict()))
+ netEOrig.eval()
+
  ##-- setting scale and selecting a random test sample
  scale = 0.01*torch.ones(args.imageSize**2)
  scale = scale.to(device)
@@ -174,7 +179,8 @@ if __name__ == "__main__":
     netDec.eval()
     ##-- compute OL where samples from G1 are applied to (E2,G2)
     sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-    likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder)
+    _, logvar_first, _, _ = netEOrig(sample_G1, args)
+    likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder, logvar_first)
     likelihood_sample = torch.mean(likelihood_samples,0)
     likelihood_Dec_train.extend(likelihood_samples.tolist())
     print(f"Dataset (train)-->VAE Dec: batch {Counter} of {int(args.number_samples_likelihood/args.OLbatchSize)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dec_train)}")
@@ -188,7 +194,8 @@ if __name__ == "__main__":
          ## Validation by measuring Likelihood of VAE
          Counter_G1test_E2 += 1
          sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
-         likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder)
+         _, logvar_first, _, _ = netEOrig(sample_G1, args)
+         likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder,logvar_first)
          likelihood_sample = torch.mean(likelihood_samples,0)
          likelihood_Dec_test.extend(likelihood_samples.tolist())
          print(f"Validation: G1(testset)--> VAE Dec: batch {Counter_G1test_E2} of {int(args.valbatches)}, OL = {likelihood_sample.item()}, moving mean = {statistics.mean(likelihood_Dec_test)}")

@@ -57,10 +57,6 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
         x_hat = netG(z)
 
-        #if counter == 1:
-          #logvar_first = logvar
-          #logvar_first = 0.1*torch.ones(logvar.shape).to(device)
-
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
@@ -73,6 +69,9 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
            overlap_loss_sum.backward()
            running_loss += overlap_loss_sum.item()
            optimizerE.step()
+           logvar_last = logvar
+        elif counter == 1:
+           logvar_last = logvar
 
         train_loss = running_loss / counter
       
@@ -107,6 +106,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
   #std = k*torch.exp(0.5*logvar_first)
+  #std = k*torch.exp(0.5*logvar_last)
   std = k*torch.ones(scale.shape).to(device) 
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
@@ -206,11 +206,6 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
 
         x_hat = netG(z)
 
-        #if counter == 1:
-          #pdb.set_trace()
-          #logvar_first = logvar
-          #logvar_first = 0.1*torch.ones(logvar.shape).to(device)
-
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
@@ -223,6 +218,9 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
            overlap_loss_sum.backward()
            running_loss += overlap_loss_sum.item()
            optimizerE.step()
+           logvar_last = logvar
+        elif counter == 1:
+           logvar_last = logvar
 
         train_loss = running_loss / counter
 
@@ -258,6 +256,7 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
   #std = k*torch.exp(0.5*logvar_first)
+  #std = k*torch.exp(0.5*logvar_last)
   std = k*torch.ones(scale.shape).to(device)  
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
@@ -300,7 +299,7 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
  return likelihood_final
 
 
-def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
+def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, logvar_first):
  #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
  #writer = SummaryWriter(log_dir)
 
@@ -324,9 +323,6 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
 
         x_hat = netDec(z,args)
 
-        #if counter == 1:
-        #  logvar_first = logvar
-
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
@@ -339,6 +335,9 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
            overlap_loss_sum.backward()
            running_loss += overlap_loss_sum.item()
            optimizerE.step()
+           logvar_last = logvar
+        elif counter == 1:
+           logvar_last = logvar
 
         train_loss = running_loss / counter
 
@@ -352,10 +351,10 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
         #    img_grid_TB = torchvision.utils.make_grid(torch.cat((data, x_hat), 3).detach().cpu(),nrow=3)
         #    writer.add_image('True (or sampled) images and Recon images', img_grid_TB, OLepoch)
 
-
+ #print(torch.exp(0.5*torch.mean(logvar_first)).item(),torch.exp(0.5*torch.mean(logvar_last)).item())
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k = 1.2
+ k=1.2
  if True:
   ##-- Create a standard MVN
   mean = torch.zeros(mu.shape[0],args.nzg).to(device)
@@ -368,8 +367,9 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL):
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
-  #std = k*torch.exp(0.5*logvar_first)
-  std = k*torch.ones(scale.shape).to(device) 
+  std = k*torch.exp(0.5*logvar_first)
+  #std = k*torch.exp(0.5*logvar_last)
+  #std = k*torch.ones(scale.shape).to(device) 
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
   std_3d = std_c * std_b
@@ -455,10 +455,6 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
 
         x_hat = netG(z)
 
-        #if counter == 1:
-          #logvar_first = logvar
-          #logvar_first = 0.1*torch.ones(logvar.shape).to(device)
-
         mean = x_hat.view(-1,args.imageSize*args.imageSize)
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
@@ -471,6 +467,9 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
            overlap_loss_sum.backward()
            running_loss += overlap_loss_sum.item()
            optimizerE.step()
+           logvar_last = logvar
+        elif counter == 1:
+           logvar_last = logvar
 
         train_loss = running_loss / counter
       
@@ -487,6 +486,7 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
         #if (OLepoch % 100 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
         #    vutils.save_image(torch.cat((data, x_hat), 3).detach().cpu(), '%s/elbo_OLepoch_%03d.png' % (log_dir, OLepoch), normalize=True, nrow=10) 
 
+ #print(torch.exp(0.5*torch.mean(logvar_first)).item(),torch.exp(0.5*torch.mean(logvar_last)).item())
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
  k=1.2
@@ -504,8 +504,9 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
-  #std = k*torch.exp(0.5*logvar_first)
-  std = k*torch.ones(scale.shape).to(device) 
+  std = k*torch.exp(0.5*logvar_first)
+  #std = k*torch.exp(0.5*logvar_last)
+  #std = k*torch.ones(scale.shape).to(device) 
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
   std_3d = std_c * std_b
