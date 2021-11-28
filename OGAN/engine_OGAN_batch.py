@@ -227,7 +227,7 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if (overlap_loss_sum > overlap_loss_min):
             likelihood_sample_final = overlap_loss_sum
-        #    writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
+            #writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
 
         #-- write to tensorboard
         #if (OLepoch % 10 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
@@ -344,7 +344,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
         ##-- printing only the positive overlap loss (to avoid printing extremely low numbers after training coverage to low positive value)
         if overlap_loss_sum > overlap_loss_min:
             likelihood_sample_final = overlap_loss_sum
-        #    writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
+            #writer.add_scalar("Train Loss/total", overlap_loss_sum, OLepoch)
 
         #-- write to tensorboard
         #if (OLepoch % 50 == 0) or (torch.isnan(z).unique()) or (OLepoch == 1):
@@ -356,6 +356,15 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
  likelihood_final[likelihood_final==1]=float("NaN")
  k=1.2
  if True:
+  #-----------
+  """ Computes the likelihood of the data given the latent variable,
+        in this case using a Gaussian distribution with mean predicted by the neural network and variance = 1 """
+  log_sigma = ((data - x_hat) ** 2).mean([0,1,2,3], keepdim=True).sqrt().log()
+  LLcf = (0.5 * torch.pow((data - x_hat) / log_sigma.exp(), 2) + log_sigma + 0.5 * np.log(2 * np.pi)).sum(axis=[1,2,3])
+  print(f" LLcf = {LLcf.mean().item()}")
+  #logvar_first = torch.ones(logvar_first.shape).to(device)*2*log_sigma.item()
+  #----------
+  '''
   ##-- Create a standard MVN
   mean = torch.zeros(mu.shape[0],args.nzg).to(device)
   scale = torch.ones(mu.shape[0],args.nzg).to(device)
@@ -423,11 +432,11 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
   log_likelihood_samples = (log_pxz_scipy_argsS + log_pz_argsS - log_rzx_argsS)
   likelihood_samples = torch.log(torch.tensor(1/args.S))+torch.logsumexp(log_likelihood_samples,0)
   likelihood_final = torch.mean(likelihood_samples,0)
-
+  '''
  #writer.flush()
  #writer.close()
 
- return likelihood_samples
+ return LLcf #likelihood_samples
 
 def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL, logvar_first):
  #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -492,7 +501,15 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
  k=1.2
  #if (counter > 1):
  if True:
-
+  #-----------
+  """ Computes the likelihood of the data given the latent variable,
+        in this case using a Gaussian distribution with mean predicted by the neural network and variance = 1 """
+  log_sigma = ((data - x_hat) ** 2).mean([0,1,2,3], keepdim=True).sqrt().log()
+  LLcf = (0.5 * torch.pow((data - x_hat) / log_sigma.exp(), 2) + log_sigma + 0.5 * np.log(2 * np.pi)).sum(axis=[1,2,3])
+  print(f" LLcf = {LLcf.mean().item()}")
+  #logvar_first = torch.ones(logvar_first.shape).to(device)*2*log_sigma.item()
+  #----------
+  '''
   ##-- Create a standard MVN
   mean = torch.zeros(mu.shape[0],args.nzg).to(device)
   scale = torch.ones(mu.shape[0],args.nzg).to(device)
@@ -559,8 +576,8 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
   log_likelihood_samples = (log_pxz_scipy_argsS + log_pz_argsS - log_rzx_argsS)
   likelihood_samples = torch.log(torch.tensor(1/args.S))+torch.logsumexp(log_likelihood_samples,0)
   likelihood_final = torch.mean(likelihood_samples,0)
-
+  '''
  #writer.flush()
  #writer.close()
 
- return likelihood_samples
+ return LLcf #likelihood_samples

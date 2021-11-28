@@ -178,6 +178,9 @@ if __name__ == "__main__":
 
     netDec.eval()
     ##-- compute OL where samples from G1 are applied to (E2,G2)
+    netE.load_state_dict(copy.deepcopy(netEOrig.state_dict()))
+    optimizerE = optim.Adam(netE.parameters(), lr=args.lrE)
+    netE.train()
     sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
     _, logvar_first, _, _ = netEOrig(sample_G1, args)
     likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder, logvar_first)
@@ -193,6 +196,9 @@ if __name__ == "__main__":
 
          ## Validation by measuring Likelihood of VAE
          Counter_G1test_E2 += 1
+         netE.load_state_dict(copy.deepcopy(netEOrig.state_dict()))
+         optimizerE = optim.Adam(netE.parameters(), lr=args.lrE)
+         netE.train()
          sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,1,args.imageSize,args.imageSize]).detach().to(device)
          _, logvar_first, _, _ = netEOrig(sample_G1, args)
          likelihood_samples = engine_OGAN.get_likelihood_VAE(args,device,netE,optimizerE,sample_G1,netDec,args.save_likelihood_folder,logvar_first)

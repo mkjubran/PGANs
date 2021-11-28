@@ -299,9 +299,9 @@ if __name__ == "__main__":
     Counter_G2test_E1 += 1
 
     ##-- compute OL where samples from G1 are applied to (E2,G2)
-    #netE2.load_state_dict(copy.deepcopy(netE2Orig.state_dict()))
-    #optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
-    #netE2.train()
+    netE2.load_state_dict(copy.deepcopy(netE2Orig.state_dict()))
+    optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
+    netE2.train()
     sample_G1 = samples_G1[j:j+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
     _, logvar_first, _, _ = netE2Orig(sample_G1, args)
     likelihood_samples = engine_OGAN.get_likelihood_MLL(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder,logvar_first)
@@ -318,9 +318,9 @@ if __name__ == "__main__":
 
 
     ##-- compute OL where samples from G2 are applied to (E1,G1)
-    #netE1.load_state_dict(copy.deepcopy(netE1Orig.state_dict()))
-    #optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
-    #netE1.train()
+    netE1.load_state_dict(copy.deepcopy(netE1Orig.state_dict()))
+    optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
+    netE1.train()
     sample_G2 = samples_G2[j:j+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
     _, logvar_first, _, _ = netE1Orig(sample_G2, args)
     likelihood_samples = engine_OGAN.get_likelihood_MLL(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder,logvar_first)
@@ -344,9 +344,9 @@ if __name__ == "__main__":
 
     if args.sample_from == 'dataset' and (samples_G1test.shape[0] >= j+args.OLbatchSize):
       ##-- compute OL where samples from G1(testset) are applied to (E2,G2)
-      #netE2.load_state_dict(copy.deepcopy(netE2Orig.state_dict()))
-      #optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
-      #netE2.train()
+      netE2.load_state_dict(copy.deepcopy(netE2Orig.state_dict()))
+      optimizerE2 = optim.Adam(netE2.parameters(), lr=args.lrE2)
+      netE2.train()
       sample_G1 = samples_G1test[j:j+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
       _, logvar_first, _, _ = netE2Orig(sample_G1, args)
       likelihood_samples = engine_OGAN.get_likelihood_MLL(args,device,netE2,optimizerE2,sample_G1,netG2,logsigmaG2,args.save_likelihood_folder,logvar_first)
@@ -362,9 +362,9 @@ if __name__ == "__main__":
         writer.add_scalar("Measure LL/Moving Average: G1(testset)-->(E2,G2)", statistics.mean(likelihood_G1test_E2), Counter_G1test_E2)
 
       ##-- compute OL where samples from G2(testset) are applied to (E1,G1)
-      #netE1.load_state_dict(copy.deepcopy(netE1Orig.state_dict()))
-      #optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
-      #netE1.train()
+      netE1.load_state_dict(copy.deepcopy(netE1Orig.state_dict()))
+      optimizerE1 = optim.Adam(netE1.parameters(), lr=args.lrE1)
+      netE1.train()
       sample_G2 = samples_G2test[j:j+args.OLbatchSize].view([-1,args.nc,args.imageSize,args.imageSize]).detach().to(device)
       _, logvar_first, _, _ = netE1Orig(sample_G2, args)
       likelihood_samples = engine_OGAN.get_likelihood_MLL(args,device,netE1,optimizerE1,sample_G2,netG1,logsigmaG1,args.save_likelihood_folder,logvar_first)
