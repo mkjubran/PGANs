@@ -61,6 +61,7 @@ parser.add_argument('--ckptOL_G', type=str, default='', help='a given checkpoint
 parser.add_argument('--lrOL', type=float, default=0.001, help='learning rate for overlap loss, default=0.001')
 parser.add_argument('--OLbatchSize', type=int, default=100, help='Overlap Loss batch size')
 parser.add_argument('--S', type=int, default=1000, help='Sample Size when computing Likelihood')
+parser.add_argument('--overdispersion', type=float, default=1.2, help='overdispersion parameter')
 
 parser.add_argument('--dataset', required=True, help=' ring | mnist | stackedmnist | cifar10 ')
 parser.add_argument('--batchSize', type=int, default=100, help='input batch size')

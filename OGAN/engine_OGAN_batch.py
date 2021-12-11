@@ -90,7 +90,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k=1.2
+ k=args.overdispersion
  #if (counter > 1):
  if True:
 
@@ -105,9 +105,9 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
-  #std = k*torch.exp(0.5*logvar_first)
+  std = k*torch.exp(0.5*logvar_first)
   #std = k*torch.exp(0.5*logvar_last)
-  std = k*torch.ones(scale.shape).to(device) 
+  #std = k*torch.ones(scale.shape).to(device) 
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
   std_3d = std_c * std_b
@@ -240,7 +240,7 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
 
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k=1.2
+ k=args.overdispersion
  #if (counter > 1):
  if True:
 
@@ -354,9 +354,11 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
  #print(torch.exp(0.5*torch.mean(logvar_first)).item(),torch.exp(0.5*torch.mean(logvar_last)).item())
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k=1.2
+ k=args.overdispersion
  if True:
+  '''
   #-----------
+  "https://github.com/orybkin/sigma-vae-pytorch/blob/master/model.py"
   """ Computes the likelihood of the data given the latent variable,
         in this case using a Gaussian distribution with mean predicted by the neural network and variance = 1 """
   log_sigma = ((data - x_hat) ** 2).mean([0,1,2,3], keepdim=True).sqrt().log()
@@ -432,11 +434,11 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
   log_likelihood_samples = (log_pxz_scipy_argsS + log_pz_argsS - log_rzx_argsS)
   likelihood_samples = torch.log(torch.tensor(1/args.S))+torch.logsumexp(log_likelihood_samples,0)
   likelihood_final = torch.mean(likelihood_samples,0)
-  '''
+
  #writer.flush()
  #writer.close()
 
- return LLcf #likelihood_samples
+ return likelihood_samples #LLcf
 
 def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL, logvar_first):
  #log_dir = ckptOL+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -498,10 +500,12 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
  #print(torch.exp(0.5*torch.mean(logvar_first)).item(),torch.exp(0.5*torch.mean(logvar_last)).item())
  likelihood_final = torch.tensor([1]).float()
  likelihood_final[likelihood_final==1]=float("NaN")
- k=1.2
+ k=args.overdispersion
  #if (counter > 1):
  if True:
+  '''
   #-----------
+  "https://github.com/orybkin/sigma-vae-pytorch/blob/master/model.py"
   """ Computes the likelihood of the data given the latent variable,
         in this case using a Gaussian distribution with mean predicted by the neural network and variance = 1 """
   log_sigma = ((data - x_hat) ** 2).mean([0,1,2,3], keepdim=True).sqrt().log()
@@ -576,8 +580,8 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
   log_likelihood_samples = (log_pxz_scipy_argsS + log_pz_argsS - log_rzx_argsS)
   likelihood_samples = torch.log(torch.tensor(1/args.S))+torch.logsumexp(log_likelihood_samples,0)
   likelihood_final = torch.mean(likelihood_samples,0)
-  '''
+  
  #writer.flush()
  #writer.close()
 
- return LLcf #likelihood_samples
+ return likelihood_samples ##LLcf

@@ -1,9 +1,9 @@
 python3 measure_likelihood_batch_VAE.py \
           --dataset mnist \
           --sample_from dataset \
-          --ckptDec                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderMSE2019/netVADec_MNIST_epoch_30.pth \
-          --ckptE                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderMSE2019/netVAEnc_MNIST_epoch_30.pth \
-          --save_likelihood_folder    ../../../PresGANs/MeasureLL_VAE_lr0.0002_S10000_VAEDCGANDecMSE2019/Likelihood_EType2_epoch_30 \
+          --ckptDec                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderMSE2019/netVADec_MNIST_epoch_49.pth \
+          --ckptE                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderMSE2019/netVAEnc_MNIST_epoch_49.pth \
+          --save_likelihood_folder    ../../../PresGANs/MeasureLL_VAE_lr0.0002_S10000_VAEDCGANDecMSE2019_ImSampling/Likelihood_EType2_epoch_49 \
           --number_samples_likelihood 100000\
           --lambda_ 0 \
           --lrOL 0.0002 \
@@ -20,4 +20,5 @@ python3 measure_likelihood_batch_VAE.py \
           --overlap_loss_min -10000000000 \
           --valevery 600 \
           --valbatches 600 \
+          --overdispersion 1.2 \
           --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32
