@@ -1,15 +1,15 @@
 python3 measure_likelihood_batch_VAE.py \
           --dataset mnist \
           --sample_from dataset \
-          --ckptDec                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderMSE2019/netVADec_MNIST_epoch_49.pth \
-          --ckptE                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderMSE2019/netVAEnc_MNIST_epoch_49.pth \
-          --save_likelihood_folder    ../../../PresGANs/MeasureLL_VAE_lr0.0002_S10000_VAEDCGANDecMSE2019_ImSampling/Likelihood_EType2_epoch_49 \
+          --ckptDec                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderBCE2019/netVADec_MNIST_epoch_49.pth \
+          --ckptE                  ../../../PresGANs/mnistimageSize32/SaveS2019/VAEncoderDCGANDecoderBCE2019/netVAEnc_MNIST_epoch_49.pth \
+          --save_likelihood_folder    ../../../PresGANs/MeasureLL_VAE_lr0.0002_S10000_VAEDCGANDecBCE2019_ImSampling/Likelihood_EType2_epoch_49 \
           --number_samples_likelihood 100000\
           --lambda_ 0 \
           --lrOL 0.0002 \
           --beta  10 \
           --nz 100 \
-          --OLepochs 50000 \
+          --OLepochs 1000 \
           --epochs 500 \
           --batchSize 100\
           --OLbatchSize 100\

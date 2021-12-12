@@ -6,6 +6,7 @@ import pdb
 import numpy as np
 import math
 import torchvision.utils as vutils
+import torch.nn as nn
 
 from scipy.stats import truncnorm
 from scipy.stats import mvn as scipy_mvn
@@ -312,6 +313,9 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
  scale = 0.1*torch.ones(args.imageSize**2).to(device)
  overlap_loss_sum = 1
  overlap_loss_min = args.overlap_loss_min
+
+ #criterion = nn.BCELoss(reduction='sum')
+ #criterion = nn.MSELoss(reduction='sum')
  while (OLepoch <= args.OLepochs) and (overlap_loss_sum > overlap_loss_min):
         OLepoch +=1
         counter += 1
@@ -327,9 +331,15 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
 
         log_pxz_mvn, log_pz_normal = dist(args, device, mu, logvar, mean, scale, data, zr)
 
-        ##-- definning overlap loss abd backpropagation
+        ##-- definning overlap loss and backpropagation
         overlap_loss = -1*(log_pxz_mvn + log_pz_normal) ## results of option#1
         overlap_loss_sum = overlap_loss.sum()
+
+        ###----- This is the loss incase want to overfit encoder using the same criteria of VAE training
+        #bce_loss = criterion(x_hat, data)
+        #KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        #overlap_loss_sum = bce_loss+KLD
+        ###------
 
         if (overlap_loss_sum > overlap_loss_min):
            overlap_loss_sum.backward()
