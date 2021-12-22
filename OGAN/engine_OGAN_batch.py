@@ -256,9 +256,9 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
 
   ##-- Create the proposal, i.e Multivariate Normal with mean = z and CovMatrix = k*torch.exp(0.5*logvar_first)
   mean = mu.view([-1,args.nzg]).to(device)
-  #std = k*torch.exp(0.5*logvar_first)
+  std = k*torch.exp(0.5*logvar_first)
   #std = k*torch.exp(0.5*logvar_last)
-  std = k*torch.ones(scale.shape).to(device)  
+  #std = k*torch.ones(scale.shape).to(device)  
   std_b = torch.eye(std.size(1)).to(device)
   std_c = std.unsqueeze(2).expand(*std.size(), std.size(1))
   std_3d = std_c * std_b

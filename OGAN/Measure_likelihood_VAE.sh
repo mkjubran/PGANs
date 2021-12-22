@@ -15,10 +15,10 @@ python3 measure_likelihood_batch_VAE.py \
           --OLbatchSize 100\
           --num_gen_images 100\
           --seed_VAE 2019 \
-          --S 10000 \
+          --S 50000 \
           --GPU 0 \
           --overlap_loss_min -10000000000 \
           --valevery 600 \
           --valbatches 600 \
-          --overdispersion 1.2 \
+          --overdispersion 12 \
           --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32
