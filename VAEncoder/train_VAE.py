@@ -83,8 +83,8 @@ if __name__ == "__main__":
 
  ##-- write to tensor board
  writer = SummaryWriter(args.ckptE+"/"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
- #criterion = nn.BCELoss(reduction='sum')
- criterion = nn.MSELoss(reduction='sum')
+ criterion = nn.BCELoss(reduction='sum')
+ #criterion = nn.MSELoss(reduction='sum')
 
  # a list to save all the reconstructed images in PyTorch grid format
  grid_images = []

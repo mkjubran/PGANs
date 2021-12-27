@@ -5,6 +5,7 @@ import os
 import torchvision
 import random
 import scipy
+import pdb
 
 from scipy.spatial.distance import pdist, squareform
 
@@ -12,8 +13,8 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from skimage.transform import rescale
 
-random.seed(2020)
-np.random.seed(2020)
+random.seed(2019)
+np.random.seed(2019)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 kwargs = {'num_workers': 4, 'pin_memory': True} if torch.cuda.is_available() else {}

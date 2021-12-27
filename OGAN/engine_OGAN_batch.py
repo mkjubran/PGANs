@@ -366,7 +366,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
  likelihood_final[likelihood_final==1]=float("NaN")
  k=args.overdispersion
  if True:
-  '''
+  
   #-----------
   "https://github.com/orybkin/sigma-vae-pytorch/blob/master/model.py"
   """ Computes the likelihood of the data given the latent variable,
@@ -376,7 +376,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
   print(f" LLcf = {LLcf.mean().item()}")
   #logvar_first = torch.ones(logvar_first.shape).to(device)*2*log_sigma.item()
   #----------
-  '''
+  
   ##-- Create a standard MVN
   mean = torch.zeros(mu.shape[0],args.nzg).to(device)
   scale = torch.ones(mu.shape[0],args.nzg).to(device)

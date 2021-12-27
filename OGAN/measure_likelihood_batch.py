@@ -389,16 +389,16 @@ if __name__ == "__main__":
 
         if ( j % 10 ==0 ) or (j + args.OLbatchSize > args.number_samples_likelihood):
            with open(args.save_likelihood_folder+'/likelihood_G2_E1.pkl', 'wb') as f:
-              pickle.dump(likelihood_G2test_E1, f)
+              pickle.dump(likelihood_G2_E1, f)
 
            with open(args.save_likelihood_folder+'/likelihood_G1_E2.pkl', 'wb') as f:
-              pickle.dump(likelihood_G2test_E1, f)
+              pickle.dump(likelihood_G1_E2, f)
 
            with open(args.save_likelihood_folder+'/likelihood_G2test_E1.pkl', 'wb') as f:
               pickle.dump(likelihood_G2test_E1, f)
 
            with open(args.save_likelihood_folder+'/likelihood_G1test_E2.pkl', 'wb') as f:
-              pickle.dump(likelihood_G2test_E1, f)
+              pickle.dump(likelihood_G1test_E2, f)
 
 
  writer.flush()
