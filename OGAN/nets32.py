@@ -361,3 +361,35 @@ class VAEGenerator(nn.Module):
     def forward(self, input, args):
         output = self.main(input)
         return output
+
+class GeneratorSigmoid(nn.Module):
+    def __init__(self, args):
+        super(GeneratorSigmoid, self).__init__()
+        
+        self.main = nn.Sequential(
+            # input is Z, going into a convolution
+            nn.ConvTranspose2d(     args.nzg, args.ngfg * 8, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(args.ngfg * 8),
+            nn.ReLU(True),
+            # state size. (ngf*8) x 4 x 4
+            nn.ConvTranspose2d(args.ngfg * 8, args.ngfg * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngfg * 4),
+            nn.ReLU(True),
+            # state size. (ngf*4) x 8 x 8
+            nn.ConvTranspose2d(args.ngfg * 4, args.ngfg * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(args.ngfg * 2),
+            nn.ReLU(True),
+            # state size. (ngf*2) x 16 x 16
+            nn.ConvTranspose2d(args.ngfg * 2,    args.ncg, 4, 2, 1, bias=False),
+            #nn.BatchNorm2d(args.ngfg),
+            #nn.ReLU(True),
+            # state size. (ngf) x 32 x 32
+            #nn.ConvTranspose2d(    args.ngfg,      args.ncg, 4, 2, 1, bias=False),
+            #nn.Tanh()
+            nn.Sigmoid()
+            # state size. (nc) x 64 x 64
+        )
+
+    def forward(self, input):
+        output = self.main(input)
+        return output
