@@ -431,7 +431,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
 
     ##--- HMC Sampling
     stepsize = args.stepsize_num / args.nz
-    hmc_samples, acceptRate, stepsize = hmc.get_samples(netG, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
+    hmc_samples, acceptRate, stepsize = hmc.get_samples_VAE(netDec, args, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
                         k*scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
                         args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
     samples = hmc_samples.view(S,-1,args.nzg)

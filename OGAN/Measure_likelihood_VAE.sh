@@ -16,8 +16,8 @@ python3 measure_likelihood_batch_VAE.py \
           --sample_from dataset \
           --ckptDec            '../../../PresGANs/'$Path1'/SaveS'$Seed'/'$Path2'/netVADec_MNIST_epoch_'$epoch'.pth' \
           --ckptE            '../../../PresGANs/'$Path1'/SaveS'$Seed'/'$Path2'/netVAEnc_MNIST_epoch_'$epoch'.pth' \
-          --save_likelihood_folder   '../../../PresGANs/MeasureLL_VAE_'$Path2'_ImSampling/Epoch'$epoch\
-          --number_samples_likelihood 10000\
+          --save_likelihood_folder   '../../../PresGANs/MeasureLL_VAE_HMC_'$Path2'_ImSampling/Epoch'$epoch\
+          --number_samples_likelihood 2000\
           --lambda_ 0.0 \
           --lrOL 0.0002 \
           --beta  10 \
