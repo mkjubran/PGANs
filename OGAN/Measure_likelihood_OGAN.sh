@@ -36,7 +36,7 @@ python3 measure_likelihood_batch.py \
           --logsigma_file_G2  $Path'/log_sigma_G2_'$fname'_step_'$Step'.pth' \
           --ckptD2            $Path'/netD2_presgan_'$fname'_step_'$Step'.pth' \
           --ckptE2            '../../../PresGANs/'$fname'imageSize32/SaveS2020/EncoderType2_lambda0.0_GS2020'$VAEepoch'/netE_presgan_'$FNAME'_'$VAE_epoch'.pth'\
-          --save_likelihood_folder    '../../../PresGANs/MeasureLL_'$Path2'_ImSampling/Step'$Step'Repeat'\
+          --save_likelihood_folder    '../../../PresGANs/MeasureLL_HMC_'$Path2'_ImSampling/Step'$Step'Repeat'\
           --number_samples_likelihood 10000\
           --S 10000 \
           --seed_G1 2019 \

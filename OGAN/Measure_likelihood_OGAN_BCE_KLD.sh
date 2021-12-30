@@ -22,7 +22,7 @@ dataset='mnist'
 #VAEepoch='epoch180'
 #dataset='celeba'
 
-Step='3000'
+Step='1000'
 
 Path='../../../PresGANs/'$Path1'/'$Path2'/G'
 python3 measure_likelihood_batch_BCE_KLD.py \
