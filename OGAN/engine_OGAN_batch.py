@@ -121,15 +121,15 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
   log_likelihood_sample_list = torch.tensor([]).to(device)
   ## sample and compute
   S = args.S
-  #samples = mvnz.sample((S,))
+  samples = mvnz.sample((S,))
+  scale = k*torch.exp(0.5*logsigmaG).to(device).detach()
 
   ##--- HMC Sampling
-  scale = torch.exp(0.5*logsigmaG).to(device)
-  stepsize = args.stepsize_num / args.nz
-  hmc_samples, acceptRate, stepsize = hmc.get_samples(netG, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
-                        k*scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
-                        args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
-  samples = hmc_samples.view(S,-1,args.nzg)
+  #stepsize = args.stepsize_num / args.nz
+  #hmc_samples, acceptRate, stepsize = hmc.get_samples(netG, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
+  #                      scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
+  #                      args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
+  #samples = hmc_samples.view(S,-1,args.nzg)
   ##---
 
   log_pz = mvns.log_prob(samples)
@@ -144,7 +144,7 @@ def get_likelihood(args, device, netE, optimizerE, data, netG, logsigmaG, ckptOL
      step=5
   else:
      step=samples.shape[1]
-  scale = torch.exp(0.5*logsigmaG).to(device).detach()
+
   for cnt in range(0,samples.shape[1],step):
     sample = samples[:,cnt:cnt+step,:].reshape(S*step,args.nzg)
     meanG = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device).detach()
@@ -281,15 +281,15 @@ def get_likelihood_approx(args, device, netE, optimizerE, data, netG, logsigmaG,
   log_likelihood_sample_list = torch.tensor([]).to(device)
   ## sample and compute
   S = args.S
-  #samples = mvnz.sample((S,))
+  samples = mvnz.sample((S,))
 
   ##--- HMC Sampling
-  scale = torch.exp(0.5*logsigmaG).to(device)
-  stepsize = args.stepsize_num / args.nz
-  hmc_samples, acceptRate, stepsize = hmc.get_samples(netG, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
-                        k*scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
-                        args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
-  samples = hmc_samples.view(S,-1,args.nzg)
+  #scale = k*torch.exp(0.5*logsigmaG).to(device)
+  #stepsize = args.stepsize_num / args.nz
+  #hmc_samples, acceptRate, stepsize = hmc.get_samples(netG, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
+  #                      scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
+  #                      args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
+  #samples = hmc_samples.view(S,-1,args.nzg)
   ##---
 
   log_pz = mvns.log_prob(samples)
@@ -423,18 +423,18 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
   likelihood_sample_final = 0
   log_likelihood_sample_list = torch.tensor([]).to(device)
   ## sample and compute
-  #S = args.S
+  S = args.S
   scale = k*torch.ones(args.imageSize**2).to(device).detach()  ## no logsigma for VAE
-  for cntS in range(0,args.S,1000):
-    S=500
-    #samples = mvnz.sample((S,))
+  for cntS in range(0,args.S,500):
 
-    ##--- HMC Sampling
-    stepsize = args.stepsize_num / args.nz
-    hmc_samples, acceptRate, stepsize = hmc.get_samples_VAE(netDec, args, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
-                        k*scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
-                        args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
-    samples = hmc_samples.view(S,-1,args.nzg)
+    samples = mvnz.sample((S,))
+
+    ##--- HMC Sampling MLL
+    #stepsize = args.stepsize_num / args.nz
+    #hmc_samples, acceptRate, stepsize = hmc.get_samples_VAE(netDec, args, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
+    #                    scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
+    #                    args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
+    #samples = hmc_samples.view(S,-1,args.nzg)
     ##---
 
 
@@ -450,8 +450,7 @@ def get_likelihood_VAE(args, device, netE, optimizerE, data, netDec, ckptOL, log
        step=5
     else:
        step=samples.shape[1]
-    #scale = torch.exp(0.5*logsigmaG).to(device).detach()
-    scale = k*torch.ones(args.imageSize**2).to(device).detach()  ## no logsigma for VAE
+
     for cnt in range(0,samples.shape[1],step):
       sample = samples[:,cnt:cnt+step,:].reshape(S*step,args.nzg)
       meanG = netDec(sample.view(-1,args.nzg,1,1),args).view(-1,args.imageSize*args.imageSize).to(device).detach()
@@ -580,21 +579,21 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
   likelihood_sample_final = 0
   log_likelihood_sample_list = torch.tensor([]).to(device)
   ## sample and compute
-  #S = args.S
-  scale = torch.exp(0.5*logsigmaG).to(device)
-  for cntS in range(0,args.S,1000):
-    S=500
+  S = args.S
+  scale = k*torch.exp(0.5*logsigmaG).to(device).detach()
+  for cntS in range(0,args.S,500):
 
     ## sample using python built-in-methods
-    #samples = mvnz.sample((S,))
+    samples = mvnz.sample((S,))
 
     ##--- HMC Sampling
-    stepsize = args.stepsize_num / args.nz
-    hmc_samples, acceptRate, stepsize = hmc.get_samples(netG, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
-                        k*scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
-                        args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
-    samples = hmc_samples.view(S,-1,args.nzg)
+    #stepsize = args.stepsize_num / args.nz
+    #hmc_samples, acceptRate, stepsize = hmc.get_samples(netG, data.detach(), mu.clone().view(-1,args.nzg,1,1), 
+    #                    scale.view(-1,1,args.imageSize,args.imageSize).detach(), 
+    #                    args.burn_in, S , args.leapfrog_steps, stepsize, args.flag_adapt, args.hmc_learning_rate, args.hmc_opt_accept)
+    #samples = hmc_samples.view(S,-1,args.nzg)
     ##---
+
     log_pz = mvns.log_prob(samples)
     log_rzx = mvnz.log_prob(samples)
 
@@ -607,7 +606,7 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
        step=5
     else:
        step=samples.shape[1]
-    #scale = torch.exp(0.5*logsigmaG).to(device).detach()
+
     for cnt in range(0,samples.shape[1],step):
       sample = samples[:,cnt:cnt+step,:].reshape(S*step,args.nzg)
       meanG = netG(sample.view(-1,args.nzg,1,1)).view(-1,args.imageSize*args.imageSize).to(device).detach()
