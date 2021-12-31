@@ -55,5 +55,5 @@ python3 measure_likelihood_batch.py \
           --GPU 0 \
           --overlap_loss_min -10000000000 \
           --overdispersion 1.2 \
-          --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32 --ncg 3 --nc 3 --lrE1 0.0002 --lrE2 0.0002
+          --imageSize 32 --ngf 32 --ndf 32 --ngfg 32 --ndfg 32 --ncg 1 --nc 1 --lrE1 0.0002 --lrE2 0.0002
 

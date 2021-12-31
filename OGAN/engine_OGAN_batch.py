@@ -581,8 +581,8 @@ def get_likelihood_MLL(args, device, netE, optimizerE, data, netG, logsigmaG, ck
   log_likelihood_sample_list = torch.tensor([]).to(device)
   ## sample and compute
   S = 500
-  #scale = k*torch.exp(0.5*logsigmaG).to(device).detach()
-  scale = k*torch.ones(args.imageSize**2).to(device).detach()  ## no logsigma for VAE
+  scale = k*torch.exp(0.5*logsigmaG).to(device).detach()
+  #scale = k*torch.ones(args.imageSize**2).to(device).detach()  ## no logsigma for VAE
   for cntS in range(0,args.S,S):
 
     ## sample using python built-in-methods
